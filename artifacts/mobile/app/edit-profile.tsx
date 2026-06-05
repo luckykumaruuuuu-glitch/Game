@@ -18,10 +18,17 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { useAuth } from "@/context/AuthContext";
-import { addContent } from "@/lib/firestore";
-import { uploadContentImage, uploadProfilePhoto } from "@/lib/storage";
 import { updateUserProfile } from "@/lib/firestore";
+import { uploadProfilePhoto } from "@/lib/storage";
 import { useColors } from "@/hooks/useColors";
+
+const GENDER_OPTIONS = [
+  { value: "male" as const, label: "Male" },
+  { value: "female" as const, label: "Female" },
+  { value: "other" as const, label: "Other" },
+];
+
+type Gender = "male" | "female" | "other" | "";
 
 export default function EditProfileScreen() {
   const colors = useColors();
@@ -30,17 +37,56 @@ export default function EditProfileScreen() {
 
   const [name, setName] = useState(profile?.name ?? "");
   const [bio, setBio] = useState(profile?.bio ?? "");
+  const [gender, setGender] = useState<Gender>((profile?.gender as Gender) ?? "");
+  const [dateOfBirth, setDateOfBirth] = useState(profile?.dateOfBirth ?? "");
+  const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [country, setCountry] = useState(profile?.country ?? "");
+  const [city, setCity] = useState(profile?.city ?? "");
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [addingContent, setAddingContent] = useState(false);
-  const [textNote, setTextNote] = useState("");
-  const [addingNote, setAddingNote] = useState(false);
+
+  const joinDate = profile?.createdAt
+    ? new Date(profile.createdAt).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : "—";
 
   async function handleSaveProfile() {
     if (!user) return;
+
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone && (trimmedPhone.length < 7 || trimmedPhone.length > 15)) {
+      Alert.alert("Invalid Phone", "Phone number must be 7–15 digits.");
+      return;
+    }
+
+    const trimmedDob = dateOfBirth.trim();
+    if (trimmedDob) {
+      const dobRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dobRegex.test(trimmedDob)) {
+        Alert.alert("Invalid Date", "Date of birth must be in YYYY-MM-DD format (e.g. 1995-08-25).");
+        return;
+      }
+      const d = new Date(trimmedDob);
+      if (isNaN(d.getTime()) || d >= new Date()) {
+        Alert.alert("Invalid Date", "Please enter a valid past date.");
+        return;
+      }
+    }
+
     setSaving(true);
     try {
-      await updateUserProfile(user.uid, { name: name.trim(), bio: bio.trim() });
+      await updateUserProfile(user.uid, {
+        name: name.trim(),
+        bio: bio.trim(),
+        gender,
+        dateOfBirth: trimmedDob,
+        phone: trimmedPhone,
+        country: country.trim(),
+        city: city.trim(),
+      });
       await refreshProfile();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
@@ -74,43 +120,6 @@ export default function EditProfileScreen() {
     }
   }
 
-  async function handleAddImage() {
-    if (!user) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: false,
-      quality: 0.8,
-    });
-    if (result.canceled || !result.assets[0]) return;
-
-    setAddingContent(true);
-    try {
-      const url = await uploadContentImage(user.uid, result.assets[0].uri);
-      await addContent(user.uid, "image", url);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Success", "Image added to your profile!");
-    } catch {
-      Alert.alert("Error", "Failed to upload image. Please try again.");
-    } finally {
-      setAddingContent(false);
-    }
-  }
-
-  async function handleAddNote() {
-    if (!user || !textNote.trim()) return;
-    setAddingNote(true);
-    try {
-      await addContent(user.uid, "text", textNote.trim());
-      setTextNote("");
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert("Success", "Note added to your profile!");
-    } catch {
-      Alert.alert("Error", "Failed to add note. Please try again.");
-    } finally {
-      setAddingNote(false);
-    }
-  }
-
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
   return (
@@ -123,6 +132,7 @@ export default function EditProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* Header */}
         <View style={[styles.header, { paddingTop: topPad + 12 }]}>
           <TouchableOpacity
             style={[styles.backCircle, { borderColor: colors.border }]}
@@ -144,6 +154,7 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Avatar */}
         <View style={styles.avatarSection}>
           <View>
             <ProfileAvatar uri={profile?.photo} size={90} name={profile?.name} />
@@ -165,10 +176,13 @@ export default function EditProfileScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Profile Info */}
         <View style={styles.section}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PROFILE INFO</Text>
+
+          {/* Full Name */}
           <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" }]}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Name</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Full Name</Text>
             <TextInput
               style={[styles.fieldInput, { color: colors.foreground }]}
               value={name}
@@ -178,61 +192,118 @@ export default function EditProfileScreen() {
               autoCapitalize="words"
             />
           </View>
+
+          {/* Username (read-only) */}
+          <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.02)" }]}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Username</Text>
+            <Text style={[styles.fieldInput, { color: colors.mutedForeground }]}>
+              @{profile?.username ?? ""}
+            </Text>
+          </View>
+
+          {/* Gender */}
           <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" }]}>
-            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Bio</Text>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Gender</Text>
+            <View style={styles.genderRow}>
+              {GENDER_OPTIONS.map((g) => (
+                <TouchableOpacity
+                  key={g.value}
+                  style={[
+                    styles.genderPill,
+                    {
+                      borderColor: gender === g.value ? colors.primary : colors.border,
+                      backgroundColor: gender === g.value ? colors.primary + "22" : "transparent",
+                    },
+                  ]}
+                  onPress={() => setGender(gender === g.value ? "" : g.value)}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.genderPillText,
+                      { color: gender === g.value ? colors.primary : colors.mutedForeground },
+                    ]}
+                  >
+                    {g.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Date of Birth */}
+          <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" }]}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Date of Birth</Text>
+            <TextInput
+              style={[styles.fieldInput, { color: colors.foreground }]}
+              value={dateOfBirth}
+              onChangeText={setDateOfBirth}
+              placeholder="YYYY-MM-DD"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="default"
+              maxLength={10}
+            />
+          </View>
+
+          {/* Phone Number */}
+          <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" }]}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Phone Number</Text>
+            <TextInput
+              style={[styles.fieldInput, { color: colors.foreground }]}
+              value={phone}
+              onChangeText={(t) => setPhone(t.replace(/[^0-9]/g, ""))}
+              placeholder="Digits only (7–15)"
+              placeholderTextColor={colors.mutedForeground}
+              keyboardType="phone-pad"
+              maxLength={15}
+            />
+          </View>
+
+          {/* Country */}
+          <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" }]}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Country</Text>
+            <TextInput
+              style={[styles.fieldInput, { color: colors.foreground }]}
+              value={country}
+              onChangeText={setCountry}
+              placeholder="Your country"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="words"
+            />
+          </View>
+
+          {/* City */}
+          <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" }]}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>City</Text>
+            <TextInput
+              style={[styles.fieldInput, { color: colors.foreground }]}
+              value={city}
+              onChangeText={setCity}
+              placeholder="Your city"
+              placeholderTextColor={colors.mutedForeground}
+              autoCapitalize="words"
+            />
+          </View>
+
+          {/* Bio */}
+          <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" }]}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Bio (optional)</Text>
             <TextInput
               style={[styles.fieldInput, styles.bioInput, { color: colors.foreground }]}
               value={bio}
               onChangeText={setBio}
-              placeholder="Tell people about yourself..."
+              placeholder="Short bio..."
               placeholderTextColor={colors.mutedForeground}
               multiline
               numberOfLines={3}
+              maxLength={150}
             />
           </View>
-        </View>
 
-        <View style={styles.section}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>ADD CONTENT</Text>
-
-          <TouchableOpacity
-            style={[styles.contentBtn, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "44" }]}
-            onPress={handleAddImage}
-            disabled={addingContent}
-            activeOpacity={0.8}
-          >
-            {addingContent ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : (
-              <Feather name="image" size={20} color={colors.primary} />
-            )}
-            <Text style={[styles.contentBtnText, { color: colors.primary }]}>
-              {addingContent ? "Uploading..." : "Add Image"}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={[styles.noteBox, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" }]}>
-            <TextInput
-              style={[styles.noteInput, { color: colors.foreground }]}
-              value={textNote}
-              onChangeText={setTextNote}
-              placeholder="Write a text note..."
-              placeholderTextColor={colors.mutedForeground}
-              multiline
-              numberOfLines={4}
-            />
-            <TouchableOpacity
-              style={[styles.noteSubmit, { backgroundColor: colors.primary, opacity: !textNote.trim() || addingNote ? 0.5 : 1 }]}
-              onPress={handleAddNote}
-              disabled={!textNote.trim() || addingNote}
-              activeOpacity={0.8}
-            >
-              {addingNote ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Feather name="send" size={16} color="#fff" />
-              )}
-            </TouchableOpacity>
+          {/* Join Date (read-only) */}
+          <View style={[styles.field, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.02)" }]}>
+            <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>Joined</Text>
+            <Text style={[styles.fieldInput, { color: colors.mutedForeground }]}>{joinDate}</Text>
           </View>
         </View>
       </ScrollView>
@@ -284,7 +355,12 @@ const styles = StyleSheet.create({
   },
   changePhotoText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   section: { paddingHorizontal: 16, gap: 10, marginBottom: 24 },
-  sectionLabel: { fontSize: 11, fontFamily: "Inter_600SemiBold", letterSpacing: 0.8, marginBottom: 2 },
+  sectionLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.8,
+    marginBottom: 2,
+  },
   field: {
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
@@ -295,34 +371,12 @@ const styles = StyleSheet.create({
   fieldLabel: { fontSize: 11, fontFamily: "Inter_500Medium" },
   fieldInput: { fontSize: 15, fontFamily: "Inter_400Regular" },
   bioInput: { minHeight: 64, textAlignVertical: "top" },
-  contentBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    padding: 16,
-    borderRadius: 14,
+  genderRow: { flexDirection: "row", gap: 8, marginTop: 4, flexWrap: "wrap" },
+  genderPill: {
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 20,
     borderWidth: 1,
   },
-  contentBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
-  noteBox: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 14,
-    gap: 10,
-  },
-  noteInput: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    minHeight: 80,
-    textAlignVertical: "top",
-    lineHeight: 20,
-  },
-  noteSubmit: {
-    alignSelf: "flex-end",
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  genderPillText: { fontSize: 13, fontFamily: "Inter_500Medium" },
 });

@@ -95,6 +95,48 @@ export default function ProfileScreen() {
             <Text style={[styles.bio, { color: colors.foreground }]}>{profile.bio}</Text>
           ) : null}
 
+          {/* Profile details chips */}
+          {(profile?.gender || profile?.city || profile?.country || profile?.phone || profile?.dateOfBirth || profile?.createdAt) ? (
+            <View style={styles.infoChips}>
+              {!!profile?.gender && (
+                <View style={[styles.infoChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="user" size={11} color={colors.mutedForeground} />
+                  <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>
+                    {profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)}
+                  </Text>
+                </View>
+              )}
+              {(profile?.city || profile?.country) ? (
+                <View style={[styles.infoChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="map-pin" size={11} color={colors.mutedForeground} />
+                  <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>
+                    {[profile.city, profile.country].filter(Boolean).join(", ")}
+                  </Text>
+                </View>
+              ) : null}
+              {!!profile?.phone && (
+                <View style={[styles.infoChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="phone" size={11} color={colors.mutedForeground} />
+                  <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{profile.phone}</Text>
+                </View>
+              )}
+              {!!profile?.dateOfBirth && (
+                <View style={[styles.infoChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="calendar" size={11} color={colors.mutedForeground} />
+                  <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>{profile.dateOfBirth}</Text>
+                </View>
+              )}
+              {!!profile?.createdAt && (
+                <View style={[styles.infoChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="clock" size={11} color={colors.mutedForeground} />
+                  <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>
+                    Joined {new Date(profile.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : null}
+
           {/* Actions */}
           <View style={styles.actions}>
             <TouchableOpacity
@@ -200,6 +242,23 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 22, fontFamily: "Inter_700Bold" },
   statLabel: { fontSize: 12, fontFamily: "Inter_400Regular" },
   statDivider: { width: 1, height: 36 },
+  infoChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  infoChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  infoChipText: { fontSize: 12, fontFamily: "Inter_400Regular" },
   sectionHeader: {
     flexDirection: "row", alignItems: "center",
     justifyContent: "space-between",

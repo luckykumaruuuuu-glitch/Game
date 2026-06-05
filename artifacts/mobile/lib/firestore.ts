@@ -30,6 +30,11 @@ export interface UserProfile {
   bio: string;
   qrCode: string;
   createdAt: number;
+  gender?: "male" | "female" | "other" | "";
+  dateOfBirth?: string;
+  phone?: string;
+  country?: string;
+  city?: string;
 }
 
 export interface ContentItem {
@@ -136,9 +141,25 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
 export async function updateUserProfile(
   userId: string,
-  data: Partial<Pick<UserProfile, "name" | "bio" | "photo">>
+  data: Partial<Pick<UserProfile, "name" | "bio" | "photo" | "gender" | "dateOfBirth" | "phone" | "country" | "city">>
 ): Promise<void> {
   await updateDoc(doc(db, "users", userId), data);
+}
+
+export function maskPhoneNumber(phone: string): string {
+  if (!phone) return "";
+  const len = phone.length;
+  const showCount = Math.min(6, Math.ceil(len * 0.6));
+  return phone.slice(0, showCount) + "*".repeat(len - showCount);
+}
+
+export function subscribeToUserProfile(
+  userId: string,
+  callback: (profile: UserProfile | null) => void
+): () => void {
+  return onSnapshot(doc(db, "users", userId), (snap) => {
+    callback(snap.exists() ? (snap.data() as UserProfile) : null);
+  });
 }
 
 export async function searchUsers(term: string, currentUserId: string): Promise<UserProfile[]> {

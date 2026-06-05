@@ -25,7 +25,6 @@ import {
   areFriends,
   getChatId,
   getUserContent,
-  getUserProfile,
   hasPendingRequest,
   sendFriendRequest,
   removeFriend,
@@ -33,6 +32,8 @@ import {
   unblockUser,
   isUserBlockedByMe,
   isBlockedByOther,
+  subscribeToUserProfile,
+  maskPhoneNumber,
 } from "@/lib/firestore";
 import { useColors } from "@/hooks/useColors";
 
@@ -54,38 +55,45 @@ export default function UserProfileScreen() {
 
   useEffect(() => {
     if (!id) return;
-    async function load() {
-      try {
-        const [p, c] = await Promise.all([getUserProfile(id), getUserContent(id)]);
-        if (!p) { setError("Profile not found."); return; }
-        setProfile(p);
-        setContent(c);
 
-        if (user?.uid === id) {
-          setRelation("self");
-        } else if (user) {
-          const [friends, pending, iBlocked, theyBlocked] = await Promise.all([
-            areFriends(user.uid, id),
-            hasPendingRequest(user.uid, id),
-            isUserBlockedByMe(user.uid, id),
-            isBlockedByOther(user.uid, id),
-          ]);
+    // Realtime profile listener — updates instantly when profile changes
+    const unsubProfile = subscribeToUserProfile(id, (p) => {
+      if (!p) {
+        setError("Profile not found.");
+        setLoading(false);
+        return;
+      }
+      setProfile(p);
+      setLoading(false);
+    });
+
+    // One-time content fetch
+    getUserContent(id).then(setContent).catch(() => {});
+
+    // One-time relation check
+    if (user?.uid === id) {
+      setRelation("self");
+    } else if (user) {
+      Promise.all([
+        areFriends(user.uid, id),
+        hasPendingRequest(user.uid, id),
+        isUserBlockedByMe(user.uid, id),
+        isBlockedByOther(user.uid, id),
+      ])
+        .then(([friends, pending, iBlocked, theyBlocked]) => {
           setBlockedByMe(iBlocked);
           setBlockedByThem(theyBlocked);
           if (iBlocked || theyBlocked) setRelation("blocked");
           else if (friends) setRelation("friends");
           else if (pending) setRelation("requested");
           else setRelation("none");
-        } else {
-          setRelation("none");
-        }
-      } catch {
-        setError("Failed to load profile.");
-      } finally {
-        setLoading(false);
-      }
+        })
+        .catch(() => setRelation("none"));
+    } else {
+      setRelation("none");
     }
-    load();
+
+    return () => unsubProfile();
   }, [id, user]);
 
   async function handleAddFriend() {
@@ -215,6 +223,54 @@ export default function UserProfileScreen() {
           <Text style={[styles.username, { color: colors.mutedForeground }]}>@{profile?.username}</Text>
           {profile?.bio && !isBlocked ? (
             <Text style={[styles.bio, { color: colors.foreground }]}>{profile.bio}</Text>
+          ) : null}
+
+          {/* Gender / Location chips */}
+          {!isBlocked && (profile?.gender || profile?.city || profile?.country || profile?.createdAt) ? (
+            <View style={styles.infoChips}>
+              {!!profile?.gender && (
+                <View style={[styles.infoChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="user" size={11} color={colors.mutedForeground} />
+                  <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>
+                    {profile.gender.charAt(0).toUpperCase() + profile.gender.slice(1)}
+                  </Text>
+                </View>
+              )}
+              {(profile?.city || profile?.country) ? (
+                <View style={[styles.infoChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="map-pin" size={11} color={colors.mutedForeground} />
+                  <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>
+                    {[profile.city, profile.country].filter(Boolean).join(", ")}
+                  </Text>
+                </View>
+              ) : null}
+              {!!profile?.createdAt && (
+                <View style={[styles.infoChip, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="clock" size={11} color={colors.mutedForeground} />
+                  <Text style={[styles.infoChipText, { color: colors.mutedForeground }]}>
+                    Joined {new Date(profile.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                  </Text>
+                </View>
+              )}
+            </View>
+          ) : null}
+
+          {/* Phone number — friends see full, others see masked */}
+          {!isBlocked && !!profile?.phone ? (
+            <View style={[styles.phoneRow, { backgroundColor: "rgba(255,255,255,0.04)", borderColor: colors.border }]}>
+              <Feather name="phone" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.phoneText, { color: colors.mutedForeground }]}>
+                {relation === "friends" || relation === "self"
+                  ? profile.phone
+                  : maskPhoneNumber(profile.phone)}
+              </Text>
+              {relation !== "friends" && relation !== "self" && (
+                <View style={[styles.phoneLockBadge, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="lock" size={10} color={colors.mutedForeground} />
+                  <Text style={[styles.phoneLockText, { color: colors.mutedForeground }]}>friends only</Text>
+                </View>
+              )}
+            </View>
           ) : null}
 
           {/* Blocked banner */}
@@ -349,4 +405,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16, paddingTop: 24, paddingBottom: 12,
   },
   sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
+  infoChips: {
+    flexDirection: "row", flexWrap: "wrap",
+    gap: 6, justifyContent: "center", marginTop: 4,
+  },
+  infoChip: {
+    flexDirection: "row", alignItems: "center", gap: 4,
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
+  },
+  infoChipText: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  phoneRow: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 14, paddingVertical: 8,
+    borderRadius: 12, borderWidth: StyleSheet.hairlineWidth,
+    marginTop: 4, alignSelf: "center",
+  },
+  phoneText: { fontSize: 13, fontFamily: "Inter_500Medium" },
+  phoneLockBadge: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: 8, borderWidth: StyleSheet.hairlineWidth,
+    marginLeft: 4,
+  },
+  phoneLockText: { fontSize: 10, fontFamily: "Inter_400Regular" },
 });
