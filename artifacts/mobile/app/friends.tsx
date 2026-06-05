@@ -4,7 +4,6 @@ import { router } from "expo-router";
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   StyleSheet,
   Text,
@@ -25,6 +24,7 @@ import {
 } from "@/lib/firestore";
 import { subscribeToFriendsPresence, UserPresence } from "@/lib/ludoFirestore";
 import { useColors } from "@/hooks/useColors";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 export default function FriendsScreen() {
   const colors = useColors();
@@ -35,6 +35,8 @@ export default function FriendsScreen() {
   const [pendingRequests, setPendingRequests] = useState<FriendRequest[]>([]);
   const [presence, setPresence] = useState<Record<string, UserPresence>>({});
   const [loading, setLoading] = useState(true);
+  const [removeTarget, setRemoveTarget] = useState<UserProfile | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   const presenceUnsubRef = useRef<(() => void) | null>(null);
 
@@ -69,17 +71,8 @@ export default function FriendsScreen() {
   }, [user]);
 
   function handleRemove(friend: UserProfile) {
-    Alert.alert("Remove Friend", `Remove @${friend.username} from your friends?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          await removeFriend(user!.uid, friend.userId);
-        },
-      },
-    ]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setRemoveTarget(friend);
   }
 
   return (
@@ -203,6 +196,27 @@ export default function FriendsScreen() {
           />
         )}
       </View>
+
+      <ConfirmModal
+        visible={!!removeTarget}
+        onClose={() => !removing && setRemoveTarget(null)}
+        onConfirm={async () => {
+          if (!removeTarget || !user) return;
+          setRemoving(true);
+          try {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            await removeFriend(user.uid, removeTarget.userId);
+            setRemoveTarget(null);
+          } finally {
+            setRemoving(false);
+          }
+        }}
+        title="Remove Friend"
+        message={`Remove @${removeTarget?.username} from your friends?`}
+        confirmLabel="Remove"
+        iconName="user-minus"
+        loading={removing}
+      />
     </ThemedBackground>
   );
 }

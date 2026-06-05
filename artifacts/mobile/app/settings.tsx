@@ -4,8 +4,6 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
-  Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -18,6 +16,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme, ThemeMode } from "@/context/ThemeContext";
 import { useColors } from "@/hooks/useColors";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 const THEME_OPTIONS: { mode: ThemeMode; label: string; icon: string; desc: string }[] = [
   { mode: "system", label: "System Default", icon: "monitor", desc: "Follows your device theme" },
@@ -209,54 +208,17 @@ export default function SettingsScreen() {
         </Text>
       </ScrollView>
 
-      {/* Custom Sign Out Confirmation Modal — works on web + native (no window.confirm) */}
-      <Modal
+      <ConfirmModal
         visible={showSignOutModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowSignOutModal(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => !signingOut && setShowSignOutModal(false)}
-        >
-          <Pressable style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            {/* Icon */}
-            <View style={[styles.modalIconWrap, { backgroundColor: colors.destructive + "22" }]}>
-              <Feather name="log-out" size={28} color={colors.destructive} />
-            </View>
-
-            <Text style={[styles.modalTitle, { color: colors.foreground }]}>Sign Out</Text>
-            <Text style={[styles.modalMessage, { color: colors.mutedForeground }]}>
-              Are you sure you want to sign out of your account?
-            </Text>
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnCancel, { backgroundColor: colors.secondary, borderColor: colors.border }]}
-                onPress={() => setShowSignOutModal(false)}
-                disabled={signingOut}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.modalBtnText, { color: colors.foreground }]}>Cancel</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.modalBtn, styles.modalBtnConfirm, { backgroundColor: colors.destructive }]}
-                onPress={confirmSignOut}
-                disabled={signingOut}
-                activeOpacity={0.8}
-              >
-                {signingOut ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={[styles.modalBtnText, { color: "#fff" }]}>Sign Out</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => !signingOut && setShowSignOutModal(false)}
+        onConfirm={confirmSignOut}
+        title="Sign Out"
+        message="Are you sure you want to sign out of your account?"
+        confirmLabel="Sign Out"
+        cancelLabel="Cancel"
+        iconName="log-out"
+        loading={signingOut}
+      />
     </ThemedBackground>
   );
 }
@@ -336,62 +298,5 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     textAlign: "center",
     marginTop: 20,
-  },
-  // Modal styles
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 32,
-  },
-  modalCard: {
-    width: "100%",
-    borderRadius: 24,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 28,
-    alignItems: "center",
-    gap: 12,
-  },
-  modalIconWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 4,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-  },
-  modalMessage: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-    textAlign: "center",
-    lineHeight: 20,
-    marginBottom: 4,
-  },
-  modalButtons: {
-    flexDirection: "row",
-    gap: 12,
-    width: "100%",
-    marginTop: 8,
-  },
-  modalBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  modalBtnCancel: {},
-  modalBtnConfirm: {
-    borderColor: "transparent",
-  },
-  modalBtnText: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
   },
 });

@@ -4,7 +4,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -36,6 +35,7 @@ import {
   maskPhoneNumber,
 } from "@/lib/firestore";
 import { useColors } from "@/hooks/useColors";
+import { ConfirmModal } from "@/components/ConfirmModal";
 
 type RelationState = "loading" | "self" | "friends" | "requested" | "none" | "blocked";
 
@@ -52,6 +52,10 @@ export default function UserProfileScreen() {
   const [addingFriend, setAddingFriend] = useState(false);
   const [blockedByMe, setBlockedByMe] = useState(false);
   const [blockedByThem, setBlockedByThem] = useState(false);
+  const [showRemoveModal, setShowRemoveModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [blockingInProgress, setBlockingInProgress] = useState(false);
+  const [removingInProgress, setRemovingInProgress] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -111,38 +115,13 @@ export default function UserProfileScreen() {
   }
 
   function handleRemoveFriend() {
-    Alert.alert("Remove Friend", `Remove @${profile?.username} from friends?`, [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          await removeFriend(user!.uid, id!);
-          setRelation("none");
-        },
-      },
-    ]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowRemoveModal(true);
   }
 
   function handleBlock() {
-    Alert.alert(
-      "Block User",
-      `Block @${profile?.username}? They won't be able to send you messages or friend requests, and will be removed from your friends.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Block",
-          style: "destructive",
-          onPress: async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            await blockUser(user!.uid, id!);
-            setBlockedByMe(true);
-            setRelation("blocked");
-          },
-        },
-      ]
-    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setShowBlockModal(true);
   }
 
   async function handleUnblock() {
@@ -330,6 +309,49 @@ export default function UserProfileScreen() {
             </View>
           )}
         </View>
+
+        {/* Modals */}
+        <ConfirmModal
+          visible={showRemoveModal}
+          onClose={() => setShowRemoveModal(false)}
+          onConfirm={async () => {
+            setRemovingInProgress(true);
+            try {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              await removeFriend(user!.uid, id!);
+              setRelation("none");
+              setShowRemoveModal(false);
+            } finally {
+              setRemovingInProgress(false);
+            }
+          }}
+          title="Remove Friend"
+          message={`Remove @${profile?.username} from your friends?`}
+          confirmLabel="Remove"
+          iconName="user-minus"
+          loading={removingInProgress}
+        />
+        <ConfirmModal
+          visible={showBlockModal}
+          onClose={() => setShowBlockModal(false)}
+          onConfirm={async () => {
+            setBlockingInProgress(true);
+            try {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+              await blockUser(user!.uid, id!);
+              setBlockedByMe(true);
+              setRelation("blocked");
+              setShowBlockModal(false);
+            } finally {
+              setBlockingInProgress(false);
+            }
+          }}
+          title="Block User"
+          message={`Block @${profile?.username}? They won't be able to send you messages or friend requests.`}
+          confirmLabel="Block"
+          iconName="slash"
+          loading={blockingInProgress}
+        />
 
         {/* Stats */}
         {!isBlocked && (
