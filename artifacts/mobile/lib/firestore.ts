@@ -1,6 +1,7 @@
 import {
   addDoc,
   arrayRemove,
+  arrayUnion,
   collection,
   deleteDoc,
   deleteField,
@@ -62,6 +63,8 @@ export interface ChatMessage {
   senderId: string;
   text: string;
   timestamp: number;
+  deletedFor?: string[];
+  deletedForEveryone?: boolean;
 }
 
 export interface ChatRoom {
@@ -582,6 +585,8 @@ export function subscribeToTyping(
 
 export function subscribeToMessages(
   chatId: string,
+  myId: string,
+  clearedBefore: number | null,
   callback: (msgs: ChatMessage[]) => void
 ): () => void {
   const q = query(
@@ -589,11 +594,61 @@ export function subscribeToMessages(
     orderBy("timestamp", "asc")
   );
   return onSnapshot(q, (snap) => {
-    const msgs = snap.docs.map(
-      (d) => ({ messageId: d.id, ...d.data() } as ChatMessage)
-    );
+    const msgs = snap.docs
+      .map((d) => ({ messageId: d.id, ...d.data() } as ChatMessage))
+      .filter((m) => {
+        if (clearedBefore && m.timestamp < clearedBefore) return false;
+        if (m.deletedFor?.includes(myId)) return false;
+        return true;
+      });
     callback(msgs);
   });
+}
+
+export async function deleteMessageForMe(
+  chatId: string,
+  messageId: string,
+  userId: string
+): Promise<void> {
+  await updateDoc(doc(db, "chats", chatId, "messages", messageId), {
+    deletedFor: arrayUnion(userId),
+  });
+}
+
+export async function deleteMessageForEveryone(
+  chatId: string,
+  messageId: string
+): Promise<void> {
+  await updateDoc(doc(db, "chats", chatId, "messages", messageId), {
+    deletedForEveryone: true,
+  });
+}
+
+export async function deleteChatForMe(
+  chatId: string,
+  userId: string
+): Promise<void> {
+  await setDoc(
+    doc(db, "chats", chatId),
+    { clearedAt: { [userId]: Date.now() } },
+    { merge: true }
+  );
+}
+
+export function subscribeToChatClearedAt(
+  chatId: string,
+  userId: string,
+  callback: (ts: number | null) => void
+): () => void {
+  return onSnapshot(
+    doc(db, "chats", chatId),
+    (snap) => {
+      if (!snap.exists()) { callback(null); return; }
+      const data = snap.data();
+      callback(data.clearedAt?.[userId] ?? null);
+    },
+    () => callback(null)
+  );
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
