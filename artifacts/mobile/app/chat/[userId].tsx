@@ -24,6 +24,10 @@ import {
   getUserProfile,
   sendMessage,
   subscribeToMessages,
+  subscribeToTyping,
+  setTypingStatus,
+  markChatRead,
+  markNotificationsReadByType,
 } from "@/lib/firestore";
 import { useColors } from "@/hooks/useColors";
 
@@ -36,7 +40,9 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [otherTyping, setOtherTyping] = useState(false);
   const flatListRef = useRef<FlatList>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const chatId = getChatId(user?.uid ?? "", otherUserId ?? "");
 
@@ -45,6 +51,7 @@ export default function ChatScreen() {
     getUserProfile(otherUserId).then(setOtherProfile);
   }, [otherUserId]);
 
+  // Subscribe to messages
   useEffect(() => {
     if (!chatId) return;
     const unsub = subscribeToMessages(chatId, (msgs) => {
@@ -54,14 +61,58 @@ export default function ChatScreen() {
     return unsub;
   }, [chatId]);
 
+  // Subscribe to typing indicator
+  useEffect(() => {
+    if (!chatId || !user) return;
+    return subscribeToTyping(chatId, user.uid, setOtherTyping);
+  }, [chatId, user]);
+
+  // Mark chat as read and clear message notifications on open
+  useEffect(() => {
+    if (!chatId || !user) return;
+    markChatRead(chatId, user.uid).catch(() => {});
+    markNotificationsReadByType(user.uid, ["message"]).catch(() => {});
+  }, [chatId, user]);
+
+  // Clear typing status on unmount
+  useEffect(() => {
+    return () => {
+      if (user && chatId) {
+        setTypingStatus(chatId, user.uid, false).catch(() => {});
+      }
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    };
+  }, [chatId, user]);
+
+  function handleTextChange(val: string) {
+    setText(val);
+    if (!user || !chatId) return;
+
+    // Set typing = true
+    setTypingStatus(chatId, user.uid, true).catch(() => {});
+
+    // Reset debounce — stop typing after 3s of no input
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      setTypingStatus(chatId, user.uid, false).catch(() => {});
+    }, 3000);
+  }
+
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || !user || sending) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSending(true);
     setText("");
+
+    // Stop typing indicator immediately on send
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    setTypingStatus(chatId, user.uid, false).catch(() => {});
+
     try {
       await sendMessage(chatId, user.uid, trimmed, [user.uid, otherUserId!]);
+      // Mark as read after sending
+      markChatRead(chatId, user.uid).catch(() => {});
     } catch {
       setText(trimmed);
     } finally {
@@ -105,9 +156,13 @@ export default function ChatScreen() {
               <Text style={[styles.headerName, { color: colors.foreground }]} numberOfLines={1}>
                 {otherProfile?.name ?? "..."}
               </Text>
-              <Text style={[styles.headerUsername, { color: colors.mutedForeground }]}>
-                @{otherProfile?.username ?? ""}
-              </Text>
+              {otherTyping ? (
+                <Text style={[styles.typingText, { color: colors.primary }]}>Typing...</Text>
+              ) : (
+                <Text style={[styles.headerUsername, { color: colors.mutedForeground }]}>
+                  @{otherProfile?.username ?? ""}
+                </Text>
+              )}
             </View>
           </TouchableOpacity>
           <View style={{ width: 40 }} />
@@ -190,7 +245,7 @@ export default function ChatScreen() {
             placeholder="Type a message..."
             placeholderTextColor={colors.mutedForeground}
             value={text}
-            onChangeText={setText}
+            onChangeText={handleTextChange}
             multiline
             maxLength={1000}
           />
@@ -232,6 +287,7 @@ const styles = StyleSheet.create({
   headerProfile: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
   headerName: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   headerUsername: { fontSize: 12, fontFamily: "Inter_400Regular" },
+  typingText: { fontSize: 12, fontFamily: "Inter_400Regular", fontStyle: "italic" },
   messageList: { paddingHorizontal: 16, paddingTop: 16, gap: 4 },
   timeLabel: {
     fontSize: 11, fontFamily: "Inter_400Regular",

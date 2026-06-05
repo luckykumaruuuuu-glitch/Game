@@ -1,11 +1,10 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,7 +14,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedBackground } from "@/components/ThemedBackground";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { useAuth } from "@/context/AuthContext";
-import { FriendRequest, getPendingRequests, respondToRequest, markNotificationsReadByType } from "@/lib/firestore";
+import {
+  FriendRequest,
+  subscribeToFriendRequests,
+  respondToRequest,
+  markNotificationsReadByType,
+} from "@/lib/firestore";
 import { useColors } from "@/hooks/useColors";
 
 export default function FriendRequestsScreen() {
@@ -24,41 +28,30 @@ export default function FriendRequestsScreen() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [processing, setProcessing] = useState<Record<string, boolean>>({});
 
-  const load = useCallback(async () => {
+  // Realtime listener for pending requests
+  useEffect(() => {
     if (!user) return;
-    try {
-      const list = await getPendingRequests(user.uid);
+    const unsub = subscribeToFriendRequests(user.uid, (list) => {
       setRequests(list);
-    } catch {
-      /* ignore */
-    } finally {
       setLoading(false);
-    }
+    });
+    return unsub;
   }, [user]);
 
-  useEffect(() => { load(); }, [load]);
-
-  // Mark friend_request notifications as read when this screen opens
+  // Mark friend_request notifications as read when screen opens
   useEffect(() => {
     if (!user) return;
     markNotificationsReadByType(user.uid, ["friend_request"]).catch(() => {});
   }, [user]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
 
   async function handle(req: FriendRequest, accept: boolean) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setProcessing((prev) => ({ ...prev, [req.requestId]: true }));
     try {
       await respondToRequest(req.requestId, accept, user!.uid, req);
-      setRequests((prev) => prev.filter((r) => r.requestId !== req.requestId));
+      // List updates automatically via realtime listener
     } catch {
       /* ignore */
     } finally {
@@ -90,9 +83,6 @@ export default function FriendRequestsScreen() {
           <FlatList
             data={requests}
             keyExtractor={(r) => r.requestId}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-            }
             contentContainerStyle={styles.list}
             renderItem={({ item }) => {
               const busy = processing[item.requestId];

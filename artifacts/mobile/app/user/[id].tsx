@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   ScrollView,
   StyleSheet,
@@ -27,10 +28,15 @@ import {
   getUserProfile,
   hasPendingRequest,
   sendFriendRequest,
+  removeFriend,
+  blockUser,
+  unblockUser,
+  isUserBlockedByMe,
+  isBlockedByOther,
 } from "@/lib/firestore";
 import { useColors } from "@/hooks/useColors";
 
-type RelationState = "loading" | "self" | "friends" | "requested" | "none";
+type RelationState = "loading" | "self" | "friends" | "requested" | "none" | "blocked";
 
 export default function UserProfileScreen() {
   const colors = useColors();
@@ -43,6 +49,8 @@ export default function UserProfileScreen() {
   const [error, setError] = useState("");
   const [relation, setRelation] = useState<RelationState>("loading");
   const [addingFriend, setAddingFriend] = useState(false);
+  const [blockedByMe, setBlockedByMe] = useState(false);
+  const [blockedByThem, setBlockedByThem] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -53,15 +61,21 @@ export default function UserProfileScreen() {
         setProfile(p);
         setContent(c);
 
-        // Check relationship
         if (user?.uid === id) {
           setRelation("self");
         } else if (user) {
-          const [friends, pending] = await Promise.all([
+          const [friends, pending, iBlocked, theyBlocked] = await Promise.all([
             areFriends(user.uid, id),
             hasPendingRequest(user.uid, id),
+            isUserBlockedByMe(user.uid, id),
+            isBlockedByOther(user.uid, id),
           ]);
-          setRelation(friends ? "friends" : pending ? "requested" : "none");
+          setBlockedByMe(iBlocked);
+          setBlockedByThem(theyBlocked);
+          if (iBlocked || theyBlocked) setRelation("blocked");
+          else if (friends) setRelation("friends");
+          else if (pending) setRelation("requested");
+          else setRelation("none");
         } else {
           setRelation("none");
         }
@@ -88,6 +102,48 @@ export default function UserProfileScreen() {
     }
   }
 
+  function handleRemoveFriend() {
+    Alert.alert("Remove Friend", `Remove @${profile?.username} from friends?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          await removeFriend(user!.uid, id!);
+          setRelation("none");
+        },
+      },
+    ]);
+  }
+
+  function handleBlock() {
+    Alert.alert(
+      "Block User",
+      `Block @${profile?.username}? They won't be able to send you messages or friend requests, and will be removed from your friends.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Block",
+          style: "destructive",
+          onPress: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            await blockUser(user!.uid, id!);
+            setBlockedByMe(true);
+            setRelation("blocked");
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleUnblock() {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await unblockUser(user!.uid, id!);
+    setBlockedByMe(false);
+    setRelation("none");
+  }
+
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
   if (loading) return <LoadingScreen message="Loading profile..." />;
@@ -99,16 +155,18 @@ export default function UserProfileScreen() {
           <Feather name="user-x" size={48} color={colors.mutedForeground} />
           <Text style={[styles.errorTitle, { color: colors.foreground }]}>{error}</Text>
           <TouchableOpacity
-            style={[styles.backBtn, { backgroundColor: colors.primary }]}
+            style={[styles.errorBackBtn, { backgroundColor: colors.primary }]}
             onPress={() => router.back()}
             activeOpacity={0.8}
           >
-            <Text style={styles.backBtnText}>Go Back</Text>
+            <Text style={styles.errorBackBtnText}>Go Back</Text>
           </TouchableOpacity>
         </View>
       </ThemedBackground>
     );
   }
+
+  const isBlocked = blockedByMe || blockedByThem;
 
   return (
     <ThemedBackground>
@@ -127,7 +185,27 @@ export default function UserProfileScreen() {
           <Text style={[styles.headerTitle, { color: colors.foreground }]} numberOfLines={1}>
             @{profile?.username}
           </Text>
-          <View style={{ width: 40 }} />
+          {/* Block / Unblock button in header (only for non-self) */}
+          {relation !== "self" && (
+            blockedByMe ? (
+              <TouchableOpacity
+                style={[styles.navBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={handleUnblock}
+                activeOpacity={0.8}
+              >
+                <Feather name="slash" size={18} color={colors.primary} />
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={[styles.navBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+                onPress={handleBlock}
+                activeOpacity={0.8}
+              >
+                <Feather name="slash" size={18} color={colors.mutedForeground} />
+              </TouchableOpacity>
+            )
+          )}
+          {relation === "self" && <View style={{ width: 40 }} />}
         </View>
 
         {/* Profile */}
@@ -135,22 +213,42 @@ export default function UserProfileScreen() {
           <ProfileAvatar uri={profile?.photo} size={96} name={profile?.name} />
           <Text style={[styles.name, { color: colors.foreground }]}>{profile?.name}</Text>
           <Text style={[styles.username, { color: colors.mutedForeground }]}>@{profile?.username}</Text>
-          {profile?.bio ? (
+          {profile?.bio && !isBlocked ? (
             <Text style={[styles.bio, { color: colors.foreground }]}>{profile.bio}</Text>
           ) : null}
 
+          {/* Blocked banner */}
+          {isBlocked && (
+            <View style={[styles.blockedBanner, { backgroundColor: colors.destructive + "22", borderColor: colors.destructive + "44" }]}>
+              <Feather name="slash" size={14} color={colors.destructive} />
+              <Text style={[styles.blockedText, { color: colors.destructive }]}>
+                {blockedByMe ? "You have blocked this user." : "This user has blocked you."}
+              </Text>
+            </View>
+          )}
+
           {/* Action Buttons */}
-          {relation !== "self" && (
+          {relation !== "self" && !isBlocked && (
             <View style={styles.actions}>
               {relation === "friends" ? (
-                <TouchableOpacity
-                  style={[styles.actionBtn, { backgroundColor: colors.primary }]}
-                  onPress={() => router.push(`/chat/${id}`)}
-                  activeOpacity={0.8}
-                >
-                  <Feather name="message-circle" size={16} color="#fff" />
-                  <Text style={styles.actionBtnText}>Message</Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+                    onPress={() => router.push(`/chat/${id}`)}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="message-circle" size={16} color="#fff" />
+                    <Text style={styles.actionBtnText}>Message</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: colors.destructive + "22", borderWidth: 1, borderColor: colors.destructive + "55" }]}
+                    onPress={handleRemoveFriend}
+                    activeOpacity={0.8}
+                  >
+                    <Feather name="user-minus" size={16} color={colors.destructive} />
+                    <Text style={[styles.actionBtnText, { color: colors.destructive }]}>Remove</Text>
+                  </TouchableOpacity>
+                </>
               ) : relation === "none" ? (
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: colors.primary, opacity: addingFriend ? 0.7 : 1 }]}
@@ -173,31 +271,33 @@ export default function UserProfileScreen() {
                   <Text style={[styles.actionBtnText, { color: colors.mutedForeground }]}>Request Sent</Text>
                 </View>
               ) : null}
-
             </View>
           )}
         </View>
 
         {/* Stats */}
-        <View style={styles.statsRow}>
-          <GlassCard style={styles.statsCard}>
-            <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: colors.foreground }]}>{content.length}</Text>
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Posts</Text>
+        {!isBlocked && (
+          <>
+            <View style={styles.statsRow}>
+              <GlassCard style={styles.statsCard}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statValue, { color: colors.foreground }]}>{content.length}</Text>
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Posts</Text>
+                </View>
+                <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
+                <View style={styles.statItem}>
+                  <Feather name="grid" size={20} color={colors.primary} />
+                  <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>QR Active</Text>
+                </View>
+              </GlassCard>
             </View>
-            <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <View style={styles.statItem}>
-              <Feather name="grid" size={20} color={colors.primary} />
-              <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>QR Active</Text>
-            </View>
-          </GlassCard>
-        </View>
 
-        {/* Content */}
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Content</Text>
-        </View>
-        <ContentGrid items={content} loading={false} />
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Content</Text>
+            </View>
+            <ContentGrid items={content} loading={false} />
+          </>
+        )}
       </ScrollView>
     </ThemedBackground>
   );
@@ -209,8 +309,8 @@ const styles = StyleSheet.create({
     gap: 16, paddingHorizontal: 24,
   },
   errorTitle: { fontSize: 18, fontFamily: "Inter_600SemiBold", textAlign: "center" },
-  backBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 },
-  backBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  errorBackBtn: { paddingHorizontal: 24, paddingVertical: 12, borderRadius: 14 },
+  errorBackBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
   header: {
     flexDirection: "row", alignItems: "center",
     justifyContent: "space-between",
@@ -226,7 +326,13 @@ const styles = StyleSheet.create({
   name: { fontSize: 22, fontFamily: "Inter_700Bold", marginTop: 8 },
   username: { fontSize: 14, fontFamily: "Inter_400Regular" },
   bio: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
-  actions: { flexDirection: "row", gap: 10, marginTop: 8 },
+  blockedBanner: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
+    borderWidth: 1, marginTop: 8,
+  },
+  blockedText: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  actions: { flexDirection: "row", gap: 10, marginTop: 8, flexWrap: "wrap", justifyContent: "center" },
   actionBtn: {
     flexDirection: "row", alignItems: "center", gap: 8,
     paddingHorizontal: 18, paddingVertical: 10, borderRadius: 20,

@@ -3,6 +3,7 @@ import {
   arrayRemove,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -63,6 +64,9 @@ export interface ChatRoom {
   participants: string[];
   lastMessage: string;
   lastTimestamp: number;
+  lastSenderId?: string;
+  lastSeenBy?: Record<string, number>;
+  typing?: Record<string, number>;
   otherUserProfile?: UserProfile | null;
 }
 
@@ -141,6 +145,8 @@ export async function searchUsers(term: string, currentUserId: string): Promise<
   if (!term.trim()) return [];
   const lower = term.toLowerCase().trim();
 
+  const blockedIds = await getAllBlockedIds(currentUserId);
+
   const [byUsername, byName] = await Promise.all([
     getDocs(query(
       collection(db, "users"),
@@ -163,18 +169,18 @@ export async function searchUsers(term: string, currentUserId: string): Promise<
     for (const d of snap.docs) {
       const p = d.data() as UserProfile;
       if (p.userId === currentUserId || seen.has(p.userId)) continue;
+      if (blockedIds.has(p.userId)) continue;
       seen.add(p.userId);
       results.push(p);
     }
   }
 
-  // Also check if the term matches a userId exactly
   if (!seen.has(lower) && lower.length > 10) {
     try {
       const byId = await getDoc(doc(db, "users", term.trim()));
       if (byId.exists()) {
         const p = byId.data() as UserProfile;
-        if (p.userId !== currentUserId && !seen.has(p.userId)) {
+        if (p.userId !== currentUserId && !seen.has(p.userId) && !blockedIds.has(p.userId)) {
           results.push(p);
         }
       }
@@ -214,6 +220,58 @@ export async function deleteContent(contentId: string): Promise<void> {
   await deleteDoc(doc(db, "content", contentId));
 }
 
+// ─── Block System ─────────────────────────────────────────────────────────────
+
+export async function blockUser(myId: string, blockedId: string): Promise<void> {
+  const blockId = `${myId}_${blockedId}`;
+  await setDoc(doc(db, "blocks", blockId), {
+    blockerId: myId,
+    blockedId,
+    createdAt: Date.now(),
+  });
+  await removeFriend(myId, blockedId).catch(() => {});
+  try {
+    const outQ = query(collection(db, "friendRequests"), where("senderId", "==", myId), where("receiverId", "==", blockedId));
+    const inQ = query(collection(db, "friendRequests"), where("senderId", "==", blockedId), where("receiverId", "==", myId));
+    const [out, inn] = await Promise.all([getDocs(outQ), getDocs(inQ)]);
+    await Promise.all([
+      ...out.docs.map(d => updateDoc(d.ref, { status: "rejected" })),
+      ...inn.docs.map(d => updateDoc(d.ref, { status: "rejected" })),
+    ]);
+  } catch { /* ignore */ }
+}
+
+export async function unblockUser(myId: string, blockedId: string): Promise<void> {
+  await deleteDoc(doc(db, "blocks", `${myId}_${blockedId}`));
+}
+
+export async function isUserBlockedByMe(myId: string, otherUserId: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, "blocks", `${myId}_${otherUserId}`));
+  return snap.exists();
+}
+
+export async function isBlockedByOther(myId: string, otherUserId: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, "blocks", `${otherUserId}_${myId}`));
+  return snap.exists();
+}
+
+export async function getBlockedByMe(myId: string): Promise<string[]> {
+  const q = query(collection(db, "blocks"), where("blockerId", "==", myId));
+  const snap = await getDocs(q);
+  return snap.docs.map(d => d.data().blockedId as string);
+}
+
+export async function getAllBlockedIds(myId: string): Promise<Set<string>> {
+  const [blockedByMe, blockedMe] = await Promise.all([
+    getDocs(query(collection(db, "blocks"), where("blockerId", "==", myId))),
+    getDocs(query(collection(db, "blocks"), where("blockedId", "==", myId))),
+  ]);
+  const ids = new Set<string>();
+  blockedByMe.docs.forEach(d => ids.add(d.data().blockedId as string));
+  blockedMe.docs.forEach(d => ids.add(d.data().blockerId as string));
+  return ids;
+}
+
 // ─── Friend Requests ──────────────────────────────────────────────────────────
 
 export async function sendFriendRequest(
@@ -221,6 +279,13 @@ export async function sendFriendRequest(
   senderProfile: UserProfile,
   receiverId: string
 ): Promise<void> {
+  const blockedIds = await getAllBlockedIds(senderId);
+  if (blockedIds.has(receiverId)) {
+    const err: any = new Error("Cannot send friend request.");
+    err.code = "blocked";
+    throw err;
+  }
+
   const existing = await getDocs(
     query(
       collection(db, "friendRequests"),
@@ -263,6 +328,23 @@ export async function getPendingRequests(userId: string): Promise<FriendRequest[
   return snap.docs
     .map((d) => ({ requestId: d.id, ...d.data() } as FriendRequest))
     .sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export function subscribeToFriendRequests(
+  userId: string,
+  callback: (requests: FriendRequest[]) => void
+): () => void {
+  const q = query(
+    collection(db, "friendRequests"),
+    where("receiverId", "==", userId),
+    where("status", "==", "pending")
+  );
+  return onSnapshot(q, (snap) => {
+    const requests = snap.docs
+      .map((d) => ({ requestId: d.id, ...d.data() } as FriendRequest))
+      .sort((a, b) => b.createdAt - a.createdAt);
+    callback(requests);
+  }, () => callback([]));
 }
 
 export async function getSentRequests(userId: string): Promise<FriendRequest[]> {
@@ -329,6 +411,18 @@ export async function getFriends(userId: string): Promise<UserProfile[]> {
   return profiles.filter(Boolean) as UserProfile[];
 }
 
+export function subscribeToFriends(
+  userId: string,
+  callback: (friends: UserProfile[]) => void
+): () => void {
+  const q = query(collection(db, "friends"), where("userId", "==", userId));
+  return onSnapshot(q, async (snap) => {
+    const friendIds = snap.docs.map((d) => d.data().friendId as string);
+    const profiles = await Promise.all(friendIds.map((id) => getUserProfile(id)));
+    callback(profiles.filter(Boolean) as UserProfile[]);
+  }, () => callback([]));
+}
+
 export async function areFriends(userId1: string, userId2: string): Promise<boolean> {
   const q = query(
     collection(db, "friends"),
@@ -369,16 +463,31 @@ export async function sendMessage(
   text: string,
   participants: string[]
 ): Promise<void> {
+  const now = Date.now();
   await setDoc(
     doc(db, "chats", chatId),
-    { participants, lastMessage: text, lastTimestamp: Date.now() },
+    {
+      participants,
+      lastMessage: text,
+      lastTimestamp: now,
+      lastSenderId: senderId,
+    },
     { merge: true }
   );
   await addDoc(collection(db, "chats", chatId, "messages"), {
     senderId,
     text: text.trim(),
-    timestamp: Date.now(),
+    timestamp: now,
   });
+  const otherId = participants.find(p => p !== senderId);
+  if (otherId) {
+    await createNotification(otherId, {
+      type: "message",
+      title: "New Message",
+      body: text.length > 60 ? text.slice(0, 57) + "..." : text,
+      fromUserId: senderId,
+    });
+  }
 }
 
 export async function getUserChats(userId: string): Promise<ChatRoom[]> {
@@ -390,6 +499,64 @@ export async function getUserChats(userId: string): Promise<ChatRoom[]> {
   return snap.docs
     .map((d) => ({ chatId: d.id, ...d.data() } as ChatRoom))
     .sort((a, b) => (b.lastTimestamp ?? 0) - (a.lastTimestamp ?? 0));
+}
+
+export function subscribeToUserChats(
+  userId: string,
+  callback: (rooms: ChatRoom[]) => void
+): () => void {
+  const q = query(
+    collection(db, "chats"),
+    where("participants", "array-contains", userId)
+  );
+  return onSnapshot(q, (snap) => {
+    const rooms = snap.docs
+      .map((d) => ({ chatId: d.id, ...d.data() } as ChatRoom))
+      .sort((a, b) => (b.lastTimestamp ?? 0) - (a.lastTimestamp ?? 0));
+    callback(rooms);
+  }, () => callback([]));
+}
+
+export async function markChatRead(chatId: string, userId: string): Promise<void> {
+  try {
+    await setDoc(
+      doc(db, "chats", chatId),
+      { lastSeenBy: { [userId]: Date.now() } },
+      { merge: true }
+    );
+  } catch { /* ignore */ }
+}
+
+export async function setTypingStatus(
+  chatId: string,
+  userId: string,
+  isTyping: boolean
+): Promise<void> {
+  try {
+    const chatRef = doc(db, "chats", chatId);
+    if (isTyping) {
+      await setDoc(chatRef, { typing: { [userId]: Date.now() } }, { merge: true });
+    } else {
+      await updateDoc(chatRef, { [`typing.${userId}`]: deleteField() });
+    }
+  } catch { /* ignore */ }
+}
+
+export function subscribeToTyping(
+  chatId: string,
+  myId: string,
+  callback: (isTyping: boolean) => void
+): () => void {
+  return onSnapshot(doc(db, "chats", chatId), (snap) => {
+    if (!snap.exists()) { callback(false); return; }
+    const data = snap.data();
+    const typing = data.typing ?? {};
+    const now = Date.now();
+    const otherTyping = Object.entries(typing).some(
+      ([uid, ts]) => uid !== myId && typeof ts === "number" && now - (ts as number) < 5000
+    );
+    callback(otherTyping);
+  }, () => callback(false));
 }
 
 export function subscribeToMessages(
@@ -496,35 +663,31 @@ export async function deleteAllUserData(userId: string, username: string): Promi
     await Promise.all(docs.map((d) => deleteDoc(d.ref)));
   };
 
-  // 1. Content items
   const contentSnap = await getDocs(query(collection(db, "content"), where("userId", "==", userId)));
   await batchDelete(contentSnap.docs);
 
-  // 2. Notifications received by user
   const notifsReceivedSnap = await getDocs(query(collection(db, "notifications"), where("userId", "==", userId)));
   await batchDelete(notifsReceivedSnap.docs);
 
-  // 3. Notifications sent by user (fromUserId)
   const notifsSentSnap = await getDocs(query(collection(db, "notifications"), where("fromUserId", "==", userId)));
   await batchDelete(notifsSentSnap.docs);
 
-  // 4. Friend requests sent
   const frSentSnap = await getDocs(query(collection(db, "friendRequests"), where("senderId", "==", userId)));
   await batchDelete(frSentSnap.docs);
 
-  // 5. Friend requests received
   const frReceivedSnap = await getDocs(query(collection(db, "friendRequests"), where("receiverId", "==", userId)));
   await batchDelete(frReceivedSnap.docs);
 
-  // 6. Friends where userId == user (my side of friendships)
   const friendsMeSnap = await getDocs(query(collection(db, "friends"), where("userId", "==", userId)));
   await batchDelete(friendsMeSnap.docs);
 
-  // 7. Friends where friendId == user (other people's side) — remove those entries
   const friendsThemSnap = await getDocs(query(collection(db, "friends"), where("friendId", "==", userId)));
   await batchDelete(friendsThemSnap.docs);
 
-  // 8. Chats: remove user from participants array; mark private chats as deleted
+  const blocksBy = await getDocs(query(collection(db, "blocks"), where("blockerId", "==", userId)));
+  const blocksOf = await getDocs(query(collection(db, "blocks"), where("blockedId", "==", userId)));
+  await batchDelete([...blocksBy.docs, ...blocksOf.docs]);
+
   const chatsSnap = await getDocs(query(collection(db, "chats"), where("participants", "array-contains", userId)));
   await Promise.all(
     chatsSnap.docs.map((d) =>
@@ -535,19 +698,15 @@ export async function deleteAllUserData(userId: string, username: string): Promi
     )
   );
 
-  // 9. Ludo invitations sent by user
   const ludiSentSnap = await getDocs(query(collection(db, "ludoInvitations"), where("fromUserId", "==", userId)));
   await batchDelete(ludiSentSnap.docs);
 
-  // 10. Ludo invitations received by user
   const ludiRecvSnap = await getDocs(query(collection(db, "ludoInvitations"), where("toUserId", "==", userId)));
   await batchDelete(ludiRecvSnap.docs);
 
-  // 11. Ludo rooms hosted by user → cancel them
   const ludoHostSnap = await getDocs(query(collection(db, "ludoRooms"), where("hostId", "==", userId)));
   await Promise.all(ludoHostSnap.docs.map((d) => updateDoc(d.ref, { status: "cancelled" })));
 
-  // 12. Ludo rooms where user is a player (but not host) → remove from playerIds
   const ludoPlayerSnap = await getDocs(query(collection(db, "ludoRooms"), where("playerIds", "array-contains", userId)));
   await Promise.all(
     ludoPlayerSnap.docs.map((d) => {
@@ -558,18 +717,7 @@ export async function deleteAllUserData(userId: string, username: string): Promi
     })
   );
 
-  // 13. User presence
-  try {
-    await deleteDoc(doc(db, "userPresence", userId));
-  } catch { /* may not exist */ }
-
-  // 14. Username lookup doc
-  try {
-    await deleteDoc(doc(db, "usernames", username.toLowerCase()));
-  } catch { /* may not exist */ }
-
-  // 15. User profile document (last — so reads still work during cleanup)
-  try {
-    await deleteDoc(doc(db, "users", userId));
-  } catch { /* ignore */ }
+  try { await deleteDoc(doc(db, "userPresence", userId)); } catch { /* ignore */ }
+  try { await deleteDoc(doc(db, "usernames", username.toLowerCase())); } catch { /* ignore */ }
+  try { await deleteDoc(doc(db, "users", userId)); } catch { /* ignore */ }
 }

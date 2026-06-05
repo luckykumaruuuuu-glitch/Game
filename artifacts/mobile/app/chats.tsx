@@ -1,10 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
-  RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,7 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedBackground } from "@/components/ThemedBackground";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { useAuth } from "@/context/AuthContext";
-import { ChatRoom, getUserChats, getUserProfile } from "@/lib/firestore";
+import { ChatRoom, subscribeToUserChats, getUserProfile } from "@/lib/firestore";
 import { useColors } from "@/hooks/useColors";
 
 function timeLabel(ts: number): string {
@@ -34,12 +33,11 @@ export default function ChatsScreen() {
   const { user } = useAuth();
   const [chats, setChats] = useState<ChatRoom[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
+  useEffect(() => {
     if (!user) return;
-    try {
-      const rooms = await getUserChats(user.uid);
+    const unsub = subscribeToUserChats(user.uid, async (rooms) => {
+      // Fetch profiles for rooms that don't have one yet
       const withProfiles = await Promise.all(
         rooms.map(async (room) => {
           const otherId = room.participants.find((p) => p !== user.uid);
@@ -49,20 +47,10 @@ export default function ChatsScreen() {
         })
       );
       setChats(withProfiles);
-    } catch {
-      /* ignore */
-    } finally {
       setLoading(false);
-    }
+    });
+    return unsub;
   }, [user]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await load();
-    setRefreshing(false);
-  }, [load]);
 
   return (
     <ThemedBackground>
@@ -86,32 +74,55 @@ export default function ChatsScreen() {
           <FlatList
             data={chats}
             keyExtractor={(c) => c.chatId}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
-            }
             contentContainerStyle={styles.list}
             renderItem={({ item }) => {
               const otherId = item.participants.find((p) => p !== user?.uid) ?? "";
               const other = item.otherUserProfile;
+              const lastSeenAt = item.lastSeenBy?.[user?.uid ?? ""] ?? 0;
+              const hasUnread =
+                item.lastTimestamp > lastSeenAt &&
+                item.lastSenderId !== user?.uid;
+
               return (
                 <TouchableOpacity
-                  style={[styles.chatCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  style={[styles.chatCard, {
+                    backgroundColor: hasUnread ? colors.primary + "0D" : colors.card,
+                    borderColor: hasUnread ? colors.primary + "44" : colors.border,
+                  }]}
                   onPress={() => router.push(`/chat/${otherId}`)}
                   activeOpacity={0.8}
                 >
                   <ProfileAvatar uri={other?.photo} size={52} name={other?.name} />
                   <View style={styles.chatInfo}>
                     <View style={styles.chatTop}>
-                      <Text style={[styles.chatName, { color: colors.foreground }]} numberOfLines={1}>
+                      <Text
+                        style={[
+                          styles.chatName,
+                          { color: colors.foreground, fontFamily: hasUnread ? "Inter_700Bold" : "Inter_600SemiBold" },
+                        ]}
+                        numberOfLines={1}
+                      >
                         {other?.name ?? "Unknown"}
                       </Text>
                       <Text style={[styles.chatTime, { color: colors.mutedForeground }]}>
                         {timeLabel(item.lastTimestamp)}
                       </Text>
                     </View>
-                    <Text style={[styles.lastMsg, { color: colors.mutedForeground }]} numberOfLines={1}>
-                      {item.lastMessage || "No messages yet"}
-                    </Text>
+                    <View style={styles.lastMsgRow}>
+                      <Text
+                        style={[
+                          styles.lastMsg,
+                          { color: hasUnread ? colors.foreground : colors.mutedForeground,
+                            fontFamily: hasUnread ? "Inter_600SemiBold" : "Inter_400Regular" },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {item.lastMessage || "No messages yet"}
+                      </Text>
+                      {hasUnread && (
+                        <View style={[styles.unreadDot, { backgroundColor: "#EF4444" }]} />
+                      )}
+                    </View>
                   </View>
                 </TouchableOpacity>
               );
@@ -161,9 +172,13 @@ const styles = StyleSheet.create({
   },
   chatInfo: { flex: 1, gap: 4 },
   chatTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  chatName: { fontSize: 15, fontFamily: "Inter_600SemiBold", flex: 1 },
+  chatName: { fontSize: 15, flex: 1 },
   chatTime: { fontSize: 12, fontFamily: "Inter_400Regular" },
-  lastMsg: { fontSize: 13, fontFamily: "Inter_400Regular" },
+  lastMsgRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  lastMsg: { fontSize: 13, flex: 1 },
+  unreadDot: {
+    width: 8, height: 8, borderRadius: 4, flexShrink: 0,
+  },
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 80 },
   emptyTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
   emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },

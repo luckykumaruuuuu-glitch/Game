@@ -1,0 +1,141 @@
+PROJECT REPAIR TASK – FRIEND SYSTEM REBUILD
+
+We are restoring the project from an older stable backup.
+
+The previous working version had a fully functional Friend System. Rebuild and verify the entire Friend System exactly as described below.
+
+GOAL:
+Friend requests, friend list, chat, typing status, online status, block/unblock, and remove friend must work in real time using Firebase.
+
+==================================
+FRIEND REQUEST SYSTEM
+
+1. User searches another user by username/ID.
+2. Click "Add Friend".
+3. Store request in Firebase.
+4. Receiver instantly gets a friend request notification.
+5. Request must appear in Friend Requests screen.
+6. Receiver can:
+   - Accept
+   - Reject
+
+When accepted:
+
+- Both users are added to each other's friend list.
+- Request is removed automatically.
+
+==================================
+REALTIME FRIEND LIST
+
+Friend list updates instantly.
+
+Show:
+
+- Profile photo
+- Name
+- Online status
+
+Green Dot = Online
+Red Dot = Offline
+
+Changes must sync in real time.
+
+==================================
+CHAT SYSTEM
+
+Friends can open chat directly.
+
+Features:
+
+- Send messages
+- Receive messages instantly
+- Typing indicator
+- Message timestamps
+- Unread message badge
+- Notification dot when new message arrives
+
+==================================
+TYPING INDICATOR
+
+When a friend is typing:
+
+Show:
+"Typing..."
+
+Hide automatically when typing stops.
+
+Realtime sync required.
+
+==================================
+ONLINE STATUS
+
+Track user presence with Firebase.
+
+Show:
+
+- Online
+- Offline
+
+Status updates instantly without refresh.
+
+==================================
+BLOCK SYSTEM
+
+Add Block User option.
+
+When blocked:
+
+- User disappears from friend search results.
+- Cannot send messages.
+- Cannot send friend requests.
+- Cannot view profile details.
+
+When unblocked:
+
+- Normal functionality restored.
+
+==================================
+REMOVE FRIEND SYSTEM
+
+Add Remove Friend option inside friend profile screen.
+
+When removed:
+
+- Remove from both friend lists.
+- Chat remains only if desired by app settings.
+- No longer treated as friends.
+
+==================================
+NOTIFICATION DOT SYSTEM
+
+Show a red notification dot when:
+
+- New friend request arrives
+- New message arrives
+- Any pending friend action exists
+
+Hide when user opens and views the notification/request.
+
+==================================
+DATABASE REQUIREMENTS
+
+Use Firebase real-time listeners.
+
+Friend request data, friend list data, online status, typing status, and chat data must update instantly without requiring refresh.
+
+Verify:
+
+- Request send works
+- Request receive works
+- Accept works
+- Reject works
+- Friend list sync works
+- Chat works
+- Typing works
+- Online status works
+- Block works
+- Remove friend works
+
+Do not redesign the UI.
+
+Keep the existing UI and only repair or rebuild the Friend System logic so all features work correctly.
