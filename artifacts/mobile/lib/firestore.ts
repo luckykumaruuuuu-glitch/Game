@@ -37,6 +37,7 @@ export interface UserProfile {
   country?: string;
   state?: string;
   city?: string;
+  locality?: string;
 }
 
 export interface ContentItem {
@@ -145,7 +146,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
 export async function updateUserProfile(
   userId: string,
-  data: Partial<Pick<UserProfile, "name" | "bio" | "photo" | "gender" | "dateOfBirth" | "phone" | "country" | "state" | "city">>
+  data: Partial<Pick<UserProfile, "name" | "bio" | "photo" | "gender" | "dateOfBirth" | "phone" | "country" | "state" | "city" | "locality">>
 ): Promise<void> {
   await updateDoc(doc(db, "users", userId), data);
 }

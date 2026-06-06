@@ -65,6 +65,7 @@ export default function EditProfileScreen() {
   const [country, setCountry] = useState(profile?.country ?? "");
   const [state, setState] = useState(profile?.state ?? "");
   const [city, setCity] = useState(profile?.city ?? "");
+  const [locality, setLocality] = useState(profile?.locality ?? "");
 
   // Phone is stored in two parts: the dial code prefix and the local number
   const initParts = initPhoneParts(profile?.phone ?? "", profile?.country ?? "");
@@ -90,6 +91,7 @@ export default function EditProfileScreen() {
     setCountry(c);
     setState("");
     setCity("");
+    setLocality("");
     // Auto-set dial code and clear old local number (digit count changes per country)
     const code = getDialCode(c);
     setDialCode(code);
@@ -165,6 +167,7 @@ export default function EditProfileScreen() {
         country: country.trim(),
         state: state.trim(),
         city: city.trim(),
+        locality: locality.trim(),
       });
       await refreshProfile();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -555,6 +558,51 @@ export default function EditProfileScreen() {
               required
               disabled={!state || cityNames.length === 0}
             />
+
+            {/* Locality — free-text, enabled only after city is selected */}
+            <View
+              style={[
+                styles.field,
+                {
+                  borderColor: colors.border,
+                  backgroundColor: city
+                    ? "rgba(255,255,255,0.04)"
+                    : "rgba(255,255,255,0.01)",
+                  opacity: city ? 1 : 0.45,
+                },
+              ]}
+            >
+              <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                Locality{" "}
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular" }}>
+                  (optional)
+                </Text>
+              </Text>
+              <TextInput
+                style={[styles.fieldInput, { color: colors.foreground }]}
+                value={locality}
+                onChangeText={setLocality}
+                placeholder={
+                  city
+                    ? "e.g. Sector 12, MG Road, Andheri West…"
+                    : "Select city first"
+                }
+                placeholderTextColor={colors.mutedForeground}
+                editable={!!city}
+                autoCapitalize="words"
+                maxLength={120}
+              />
+              {locality.length > 0 && (
+                <Text
+                  style={[
+                    styles.localityCounter,
+                    { color: colors.mutedForeground },
+                  ]}
+                >
+                  {locality.length}/120
+                </Text>
+              )}
+            </View>
           </View>
 
           {/* ── About ───────────────────────────────────────────────────── */}
@@ -747,5 +795,12 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: "Inter_600SemiBold",
     marginLeft: 8,
+  },
+  localityCounter: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    alignSelf: "flex-end",
+    marginTop: 2,
+    opacity: 0.6,
   },
 });
