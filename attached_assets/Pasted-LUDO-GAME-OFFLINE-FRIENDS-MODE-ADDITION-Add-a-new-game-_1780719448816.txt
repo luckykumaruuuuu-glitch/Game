@@ -1,0 +1,162 @@
+LUDO GAME - OFFLINE FRIENDS MODE ADDITION
+
+Add a new game mode inside the Ludo section.
+
+==================================
+NEW MODE
+
+Name:
+
+🎲 Offline Friends
+
+This mode should appear alongside existing game modes.
+
+Example:
+
+- Online 2 Players
+- Online 3 Players
+- Online 4 Players
+- AI Mode
+- Offline Friends (NEW)
+
+==================================
+OFFLINE FRIENDS MODE
+
+Purpose:
+
+Multiple friends should be able to play on a single phone without internet.
+
+No Firebase required.
+
+No online connection required.
+
+==================================
+PLAYER SELECTION
+
+When Offline Friends mode is selected:
+
+Show options:
+
+- 2 Players
+- 3 Players
+- 4 Players
+
+User selects number of players.
+
+==================================
+PLAYER SETUP
+
+Each player can enter:
+
+- Player Name
+- Avatar (optional)
+
+Assign colors automatically:
+
+2 Players:
+
+- Red
+- Green
+
+3 Players:
+
+- Red
+- Green
+- Yellow
+
+4 Players:
+
+- Red
+- Green
+- Yellow
+- Blue
+
+==================================
+GAMEPLAY
+
+Use exactly the same classic Ludo rules as online mode.
+
+Rules:
+
+- Open token only on 6
+- Safe stars
+- Capture system
+- Extra turn on 6
+- Extra turn on capture
+- Extra turn on reaching home
+- Exact count required to enter final center
+- Winner system
+- Ranking system
+
+==================================
+TURN SYSTEM
+
+Single device pass-and-play mode.
+
+Example:
+
+Player 1 turn
+
+After move:
+
+Display:
+
+"Pass the phone to Player 2"
+
+Then:
+
+Player 2 turn
+
+Continue until game ends.
+
+==================================
+DICE SYSTEM
+
+Dice animation visible.
+
+Dice number visible.
+
+Sound effect on dice roll.
+
+==================================
+RESULT SYSTEM
+
+Show rankings:
+
+🏆 Rank #1 Gold
+
+🥈 Rank #2 Silver
+
+🥉 Rank #3 Bronze
+
+Display:
+
+- Player Name
+- Captures
+- Dice Rolls
+- Total Moves
+
+==================================
+UI REQUIREMENT
+
+Use the exact same Ludo board design as the online mode.
+
+Do not create a different board.
+
+Keep:
+
+- Same board
+- Same tokens
+- Same animations
+- Same dice
+
+Only difference:
+
+No online connection required.
+
+Everything runs locally on one device.
+
+==================================
+GOAL
+
+Friends sitting together should be able to play 2-player, 3-player, or 4-player Ludo on a single phone completely offline.

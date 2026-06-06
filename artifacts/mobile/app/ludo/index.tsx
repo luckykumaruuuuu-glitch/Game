@@ -35,7 +35,7 @@ import type { UserProfile } from '@/lib/firestore';
 
 const PLAYER_COLORS = ['#EF4444', '#22C55E', '#3B82F6', '#EAB308'];
 
-type GameMode = 'ai' | 2 | 3 | 4;
+type GameMode = 'ai' | 'offline' | 2 | 3 | 4;
 type AIDifficulty = 'easy' | 'medium' | 'hard';
 
 const DIFFICULTY_CONFIG: Record<AIDifficulty, { label: string; icon: string; desc: string; color: string }> = {
@@ -255,6 +255,10 @@ export default function LudoLobby() {
 
   function selectMode(mode: GameMode) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (mode === 'offline') {
+      router.push('/ludo/offline-setup');
+      return;
+    }
     setSelectedMode(mode);
     setSelectedFriends([]);
   }
@@ -425,6 +429,35 @@ export default function LudoLobby() {
             );
           })}
         </View>
+
+        {/* Offline Friends Mode */}
+        <TouchableOpacity
+          style={[styles.offlineCard, { backgroundColor: colors.card, borderColor: '#22C55E40' }]}
+          onPress={() => selectMode('offline')}
+          activeOpacity={0.85}
+        >
+          <View style={styles.offlineLeft}>
+            <View style={styles.offlineIconBg}>
+              <Text style={styles.offlineIcon}>📱</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={styles.offlineTitleRow}>
+                <Text style={[styles.offlineTitle, { color: colors.foreground }]}>Offline Friends</Text>
+                <View style={styles.offlineNewBadge}>
+                  <Text style={styles.offlineNewText}>NEW</Text>
+                </View>
+              </View>
+              <Text style={[styles.offlineSub, { color: colors.mutedForeground }]}>
+                Pass & Play · 2–4 players · No internet needed
+              </Text>
+            </View>
+          </View>
+          <View style={styles.offlineColorDots}>
+            {(['red', 'green', 'yellow', 'blue'] as const).map(c => (
+              <View key={c} style={[styles.offlineColorDot, { backgroundColor: COLOR_HEX[c] }]} />
+            ))}
+          </View>
+        </TouchableOpacity>
 
         {/* AI Difficulty + Start */}
         {selectedMode === 'ai' && (
@@ -700,4 +733,35 @@ const styles = StyleSheet.create({
 
   startBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 16, borderRadius: 16, marginTop: 4 },
   startBtnText: { color: '#fff', fontSize: 16, fontFamily: 'Inter_600SemiBold' },
+
+  // Offline Friends card
+  offlineCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderRadius: 16,
+    borderWidth: 1.5,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  offlineLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  offlineIconBg: {
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: '#22C55E18',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  offlineIcon: { fontSize: 24 },
+  offlineTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
+  offlineTitle: { fontSize: 15, fontFamily: 'Inter_700Bold' },
+  offlineNewBadge: {
+    backgroundColor: '#22C55E',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  offlineNewText: { color: '#fff', fontSize: 9, fontFamily: 'Inter_700Bold', letterSpacing: 0.5 },
+  offlineSub: { fontSize: 12, fontFamily: 'Inter_400Regular' },
+  offlineColorDots: { flexDirection: 'column', gap: 4 },
+  offlineColorDot: { width: 9, height: 9, borderRadius: 5 },
 });

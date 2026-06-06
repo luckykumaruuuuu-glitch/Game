@@ -173,6 +173,17 @@ export type CellType =
   | 'red_home' | 'green_home' | 'blue_home' | 'yellow_home'
   | 'center' | 'corner' | 'empty';
 
+// Shared game state type (used by both online and offline modes)
+export interface LudoGameState {
+  tokens: Record<LudoColor, number[]>;
+  currentTurn: LudoColor;
+  diceValue: number | null;
+  diceRolled: boolean;
+  winner: LudoColor | null;
+  rankings: LudoColor[];
+  lastActionAt?: number;
+}
+
 export function getCellType(row: number, col: number): CellType {
   // Main track + safe squares
   const isLeftCol   = col === 0  && row >= 1  && row <= 13;
