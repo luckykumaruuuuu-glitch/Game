@@ -22,7 +22,7 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { getCountryNames, getCities, getStates } from "@/lib/geoData";
-import { getDialCode, stripDialCode } from "@/lib/countryCodes";
+import { getDialCode, stripDialCode, getPhoneLength, getPhoneLengthHint } from "@/lib/countryCodes";
 import { updateUserProfile } from "@/lib/firestore";
 import { uploadProfilePhoto } from "@/lib/storage";
 
@@ -90,9 +90,10 @@ export default function EditProfileScreen() {
     setCountry(c);
     setState("");
     setCity("");
-    // Auto-set dial code; preserve whatever local number the user typed
+    // Auto-set dial code and clear old local number (digit count changes per country)
     const code = getDialCode(c);
     setDialCode(code);
+    setLocalPhone("");
   }
 
   function handleStateSelect(s: string) {
@@ -123,9 +124,16 @@ export default function EditProfileScreen() {
     }
 
     const trimmedLocal = localPhone.trim();
-    if (trimmedLocal && (trimmedLocal.length < 4 || trimmedLocal.length > 13)) {
-      Alert.alert("Invalid Phone", "Please enter a valid local phone number (4–13 digits).");
-      return;
+    if (trimmedLocal) {
+      const { min: phoneMin, max: phoneMax } = getPhoneLength(country);
+      if (trimmedLocal.length < phoneMin || trimmedLocal.length > phoneMax) {
+        const hint = getPhoneLengthHint(country);
+        Alert.alert(
+          "Invalid Phone Number",
+          `${country} phone numbers must be ${hint} (after the country code). You entered ${trimmedLocal.length} digit${trimmedLocal.length !== 1 ? "s" : ""}.`
+        );
+        return;
+      }
     }
 
     // Build full international number e.g. "+919876543210"
@@ -469,21 +477,50 @@ export default function EditProfileScreen() {
                 <TextInput
                   style={[styles.localPhoneInput, { color: colors.foreground }]}
                   value={localPhone}
-                  onChangeText={(t) => setLocalPhone(t.replace(/[^0-9]/g, ""))}
-                  placeholder={dialCode ? "Enter number" : "Select country first"}
+                  onChangeText={(t) => {
+                    const digits = t.replace(/[^0-9]/g, "");
+                    const { max } = getPhoneLength(country);
+                    setLocalPhone(digits.slice(0, max));
+                  }}
+                  placeholder={
+                    country
+                      ? `${getPhoneLengthHint(country)} required`
+                      : "Select country first"
+                  }
                   placeholderTextColor={colors.mutedForeground}
                   keyboardType="phone-pad"
-                  maxLength={13}
-                  editable={!!dialCode || true}
+                  maxLength={getPhoneLength(country).max}
+                  editable={!!country}
                 />
               </View>
 
-              {/* Helper text showing full number preview */}
+              {/* Digit count hint + live counter */}
+              {country ? (
+                <View style={styles.phoneHintRow}>
+                  <Text style={[styles.phoneHintText, { color: colors.mutedForeground }]}>
+                    {country}: {getPhoneLengthHint(country)} expected
+                  </Text>
+                  {localPhone.length > 0 && (() => {
+                    const { min, max } = getPhoneLength(country);
+                    const valid = localPhone.length >= min && localPhone.length <= max;
+                    return (
+                      <Text
+                        style={[
+                          styles.phoneCounter,
+                          { color: valid ? "#4CAF50" : colors.destructive },
+                        ]}
+                      >
+                        {localPhone.length}/{max}
+                      </Text>
+                    );
+                  })()}
+                </View>
+              ) : null}
+
+              {/* Full number preview */}
               {dialCode && localPhone.length > 0 && (
-                <Text
-                  style={[styles.phonePreview, { color: colors.mutedForeground }]}
-                >
-                  Full number: {dialCode} {localPhone}
+                <Text style={[styles.phonePreview, { color: colors.mutedForeground }]}>
+                  Full: {dialCode} {localPhone}
                 </Text>
               )}
             </View>
@@ -693,5 +730,22 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     marginTop: 4,
     opacity: 0.7,
+  },
+  phoneHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 5,
+  },
+  phoneHintText: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    opacity: 0.7,
+    flex: 1,
+  },
+  phoneCounter: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    marginLeft: 8,
   },
 });

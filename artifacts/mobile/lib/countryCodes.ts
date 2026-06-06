@@ -248,3 +248,245 @@ export function stripDialCode(fullPhone: string, dialCode: string): string {
   // If phone was stored without the code (just digits), return as-is
   return fullPhone.replace(/^\+?\d{1,4}/, "").replace(/^[^0-9]/, "") || fullPhone;
 }
+
+/**
+ * Country-specific local phone number digit lengths { min, max }.
+ * These are the digits AFTER the dial code prefix.
+ * Countries not listed use the default fallback { min: 5, max: 13 }.
+ */
+export const COUNTRY_PHONE_LENGTHS: Record<string, { min: number; max: number }> = {
+  // South Asia
+  India: { min: 10, max: 10 },
+  Pakistan: { min: 10, max: 10 },
+  Bangladesh: { min: 10, max: 10 },
+  "Sri Lanka": { min: 9, max: 9 },
+  Nepal: { min: 9, max: 10 },
+  Bhutan: { min: 8, max: 8 },
+  Afghanistan: { min: 9, max: 9 },
+  Maldives: { min: 7, max: 7 },
+
+  // East Asia
+  China: { min: 11, max: 11 },
+  Japan: { min: 10, max: 11 },
+  "South Korea": { min: 10, max: 11 },
+  "North Korea": { min: 10, max: 10 },
+  Taiwan: { min: 9, max: 10 },
+  "Hong Kong": { min: 8, max: 8 },
+  Macau: { min: 8, max: 8 },
+  Mongolia: { min: 8, max: 8 },
+
+  // Southeast Asia
+  Indonesia: { min: 9, max: 12 },
+  Philippines: { min: 10, max: 10 },
+  Vietnam: { min: 9, max: 10 },
+  Thailand: { min: 9, max: 9 },
+  Malaysia: { min: 9, max: 10 },
+  Singapore: { min: 8, max: 8 },
+  Myanmar: { min: 8, max: 10 },
+  Cambodia: { min: 8, max: 9 },
+  Laos: { min: 8, max: 9 },
+  Brunei: { min: 7, max: 7 },
+  "Timor-Leste": { min: 7, max: 8 },
+
+  // Middle East
+  "United Arab Emirates": { min: 9, max: 9 },
+  "Saudi Arabia": { min: 9, max: 9 },
+  Qatar: { min: 8, max: 8 },
+  Kuwait: { min: 8, max: 8 },
+  Bahrain: { min: 8, max: 8 },
+  Oman: { min: 8, max: 8 },
+  Yemen: { min: 9, max: 9 },
+  Jordan: { min: 9, max: 9 },
+  Lebanon: { min: 7, max: 8 },
+  Israel: { min: 9, max: 9 },
+  Palestine: { min: 9, max: 9 },
+  Iraq: { min: 10, max: 10 },
+  Syria: { min: 9, max: 9 },
+  Iran: { min: 10, max: 10 },
+  Turkey: { min: 10, max: 10 },
+
+  // North America
+  "United States": { min: 10, max: 10 },
+  Canada: { min: 10, max: 10 },
+  Mexico: { min: 10, max: 10 },
+
+  // Central America & Caribbean
+  Guatemala: { min: 8, max: 8 },
+  Honduras: { min: 8, max: 8 },
+  "El Salvador": { min: 8, max: 8 },
+  Nicaragua: { min: 8, max: 8 },
+  "Costa Rica": { min: 8, max: 8 },
+  Panama: { min: 8, max: 8 },
+  Belize: { min: 7, max: 7 },
+  Jamaica: { min: 10, max: 10 },
+  Cuba: { min: 8, max: 8 },
+  Haiti: { min: 8, max: 8 },
+  "Dominican Republic": { min: 10, max: 10 },
+  "Trinidad and Tobago": { min: 10, max: 10 },
+  Barbados: { min: 10, max: 10 },
+  Bahamas: { min: 10, max: 10 },
+
+  // South America
+  Brazil: { min: 10, max: 11 },
+  Argentina: { min: 10, max: 10 },
+  Colombia: { min: 10, max: 10 },
+  Chile: { min: 9, max: 9 },
+  Peru: { min: 9, max: 9 },
+  Venezuela: { min: 10, max: 10 },
+  Ecuador: { min: 9, max: 9 },
+  Bolivia: { min: 8, max: 9 },
+  Paraguay: { min: 9, max: 9 },
+  Uruguay: { min: 9, max: 9 },
+  Guyana: { min: 7, max: 7 },
+  Suriname: { min: 7, max: 7 },
+
+  // Western Europe
+  "United Kingdom": { min: 9, max: 10 },
+  Germany: { min: 10, max: 11 },
+  France: { min: 9, max: 9 },
+  Italy: { min: 9, max: 10 },
+  Spain: { min: 9, max: 9 },
+  Portugal: { min: 9, max: 9 },
+  Netherlands: { min: 9, max: 9 },
+  Belgium: { min: 9, max: 9 },
+  Austria: { min: 10, max: 11 },
+  Switzerland: { min: 9, max: 9 },
+  Ireland: { min: 9, max: 9 },
+  Sweden: { min: 9, max: 10 },
+  Norway: { min: 8, max: 8 },
+  Denmark: { min: 8, max: 8 },
+  Finland: { min: 9, max: 10 },
+  Iceland: { min: 7, max: 7 },
+  Luxembourg: { min: 9, max: 9 },
+  Monaco: { min: 8, max: 9 },
+  Liechtenstein: { min: 7, max: 9 },
+  Andorra: { min: 6, max: 9 },
+  Malta: { min: 8, max: 8 },
+
+  // Eastern Europe
+  Russia: { min: 10, max: 10 },
+  Ukraine: { min: 9, max: 9 },
+  Poland: { min: 9, max: 9 },
+  Romania: { min: 9, max: 10 },
+  "Czech Republic": { min: 9, max: 9 },
+  Slovakia: { min: 9, max: 9 },
+  Hungary: { min: 9, max: 9 },
+  Bulgaria: { min: 9, max: 9 },
+  Croatia: { min: 8, max: 9 },
+  Serbia: { min: 8, max: 9 },
+  "Bosnia and Herzegovina": { min: 8, max: 9 },
+  Montenegro: { min: 8, max: 8 },
+  Albania: { min: 9, max: 9 },
+  Moldova: { min: 8, max: 8 },
+  Belarus: { min: 9, max: 9 },
+  Estonia: { min: 7, max: 8 },
+  Latvia: { min: 8, max: 8 },
+  Lithuania: { min: 8, max: 8 },
+  Greece: { min: 10, max: 10 },
+  Cyprus: { min: 8, max: 8 },
+
+  // Caucasus & Central Asia
+  Georgia: { min: 9, max: 9 },
+  Armenia: { min: 8, max: 8 },
+  Azerbaijan: { min: 9, max: 9 },
+  Kazakhstan: { min: 10, max: 10 },
+  Uzbekistan: { min: 9, max: 9 },
+  Kyrgyzstan: { min: 9, max: 9 },
+  Tajikistan: { min: 9, max: 9 },
+  Turkmenistan: { min: 8, max: 8 },
+
+  // Africa - North
+  Egypt: { min: 10, max: 10 },
+  Algeria: { min: 9, max: 9 },
+  Morocco: { min: 9, max: 9 },
+  Tunisia: { min: 8, max: 8 },
+  Libya: { min: 9, max: 9 },
+  Sudan: { min: 9, max: 9 },
+
+  // Africa - West
+  Nigeria: { min: 10, max: 10 },
+  Ghana: { min: 9, max: 10 },
+  Senegal: { min: 9, max: 9 },
+  "Ivory Coast": { min: 8, max: 9 },
+  Mali: { min: 8, max: 8 },
+  "Burkina Faso": { min: 8, max: 8 },
+  Niger: { min: 8, max: 8 },
+  Guinea: { min: 9, max: 9 },
+  "Guinea-Bissau": { min: 7, max: 7 },
+  "Sierra Leone": { min: 8, max: 8 },
+  Liberia: { min: 7, max: 8 },
+  Gambia: { min: 7, max: 7 },
+  Benin: { min: 8, max: 8 },
+  Togo: { min: 8, max: 8 },
+  Cameroon: { min: 9, max: 9 },
+
+  // Africa - East
+  Ethiopia: { min: 9, max: 9 },
+  Kenya: { min: 9, max: 10 },
+  Tanzania: { min: 9, max: 9 },
+  Uganda: { min: 9, max: 9 },
+  Rwanda: { min: 9, max: 9 },
+  Somalia: { min: 7, max: 8 },
+  Djibouti: { min: 8, max: 8 },
+  Eritrea: { min: 7, max: 7 },
+  "South Sudan": { min: 9, max: 9 },
+  Burundi: { min: 8, max: 8 },
+  Madagascar: { min: 9, max: 9 },
+
+  // Africa - Central
+  "Democratic Republic of the Congo": { min: 9, max: 9 },
+  Congo: { min: 9, max: 9 },
+  "Central African Republic": { min: 8, max: 8 },
+  Chad: { min: 8, max: 8 },
+  Gabon: { min: 8, max: 8 },
+  "Equatorial Guinea": { min: 9, max: 9 },
+  Angola: { min: 9, max: 9 },
+  Mozambique: { min: 9, max: 9 },
+
+  // Africa - Southern
+  "South Africa": { min: 9, max: 10 },
+  Zimbabwe: { min: 9, max: 9 },
+  Zambia: { min: 9, max: 9 },
+  Botswana: { min: 7, max: 8 },
+  Namibia: { min: 8, max: 9 },
+  Malawi: { min: 9, max: 9 },
+  Lesotho: { min: 8, max: 8 },
+  Swaziland: { min: 8, max: 8 },
+
+  // Oceania
+  Australia: { min: 9, max: 9 },
+  "New Zealand": { min: 8, max: 9 },
+  "Papua New Guinea": { min: 7, max: 8 },
+  Fiji: { min: 7, max: 7 },
+  Samoa: { min: 7, max: 7 },
+  Tonga: { min: 7, max: 7 },
+  Vanuatu: { min: 7, max: 7 },
+  "Solomon Islands": { min: 7, max: 7 },
+  Kiribati: { min: 8, max: 8 },
+  Nauru: { min: 7, max: 7 },
+  Tuvalu: { min: 7, max: 7 },
+  Palau: { min: 7, max: 7 },
+  Micronesia: { min: 7, max: 7 },
+  "Marshall Islands": { min: 7, max: 7 },
+};
+
+/** Default phone length for countries not listed above */
+export const DEFAULT_PHONE_LENGTH = { min: 5, max: 13 };
+
+/**
+ * Returns the expected local phone number digit range for a country.
+ * Returns DEFAULT_PHONE_LENGTH if the country is not listed.
+ */
+export function getPhoneLength(countryName: string): { min: number; max: number } {
+  return COUNTRY_PHONE_LENGTHS[countryName] ?? DEFAULT_PHONE_LENGTH;
+}
+
+/**
+ * Returns a human-readable hint for the expected phone number length.
+ * e.g. "10 digits" or "9–10 digits"
+ */
+export function getPhoneLengthHint(countryName: string): string {
+  const { min, max } = getPhoneLength(countryName);
+  if (min === max) return `${min} digits`;
+  return `${min}–${max} digits`;
+}
