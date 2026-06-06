@@ -80,34 +80,44 @@ export function AppModal({ visible, onClose, children }: AppModalProps) {
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      {/* Strong blur + dark overlay so background is unreadable */}
+      {/* ── Overlay ──────────────────────────────────────────────────────────
+          Strategy:
+          - Solid dark layer works on BOTH Android & iOS (0.84 opacity)
+          - BlurView stacked on top for iOS only (blur effect bonus)
+          - On Android, BlurView inside transparent Modal blurs nothing
+            so we skip it and rely solely on the strong dark overlay.
+      ──────────────────────────────────────────────────────────────────── */}
       <Animated.View
         style={[StyleSheet.absoluteFill, { opacity: overlayOpacity }]}
         pointerEvents="none"
       >
-        {Platform.OS !== "web" ? (
+        {/* Solid dark — always works, makes background unreadable */}
+        <View style={[StyleSheet.absoluteFill, styles.solidOverlay]} />
+
+        {/* Blur bonus — iOS only (works inside transparent Modal) */}
+        {Platform.OS === "ios" && (
           <BlurView
-            intensity={90}
+            intensity={70}
             tint="dark"
-            style={StyleSheet.absoluteFill}
+            style={[StyleSheet.absoluteFill, styles.blurLayer]}
           />
-        ) : null}
-        <View style={[StyleSheet.absoluteFill, styles.dimOverlay]} />
+        )}
       </Animated.View>
 
+      {/* ── Content ──────────────────────────────────────────────────────── */}
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.wrapper}
         pointerEvents="box-none"
       >
-        {/* Tap outside → close */}
+        {/* Tap outside to close + block all background touches */}
         {onClose ? (
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         ) : (
           <View style={StyleSheet.absoluteFill} />
         )}
 
-        {/* Modal card */}
+        {/* Modal card — scale + fade spring */}
         <Animated.View
           style={[
             styles.cardWrapper,
@@ -131,8 +141,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 28,
   },
-  dimOverlay: {
-    backgroundColor: "rgba(0,0,0,0.62)",
+  solidOverlay: {
+    backgroundColor: "rgba(0,0,0,0.84)",
+  },
+  blurLayer: {
+    opacity: 0.85,
   },
   cardWrapper: {
     width: "100%",

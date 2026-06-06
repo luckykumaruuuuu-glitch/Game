@@ -105,21 +105,21 @@ export function LocationPicker({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      {/* Blurred dark overlay */}
+      {/* ── Dark overlay (solid works everywhere; blur bonus on iOS) ──── */}
       <Animated.View
         style={[StyleSheet.absoluteFill, { opacity: overlayAnim }]}
         pointerEvents="none"
       >
-        {Platform.OS !== "web" ? (
-          <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFill} />
-        ) : null}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
+        <View style={[StyleSheet.absoluteFill, styles.solidOverlay]} />
+        {Platform.OS === "ios" && (
+          <BlurView intensity={70} tint="dark" style={[StyleSheet.absoluteFill, { opacity: 0.85 }]} />
+        )}
       </Animated.View>
 
       {/* Tap outside to close */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-      {/* Sheet */}
+      {/* ── Slide-up sheet ────────────────────────────────────────────── */}
       <Animated.View
         style={[
           styles.sheet,
@@ -131,10 +131,8 @@ export function LocationPicker({
         ]}
       >
         <Pressable onPress={() => {}}>
-          {/* Handle bar */}
           <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
-          {/* Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <Text style={[styles.headerTitle, { color: colors.foreground }]}>
               {title}
@@ -147,14 +145,10 @@ export function LocationPicker({
             </TouchableOpacity>
           </View>
 
-          {/* Search */}
           <View
             style={[
               styles.searchBar,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-              },
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
             <Feather name="search" size={16} color={colors.mutedForeground} />
@@ -178,7 +172,6 @@ export function LocationPicker({
           </View>
         </Pressable>
 
-        {/* List */}
         <FlatList
           data={filtered}
           keyExtractor={(item) => item}
@@ -193,9 +186,7 @@ export function LocationPicker({
                   styles.row,
                   {
                     borderBottomColor: colors.border,
-                    backgroundColor: isSelected
-                      ? colors.primary + "14"
-                      : "transparent",
+                    backgroundColor: isSelected ? colors.primary + "14" : "transparent",
                   },
                 ]}
                 onPress={() => handleSelect(item)}
@@ -206,9 +197,7 @@ export function LocationPicker({
                     styles.rowText,
                     {
                       color: isSelected ? colors.primary : colors.foreground,
-                      fontFamily: isSelected
-                        ? "Inter_600SemiBold"
-                        : "Inter_400Regular",
+                      fontFamily: isSelected ? "Inter_600SemiBold" : "Inter_400Regular",
                     },
                   ]}
                 >
@@ -222,15 +211,8 @@ export function LocationPicker({
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Feather
-                name="search"
-                size={32}
-                color={colors.mutedForeground}
-                style={{ opacity: 0.4 }}
-              />
-              <Text
-                style={[styles.emptyText, { color: colors.mutedForeground }]}
-              >
+              <Feather name="search" size={32} color={colors.mutedForeground} style={{ opacity: 0.4 }} />
+              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
                 No results for "{query}"
               </Text>
             </View>
@@ -242,6 +224,7 @@ export function LocationPicker({
 }
 
 const styles = StyleSheet.create({
+  solidOverlay: { backgroundColor: "rgba(0,0,0,0.84)" },
   sheet: {
     position: "absolute",
     left: 0,
@@ -258,12 +241,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 6,
+    width: 40, height: 4, borderRadius: 2,
+    alignSelf: "center", marginTop: 12, marginBottom: 6,
   },
   header: {
     flexDirection: "row",
@@ -275,11 +254,8 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
   closeBtn: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
+    width: 34, height: 34, borderRadius: 17,
+    alignItems: "center", justifyContent: "center",
   },
   searchBar: {
     flexDirection: "row",
@@ -307,13 +283,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   rowText: { fontSize: 16 },
-  empty: {
-    paddingTop: 60,
-    alignItems: "center",
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 14,
-    fontFamily: "Inter_400Regular",
-  },
+  empty: { paddingTop: 60, alignItems: "center", gap: 12 },
+  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
 });

@@ -54,26 +54,20 @@ interface WheelProps {
 function Wheel({ items, selectedIndex, onSelect, flex = 1 }: WheelProps) {
   const colors = useColors();
   const scrollRef = useRef<ScrollView>(null);
-  const selectedRef = useRef(selectedIndex);
 
   useEffect(() => {
-    const offset = selectedIndex * ITEM_H;
-    scrollRef.current?.scrollTo({ y: offset, animated: false });
-    selectedRef.current = selectedIndex;
+    scrollRef.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
   }, []);
 
-  // Re-sync when items array changes (e.g. days change with month)
   useEffect(() => {
     const clamped = Math.min(selectedIndex, items.length - 1);
-    const offset = clamped * ITEM_H;
-    scrollRef.current?.scrollTo({ y: offset, animated: true });
+    scrollRef.current?.scrollTo({ y: clamped * ITEM_H, animated: true });
   }, [items.length]);
 
   const snapToIndex = useCallback(
     (index: number) => {
       const clamped = Math.max(0, Math.min(index, items.length - 1));
       scrollRef.current?.scrollTo({ y: clamped * ITEM_H, animated: true });
-      selectedRef.current = clamped;
       onSelect(clamped);
     },
     [items.length, onSelect]
@@ -81,18 +75,15 @@ function Wheel({ items, selectedIndex, onSelect, flex = 1 }: WheelProps) {
 
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offset = e.nativeEvent.contentOffset.y;
-    const index = Math.round(offset / ITEM_H);
-    snapToIndex(index);
+    snapToIndex(Math.round(offset / ITEM_H));
   };
 
   return (
     <View style={[styles.wheelOuter, { flex }]}>
-      {/* Selection highlight bar */}
       <View
         style={[styles.selectionBar, { borderColor: colors.primary + "55" }]}
         pointerEvents="none"
       />
-
       <ScrollView
         ref={scrollRef}
         style={{ height: PICKER_H }}
@@ -120,7 +111,7 @@ function Wheel({ items, selectedIndex, onSelect, flex = 1 }: WheelProps) {
                     color: isSelected ? colors.foreground : colors.mutedForeground,
                     fontSize: isSelected ? 17 : 14,
                     fontFamily: isSelected ? "Inter_600SemiBold" : "Inter_400Regular",
-                    opacity: isSelected ? 1 : 0.55,
+                    opacity: isSelected ? 1 : 0.5,
                   },
                 ]}
               >
@@ -130,17 +121,8 @@ function Wheel({ items, selectedIndex, onSelect, flex = 1 }: WheelProps) {
           );
         })}
       </ScrollView>
-
-      {/* Top gradient fade */}
-      <View
-        style={[styles.fadeTop, { backgroundColor: colors.card }]}
-        pointerEvents="none"
-      />
-      {/* Bottom gradient fade */}
-      <View
-        style={[styles.fadeBottom, { backgroundColor: colors.card }]}
-        pointerEvents="none"
-      />
+      <View style={[styles.fadeTop, { backgroundColor: colors.card }]} pointerEvents="none" />
+      <View style={[styles.fadeBottom, { backgroundColor: colors.card }]} pointerEvents="none" />
     </View>
   );
 }
@@ -152,12 +134,7 @@ interface DateWheelPickerProps {
   onClose: () => void;
 }
 
-export function DateWheelPicker({
-  visible,
-  value,
-  onConfirm,
-  onClose,
-}: DateWheelPickerProps) {
+export function DateWheelPicker({ visible, value, onConfirm, onClose }: DateWheelPickerProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
 
@@ -180,36 +157,17 @@ export function DateWheelPicker({
       setSelMonth(init.m - 1);
       const idx = YEARS.indexOf(String(init.y));
       setSelYear(idx >= 0 ? idx : 20);
-
       overlayAnim.setValue(0);
       slideAnim.setValue(400);
       setMounted(true);
-
       Animated.parallel([
-        Animated.timing(overlayAnim, {
-          toValue: 1,
-          duration: 230,
-          useNativeDriver: true,
-        }),
-        Animated.spring(slideAnim, {
-          toValue: 0,
-          damping: 22,
-          stiffness: 280,
-          useNativeDriver: true,
-        }),
+        Animated.timing(overlayAnim, { toValue: 1, duration: 230, useNativeDriver: true }),
+        Animated.spring(slideAnim, { toValue: 0, damping: 22, stiffness: 280, useNativeDriver: true }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(overlayAnim, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(slideAnim, {
-          toValue: 400,
-          duration: 190,
-          useNativeDriver: true,
-        }),
+        Animated.timing(overlayAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 400, duration: 190, useNativeDriver: true }),
       ]).start(({ finished }) => {
         if (finished) setMounted(false);
       });
@@ -222,7 +180,6 @@ export function DateWheelPicker({
     String(i + 1).padStart(2, "0")
   );
 
-  // Clamp day if month/year changes and current day exceeds max
   useEffect(() => {
     if (selDay >= maxDay) setSelDay(maxDay - 1);
   }, [selMonth, selYear]);
@@ -230,8 +187,7 @@ export function DateWheelPicker({
   function handleConfirm() {
     const day = String(selDay + 1).padStart(2, "0");
     const month = String(selMonth + 1).padStart(2, "0");
-    const yr = YEARS[selYear];
-    onConfirm(`${day}/${month}/${yr}`);
+    onConfirm(`${day}/${month}/${YEARS[selYear]}`);
     onClose();
   }
 
@@ -245,26 +201,19 @@ export function DateWheelPicker({
       statusBarTranslucent
       onRequestClose={onClose}
     >
-      {/* Strong blur + dark overlay */}
+      {/* ── Dark overlay (solid always; blur bonus on iOS) ──────────── */}
       <Animated.View
         style={[StyleSheet.absoluteFill, { opacity: overlayAnim }]}
         pointerEvents="none"
       >
-        {Platform.OS !== "web" ? (
-          <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFill} />
-        ) : null}
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { backgroundColor: "rgba(0,0,0,0.60)" },
-          ]}
-        />
+        <View style={[StyleSheet.absoluteFill, styles.solidOverlay]} />
+        {Platform.OS === "ios" && (
+          <BlurView intensity={70} tint="dark" style={[StyleSheet.absoluteFill, { opacity: 0.85 }]} />
+        )}
       </Animated.View>
 
-      {/* Tap outside to close */}
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
 
-      {/* Sheet */}
       <Animated.View
         style={[
           styles.sheet,
@@ -276,70 +225,28 @@ export function DateWheelPicker({
         ]}
       >
         <Pressable onPress={() => {}}>
-          {/* Handle */}
           <View style={[styles.handle, { backgroundColor: colors.border }]} />
 
-          {/* Title row */}
-          <View
-            style={[styles.titleRow, { borderBottomColor: colors.border }]}
-          >
+          <View style={[styles.titleRow, { borderBottomColor: colors.border }]}>
             <TouchableOpacity onPress={onClose} style={styles.titleBtn}>
-              <Text
-                style={[
-                  styles.titleBtnText,
-                  { color: colors.mutedForeground },
-                ]}
-              >
+              <Text style={[styles.titleBtnText, { color: colors.mutedForeground }]}>
                 Cancel
               </Text>
             </TouchableOpacity>
-            <Text style={[styles.title, { color: colors.foreground }]}>
-              Date of Birth
-            </Text>
+            <Text style={[styles.title, { color: colors.foreground }]}>Date of Birth</Text>
             <TouchableOpacity onPress={handleConfirm} style={styles.titleBtn}>
-              <Text
-                style={[
-                  styles.titleBtnText,
-                  {
-                    color: colors.primary,
-                    fontFamily: "Inter_700Bold",
-                  },
-                ]}
-              >
+              <Text style={[styles.titleBtnText, { color: colors.primary, fontFamily: "Inter_700Bold" }]}>
                 Done
               </Text>
             </TouchableOpacity>
           </View>
 
-          {/* Column labels */}
           <View style={styles.labelsRow}>
-            <Text
-              style={[
-                styles.colLabel,
-                { color: colors.mutedForeground, flex: 1 },
-              ]}
-            >
-              Day
-            </Text>
-            <Text
-              style={[
-                styles.colLabel,
-                { color: colors.mutedForeground, flex: 2 },
-              ]}
-            >
-              Month
-            </Text>
-            <Text
-              style={[
-                styles.colLabel,
-                { color: colors.mutedForeground, flex: 1.3 },
-              ]}
-            >
-              Year
-            </Text>
+            <Text style={[styles.colLabel, { color: colors.mutedForeground, flex: 1 }]}>Day</Text>
+            <Text style={[styles.colLabel, { color: colors.mutedForeground, flex: 2 }]}>Month</Text>
+            <Text style={[styles.colLabel, { color: colors.mutedForeground, flex: 1.3 }]}>Year</Text>
           </View>
 
-          {/* Wheels */}
           <View style={styles.wheelsRow}>
             <Wheel
               key={`day-${selMonth}-${selYear}`}
@@ -348,18 +255,8 @@ export function DateWheelPicker({
               onSelect={setSelDay}
               flex={1}
             />
-            <Wheel
-              items={MONTHS}
-              selectedIndex={selMonth}
-              onSelect={setSelMonth}
-              flex={2}
-            />
-            <Wheel
-              items={YEARS}
-              selectedIndex={selYear}
-              onSelect={setSelYear}
-              flex={1.3}
-            />
+            <Wheel items={MONTHS} selectedIndex={selMonth} onSelect={setSelMonth} flex={2} />
+            <Wheel items={YEARS} selectedIndex={selYear} onSelect={setSelYear} flex={1.3} />
           </View>
         </Pressable>
       </Animated.View>
@@ -368,11 +265,10 @@ export function DateWheelPicker({
 }
 
 const styles = StyleSheet.create({
+  solidOverlay: { backgroundColor: "rgba(0,0,0,0.84)" },
   sheet: {
     position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    left: 0, right: 0, bottom: 0,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
     shadowColor: "#000",
@@ -382,12 +278,8 @@ const styles = StyleSheet.create({
     elevation: 30,
   },
   handle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: "center",
-    marginTop: 12,
-    marginBottom: 4,
+    width: 40, height: 4, borderRadius: 2,
+    alignSelf: "center", marginTop: 12, marginBottom: 4,
   },
   titleRow: {
     flexDirection: "row",
@@ -398,14 +290,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   titleBtn: { padding: 4, minWidth: 64 },
-  titleBtnText: {
-    fontSize: 15,
-    fontFamily: "Inter_500Medium",
-  },
-  title: {
-    fontSize: 16,
-    fontFamily: "Inter_600SemiBold",
-  },
+  titleBtnText: { fontSize: 15, fontFamily: "Inter_500Medium" },
+  title: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
   labelsRow: {
     flexDirection: "row",
     paddingHorizontal: 12,
@@ -430,36 +316,25 @@ const styles = StyleSheet.create({
   },
   selectionBar: {
     position: "absolute",
-    left: 6,
-    right: 6,
+    left: 6, right: 6,
     height: ITEM_H,
     top: ITEM_H * 2,
     borderTopWidth: 1,
     borderBottomWidth: 1,
     zIndex: 2,
   },
-  wheelItem: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  wheelText: {
-    textAlign: "center",
-  },
+  wheelItem: { alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
+  wheelText: { textAlign: "center" },
   fadeTop: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
+    top: 0, left: 0, right: 0,
     height: ITEM_H * 2,
     opacity: 0.78,
     zIndex: 3,
   },
   fadeBottom: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
+    bottom: 0, left: 0, right: 0,
     height: ITEM_H * 2,
     opacity: 0.78,
     zIndex: 3,
