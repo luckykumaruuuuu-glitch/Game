@@ -57,9 +57,9 @@ function NativeTabLayout() {
         <Icon sf={{ default: "house", selected: "house.fill" }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="search">
-        <Icon sf={{ default: "magnifyingglass", selected: "magnifyingglass" }} />
-        <Label>Search</Label>
+      <NativeTabs.Trigger name="friends">
+        <Icon sf={{ default: "person.2", selected: "person.2.fill" }} />
+        <Label>Friends</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="ludo">
         <Icon sf={{ default: "die.face.6", selected: "die.face.6.fill" }} />
@@ -136,19 +136,23 @@ function ClassicTabLayout() {
         }}
       />
       <Tabs.Screen
-        name="search"
+        name="friends"
         options={{
-          title: "Search",
+          title: "Friends",
           tabBarIcon: ({ color }) => (
             <BadgeIcon hasBadge={friendCount > 0}>
               {isIOS ? (
-                <SymbolView name="magnifyingglass" tintColor={color} size={24} />
+                <SymbolView name="person.2" tintColor={color} size={24} />
               ) : (
-                <Feather name="search" size={22} color={color} />
+                <Feather name="users" size={22} color={color} />
               )}
             </BadgeIcon>
           ),
         }}
+      />
+      <Tabs.Screen
+        name="search"
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="ludo"

@@ -5,6 +5,7 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -13,20 +14,19 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedBackground } from "@/components/ThemedBackground";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { useAuth } from "@/context/AuthContext";
+import { useColors } from "@/hooks/useColors";
 import {
   UserProfile,
   subscribeToFriends,
   subscribeToFriendRequests,
   removeFriend,
-  getChatId,
   FriendRequest,
 } from "@/lib/firestore";
 import { subscribeToFriendsPresence, UserPresence } from "@/lib/ludoFirestore";
-import { useColors } from "@/hooks/useColors";
-import { ConfirmModal } from "@/components/ConfirmModal";
 
-export default function FriendsScreen() {
+export default function FriendsTab() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
@@ -47,11 +47,10 @@ export default function FriendsScreen() {
       setFriends(list);
       setLoading(false);
 
-      // Update presence subscription when friend list changes
       if (presenceUnsubRef.current) presenceUnsubRef.current();
       if (list.length > 0) {
         presenceUnsubRef.current = subscribeToFriendsPresence(
-          list.map(f => f.userId),
+          list.map((f) => f.userId),
           setPresence
         );
       } else {
@@ -75,28 +74,41 @@ export default function FriendsScreen() {
     setRemoveTarget(friend);
   }
 
+  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
+
   return (
     <ThemedBackground>
-      <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
+      <View style={[styles.container, { paddingTop: topPad + 12 }]}>
+
+        {/* ── Header ─────────────────────────────────────────────── */}
         <View style={styles.header}>
-          <TouchableOpacity
-            onPress={() => router.back()}
-            style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <Feather name="arrow-left" size={20} color={colors.foreground} />
-          </TouchableOpacity>
           <Text style={[styles.title, { color: colors.foreground }]}>
-            Friends{friends.length > 0 ? ` (${friends.length})` : ""}
+            Friends
+            {friends.length > 0 && (
+              <Text style={{ color: colors.mutedForeground, fontSize: 16 }}>
+                {" "}({friends.length})
+              </Text>
+            )}
           </Text>
+
           <View style={styles.headerActions}>
+            {/* Pending friend requests badge */}
             <TouchableOpacity
               onPress={() => router.push("/friend-requests")}
-              style={[styles.requestsBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+              style={[
+                styles.iconBtn,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              activeOpacity={0.75}
             >
               <Feather
                 name="user-check"
-                size={16}
-                color={pendingRequests.length > 0 ? colors.primary : colors.foreground}
+                size={18}
+                color={
+                  pendingRequests.length > 0
+                    ? colors.primary
+                    : colors.foreground
+                }
               />
               {pendingRequests.length > 0 && (
                 <View style={[styles.badge, { backgroundColor: "#EF4444" }]}>
@@ -104,15 +116,19 @@ export default function FriendsScreen() {
                 </View>
               )}
             </TouchableOpacity>
+
+            {/* Add friend → goes to search */}
             <TouchableOpacity
               onPress={() => router.push("/search")}
               style={[styles.addBtn, { backgroundColor: colors.primary }]}
+              activeOpacity={0.8}
             >
-              <Feather name="user-plus" size={16} color="#fff" />
+              <Feather name="user-plus" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* ── List ───────────────────────────────────────────────── */}
         {loading ? (
           <View style={styles.center}>
             <ActivityIndicator color={colors.primary} size="large" />
@@ -121,13 +137,22 @@ export default function FriendsScreen() {
           <FlatList
             data={friends}
             keyExtractor={(f) => f.userId}
-            contentContainerStyle={styles.list}
+            contentContainerStyle={[
+              styles.list,
+              { paddingBottom: insets.bottom + 100 },
+            ]}
             renderItem={({ item }) => {
               const userPresence = presence[item.userId];
               const isOnline = userPresence?.online ?? false;
               return (
                 <View
-                  style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
+                  style={[
+                    styles.card,
+                    {
+                      backgroundColor: colors.card,
+                      borderColor: colors.border,
+                    },
+                  ]}
                 >
                   <TouchableOpacity
                     style={styles.cardLeft}
@@ -139,37 +164,64 @@ export default function FriendsScreen() {
                       <View
                         style={[
                           styles.onlineDot,
-                          { backgroundColor: isOnline ? "#10B981" : "#EF4444" },
+                          {
+                            backgroundColor: isOnline ? "#10B981" : "#9CA3AF",
+                            borderColor: colors.card,
+                          },
                         ]}
                       />
                     </View>
-                    <View>
-                      <Text style={[styles.name, { color: colors.foreground }]}>{item.name}</Text>
-                      <Text style={[styles.username, { color: colors.mutedForeground }]}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.name, { color: colors.foreground }]}>
+                        {item.name}
+                      </Text>
+                      <Text
+                        style={[styles.username, { color: colors.mutedForeground }]}
+                      >
                         @{item.username}
                       </Text>
-                      <Text style={[styles.statusText, { color: isOnline ? "#10B981" : colors.mutedForeground }]}>
-                        {isOnline ? "Online" : "Offline"}
+                      <Text
+                        style={[
+                          styles.statusText,
+                          {
+                            color: isOnline ? "#10B981" : colors.mutedForeground,
+                          },
+                        ]}
+                      >
+                        {isOnline ? "● Online" : "○ Offline"}
                       </Text>
                     </View>
                   </TouchableOpacity>
+
                   <View style={styles.actions}>
                     <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: colors.primary + "22", borderColor: colors.primary + "44" }]}
+                      style={[
+                        styles.actionBtn,
+                        {
+                          backgroundColor: colors.primary + "22",
+                          borderColor: colors.primary + "44",
+                        },
+                      ]}
                       onPress={() => {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                         router.push(`/chat/${item.userId}`);
                       }}
                       activeOpacity={0.8}
                     >
-                      <Feather name="message-circle" size={16} color={colors.primary} />
+                      <Feather name="message-circle" size={17} color={colors.primary} />
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.actionBtn, { backgroundColor: colors.destructive + "22", borderColor: colors.destructive + "44" }]}
+                      style={[
+                        styles.actionBtn,
+                        {
+                          backgroundColor: colors.destructive + "22",
+                          borderColor: colors.destructive + "44",
+                        },
+                      ]}
                       onPress={() => handleRemove(item)}
                       activeOpacity={0.8}
                     >
-                      <Feather name="user-minus" size={16} color={colors.destructive} />
+                      <Feather name="user-minus" size={17} color={colors.destructive} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -177,18 +229,20 @@ export default function FriendsScreen() {
             }}
             ListEmptyComponent={
               <View style={styles.center}>
-                <Feather name="users" size={44} color={colors.mutedForeground} />
-                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No friends yet</Text>
+                <Feather name="users" size={48} color={colors.mutedForeground} />
+                <Text style={[styles.emptyTitle, { color: colors.foreground }]}>
+                  No friends yet
+                </Text>
                 <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-                  Search for users and send friend requests
+                  Search for users and send friend requests to grow your network
                 </Text>
                 <TouchableOpacity
-                  style={[styles.searchBtn, { backgroundColor: colors.primary }]}
+                  style={[styles.findBtn, { backgroundColor: colors.primary }]}
                   onPress={() => router.push("/search")}
                   activeOpacity={0.8}
                 >
                   <Feather name="search" size={16} color="#fff" />
-                  <Text style={styles.searchBtnText}>Find Friends</Text>
+                  <Text style={styles.findBtnText}>Find Friends</Text>
                 </TouchableOpacity>
               </View>
             }
@@ -224,20 +278,30 @@ export default function FriendsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal: 20 },
   header: {
-    flexDirection: "row", alignItems: "center",
-    justifyContent: "space-between", marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
   },
-  backBtn: {
-    width: 40, height: 40, borderRadius: 20,
+  title: { fontSize: 26, fontFamily: "Inter_700Bold" },
+  headerActions: { flexDirection: "row", gap: 10, alignItems: "center" },
+  iconBtn: {
+    width: 42, height: 42, borderRadius: 21,
     borderWidth: StyleSheet.hairlineWidth,
     alignItems: "center", justifyContent: "center",
   },
   addBtn: {
-    width: 40, height: 40, borderRadius: 20,
+    width: 42, height: 42, borderRadius: 21,
     alignItems: "center", justifyContent: "center",
   },
-  title: { fontSize: 18, fontFamily: "Inter_700Bold" },
-  list: { gap: 10, paddingBottom: 40 },
+  badge: {
+    position: "absolute", top: -4, right: -4,
+    minWidth: 18, height: 18, borderRadius: 9,
+    alignItems: "center", justifyContent: "center",
+    paddingHorizontal: 4,
+  },
+  badgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold" },
+  list: { gap: 10 },
   card: {
     flexDirection: "row", alignItems: "center",
     justifyContent: "space-between",
@@ -248,36 +312,30 @@ const styles = StyleSheet.create({
   avatarWrap: { position: "relative" },
   onlineDot: {
     position: "absolute", bottom: 0, right: 0,
-    width: 13, height: 13, borderRadius: 7,
-    borderWidth: 2, borderColor: "#fff",
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 2,
   },
   name: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
   username: { fontSize: 13, fontFamily: "Inter_400Regular", marginTop: 1 },
-  statusText: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
-  headerActions: { flexDirection: "row", gap: 8, alignItems: "center" },
-  requestsBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center", justifyContent: "center",
-  },
-  badge: {
-    position: "absolute", top: -4, right: -4,
-    minWidth: 18, height: 18, borderRadius: 9,
-    alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 4,
-  },
-  badgeText: { color: "#fff", fontSize: 10, fontFamily: "Inter_700Bold" },
+  statusText: { fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
   actions: { flexDirection: "row", gap: 8 },
   actionBtn: {
-    width: 36, height: 36, borderRadius: 18,
+    width: 38, height: 38, borderRadius: 19,
     borderWidth: 1, alignItems: "center", justifyContent: "center",
   },
-  center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, paddingTop: 80 },
-  emptyTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center" },
-  searchBtn: {
-    flexDirection: "row", alignItems: "center", gap: 8,
-    paddingHorizontal: 20, paddingVertical: 12, borderRadius: 20, marginTop: 8,
+  center: {
+    flex: 1, alignItems: "center", justifyContent: "center",
+    gap: 12, paddingTop: 100,
   },
-  searchBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  emptyTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
+  emptyText: {
+    fontSize: 14, fontFamily: "Inter_400Regular",
+    textAlign: "center", maxWidth: 260,
+  },
+  findBtn: {
+    flexDirection: "row", alignItems: "center", gap: 8,
+    paddingHorizontal: 24, paddingVertical: 13,
+    borderRadius: 22, marginTop: 4,
+  },
+  findBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
 });
