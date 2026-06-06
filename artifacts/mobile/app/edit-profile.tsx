@@ -22,6 +22,7 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 import { getCountryNames, getCities, getStates } from "@/lib/geoData";
+import { getDialCode, stripDialCode } from "@/lib/countryCodes";
 import { updateUserProfile } from "@/lib/firestore";
 import { uploadProfilePhoto } from "@/lib/storage";
 
@@ -34,6 +35,24 @@ const GENDER_OPTIONS = [
 type Gender = "male" | "female" | "other" | "";
 type PickerType = "country" | "state" | "city" | null;
 
+// ── helpers ────────────────────────────────────────────────────────────────
+
+function initPhoneParts(
+  storedPhone: string,
+  countryName: string
+): { dialCode: string; localPhone: string } {
+  const code = getDialCode(countryName);
+  if (!storedPhone) return { dialCode: code, localPhone: "" };
+  // If stored phone begins with the country dial code, strip it
+  if (code && storedPhone.startsWith(code)) {
+    return { dialCode: code, localPhone: storedPhone.slice(code.length) };
+  }
+  // Stored as plain digits (old format) — keep as local number
+  return { dialCode: code, localPhone: storedPhone.replace(/[^0-9]/g, "") };
+}
+
+// ── screen ────────────────────────────────────────────────────────────────
+
 export default function EditProfileScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -43,10 +62,14 @@ export default function EditProfileScreen() {
   const [bio, setBio] = useState(profile?.bio ?? "");
   const [gender, setGender] = useState<Gender>((profile?.gender as Gender) ?? "");
   const [dateOfBirth, setDateOfBirth] = useState(profile?.dateOfBirth ?? "");
-  const [phone, setPhone] = useState(profile?.phone ?? "");
   const [country, setCountry] = useState(profile?.country ?? "");
   const [state, setState] = useState(profile?.state ?? "");
   const [city, setCity] = useState(profile?.city ?? "");
+
+  // Phone is stored in two parts: the dial code prefix and the local number
+  const initParts = initPhoneParts(profile?.phone ?? "", profile?.country ?? "");
+  const [dialCode, setDialCode] = useState(initParts.dialCode);
+  const [localPhone, setLocalPhone] = useState(initParts.localPhone);
 
   const [saving, setSaving] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -61,12 +84,15 @@ export default function EditProfileScreen() {
       })
     : "—";
 
-  // ── Location cascades ─────────────────────────────────────────────────────
+  // ── location cascades ────────────────────────────────────────────────────
 
   function handleCountrySelect(c: string) {
     setCountry(c);
     setState("");
     setCity("");
+    // Auto-set dial code; preserve whatever local number the user typed
+    const code = getDialCode(c);
+    setDialCode(code);
   }
 
   function handleStateSelect(s: string) {
@@ -78,7 +104,7 @@ export default function EditProfileScreen() {
   const stateNames = country ? getStates(country) : [];
   const cityNames = country && state ? getCities(country, state) : [];
 
-  // ── Save ─────────────────────────────────────────────────────────────────
+  // ── save ──────────────────────────────────────────────────────────────────
 
   async function handleSaveProfile() {
     if (!user) return;
@@ -96,11 +122,14 @@ export default function EditProfileScreen() {
       return;
     }
 
-    const trimmedPhone = phone.trim();
-    if (trimmedPhone && (trimmedPhone.length < 7 || trimmedPhone.length > 15)) {
-      Alert.alert("Invalid Phone", "Phone number must be 7–15 digits.");
+    const trimmedLocal = localPhone.trim();
+    if (trimmedLocal && (trimmedLocal.length < 4 || trimmedLocal.length > 13)) {
+      Alert.alert("Invalid Phone", "Please enter a valid local phone number (4–13 digits).");
       return;
     }
+
+    // Build full international number e.g. "+919876543210"
+    const fullPhone = trimmedLocal ? `${dialCode}${trimmedLocal}` : "";
 
     const trimmedDob = dateOfBirth.trim();
     if (trimmedDob) {
@@ -124,7 +153,7 @@ export default function EditProfileScreen() {
         bio: bio.trim(),
         gender,
         dateOfBirth: trimmedDob,
-        phone: trimmedPhone,
+        phone: fullPhone,
         country: country.trim(),
         state: state.trim(),
         city: city.trim(),
@@ -139,7 +168,7 @@ export default function EditProfileScreen() {
     }
   }
 
-  // ── Photo ────────────────────────────────────────────────────────────────
+  // ── photo ─────────────────────────────────────────────────────────────────
 
   async function handlePickPhoto() {
     if (!user) return;
@@ -166,7 +195,7 @@ export default function EditProfileScreen() {
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
+  // ── sub-component: picker trigger button ──────────────────────────────────
 
   function PickerField({
     label,
@@ -227,6 +256,8 @@ export default function EditProfileScreen() {
     );
   }
 
+  // ── render ────────────────────────────────────────────────────────────────
+
   return (
     <>
       <KeyboardAvoidingView
@@ -238,7 +269,7 @@ export default function EditProfileScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
+          {/* ── Header ─────────────────────────────────────────────────── */}
           <View style={[styles.header, { paddingTop: topPad + 12 }]}>
             <TouchableOpacity
               style={[styles.backCircle, { borderColor: colors.border }]}
@@ -265,7 +296,7 @@ export default function EditProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Avatar */}
+          {/* ── Avatar ─────────────────────────────────────────────────── */}
           <View style={styles.avatarSection}>
             <View>
               <ProfileAvatar uri={profile?.photo} size={90} name={profile?.name} />
@@ -287,7 +318,7 @@ export default function EditProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Profile Info */}
+          {/* ── Profile Info ────────────────────────────────────────────── */}
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
               PROFILE INFO
@@ -297,10 +328,7 @@ export default function EditProfileScreen() {
             <View
               style={[
                 styles.field,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                },
+                { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" },
               ]}
             >
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
@@ -320,10 +348,7 @@ export default function EditProfileScreen() {
             <View
               style={[
                 styles.field,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: "rgba(255,255,255,0.02)",
-                },
+                { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.02)" },
               ]}
             >
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
@@ -338,10 +363,7 @@ export default function EditProfileScreen() {
             <View
               style={[
                 styles.field,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                },
+                { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" },
               ]}
             >
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
@@ -354,17 +376,12 @@ export default function EditProfileScreen() {
                     style={[
                       styles.genderPill,
                       {
-                        borderColor:
-                          gender === g.value ? colors.primary : colors.border,
+                        borderColor: gender === g.value ? colors.primary : colors.border,
                         backgroundColor:
-                          gender === g.value
-                            ? colors.primary + "22"
-                            : "transparent",
+                          gender === g.value ? colors.primary + "22" : "transparent",
                       },
                     ]}
-                    onPress={() =>
-                      setGender(gender === g.value ? "" : g.value)
-                    }
+                    onPress={() => setGender(gender === g.value ? "" : g.value)}
                     activeOpacity={0.7}
                   >
                     <Text
@@ -372,9 +389,7 @@ export default function EditProfileScreen() {
                         styles.genderPillText,
                         {
                           color:
-                            gender === g.value
-                              ? colors.primary
-                              : colors.mutedForeground,
+                            gender === g.value ? colors.primary : colors.mutedForeground,
                         },
                       ]}
                     >
@@ -389,10 +404,7 @@ export default function EditProfileScreen() {
             <TouchableOpacity
               style={[
                 styles.field,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                },
+                { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" },
               ]}
               onPress={() => setShowDatePicker(true)}
               activeOpacity={0.65}
@@ -413,46 +425,76 @@ export default function EditProfileScreen() {
                 >
                   {dateOfBirth || "DD/MM/YYYY"}
                 </Text>
-                <Feather
-                  name="calendar"
-                  size={15}
-                  color={colors.mutedForeground}
-                />
+                <Feather name="calendar" size={15} color={colors.mutedForeground} />
               </View>
             </TouchableOpacity>
 
-            {/* Phone Number */}
+            {/* ── Phone Number — split into dial-code prefix + local input ── */}
             <View
               style={[
                 styles.field,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                },
+                { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" },
               ]}
             >
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
                 Phone Number
               </Text>
-              <TextInput
-                style={[styles.fieldInput, { color: colors.foreground }]}
-                value={phone}
-                onChangeText={(t) => setPhone(t.replace(/[^0-9]/g, ""))}
-                placeholder="Digits only (7–15)"
-                placeholderTextColor={colors.mutedForeground}
-                keyboardType="phone-pad"
-                maxLength={15}
-              />
+              <View style={styles.phoneRow}>
+                {/* Dial code badge — auto-set from country selection */}
+                <View
+                  style={[
+                    styles.dialCodeBox,
+                    {
+                      borderRightColor: colors.border,
+                      backgroundColor: dialCode
+                        ? colors.primary + "18"
+                        : "transparent",
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.dialCodeText,
+                      {
+                        color: dialCode ? colors.primary : colors.mutedForeground,
+                        fontFamily: dialCode ? "Inter_600SemiBold" : "Inter_400Regular",
+                      },
+                    ]}
+                  >
+                    {dialCode || "+??"}
+                  </Text>
+                </View>
+
+                {/* Local number input */}
+                <TextInput
+                  style={[styles.localPhoneInput, { color: colors.foreground }]}
+                  value={localPhone}
+                  onChangeText={(t) => setLocalPhone(t.replace(/[^0-9]/g, ""))}
+                  placeholder={dialCode ? "Enter number" : "Select country first"}
+                  placeholderTextColor={colors.mutedForeground}
+                  keyboardType="phone-pad"
+                  maxLength={13}
+                  editable={!!dialCode || true}
+                />
+              </View>
+
+              {/* Helper text showing full number preview */}
+              {dialCode && localPhone.length > 0 && (
+                <Text
+                  style={[styles.phonePreview, { color: colors.mutedForeground }]}
+                >
+                  Full number: {dialCode} {localPhone}
+                </Text>
+              )}
             </View>
           </View>
 
-          {/* Location */}
+          {/* ── Location ────────────────────────────────────────────────── */}
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
               LOCATION
             </Text>
 
-            {/* Country */}
             <PickerField
               label="Country"
               value={country}
@@ -460,8 +502,6 @@ export default function EditProfileScreen() {
               onPress={() => setOpenPicker("country")}
               required
             />
-
-            {/* State */}
             <PickerField
               label="State / Region"
               value={state}
@@ -470,8 +510,6 @@ export default function EditProfileScreen() {
               required
               disabled={!country || stateNames.length === 0}
             />
-
-            {/* City */}
             <PickerField
               label="City"
               value={city}
@@ -482,7 +520,7 @@ export default function EditProfileScreen() {
             />
           </View>
 
-          {/* About */}
+          {/* ── About ───────────────────────────────────────────────────── */}
           <View style={styles.section}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
               ABOUT
@@ -492,21 +530,14 @@ export default function EditProfileScreen() {
             <View
               style={[
                 styles.field,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: "rgba(255,255,255,0.04)",
-                },
+                { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.04)" },
               ]}
             >
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
                 Bio (optional)
               </Text>
               <TextInput
-                style={[
-                  styles.fieldInput,
-                  styles.bioInput,
-                  { color: colors.foreground },
-                ]}
+                style={[styles.fieldInput, styles.bioInput, { color: colors.foreground }]}
                 value={bio}
                 onChangeText={setBio}
                 placeholder="Short bio..."
@@ -517,14 +548,11 @@ export default function EditProfileScreen() {
               />
             </View>
 
-            {/* Join Date (read-only) */}
+            {/* Joined (read-only) */}
             <View
               style={[
                 styles.field,
-                {
-                  borderColor: colors.border,
-                  backgroundColor: "rgba(255,255,255,0.02)",
-                },
+                { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.02)" },
               ]}
             >
               <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
@@ -538,7 +566,7 @@ export default function EditProfileScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* ── Country Picker ──────────────────────────────────────────────────── */}
+      {/* ── Pickers ──────────────────────────────────────────────────────── */}
       <LocationPicker
         visible={openPicker === "country"}
         title="Select Country"
@@ -547,8 +575,6 @@ export default function EditProfileScreen() {
         onSelect={handleCountrySelect}
         onClose={() => setOpenPicker(null)}
       />
-
-      {/* ── State Picker ─────────────────────────────────────────────────────── */}
       <LocationPicker
         visible={openPicker === "state"}
         title="Select State / Region"
@@ -557,8 +583,6 @@ export default function EditProfileScreen() {
         onSelect={handleStateSelect}
         onClose={() => setOpenPicker(null)}
       />
-
-      {/* ── City Picker ──────────────────────────────────────────────────────── */}
       <LocationPicker
         visible={openPicker === "city"}
         title="Select City"
@@ -567,8 +591,6 @@ export default function EditProfileScreen() {
         onSelect={setCity}
         onClose={() => setOpenPicker(null)}
       />
-
-      {/* ── Date Picker ──────────────────────────────────────────────────────── */}
       <DateWheelPicker
         visible={showDatePicker}
         value={dateOfBirth}
@@ -578,6 +600,8 @@ export default function EditProfileScreen() {
     </>
   );
 }
+
+// ── styles ────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -589,72 +613,85 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   backCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 40, height: 40, borderRadius: 20,
     borderWidth: StyleSheet.hairlineWidth,
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
   },
   headerTitle: { fontSize: 17, fontFamily: "Inter_600SemiBold" },
   saveBtn: {
-    paddingHorizontal: 20,
-    paddingVertical: 9,
-    borderRadius: 20,
-    minWidth: 70,
-    alignItems: "center",
+    paddingHorizontal: 20, paddingVertical: 9,
+    borderRadius: 20, minWidth: 70, alignItems: "center",
   },
   saveBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   avatarSection: { alignItems: "center", gap: 12, paddingVertical: 20 },
   uploadingOverlay: {
     borderRadius: 45,
     backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
+    alignItems: "center", justifyContent: "center",
   },
   changePhotoBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 16, paddingVertical: 7,
+    borderRadius: 20, borderWidth: StyleSheet.hairlineWidth,
   },
   changePhotoText: { fontSize: 13, fontFamily: "Inter_500Medium" },
-  section: {
-    paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 24,
-  },
+  section: { paddingHorizontal: 16, gap: 10, marginBottom: 24 },
   sectionLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    letterSpacing: 0.8,
-    marginBottom: 2,
+    fontSize: 11, fontFamily: "Inter_600SemiBold",
+    letterSpacing: 0.8, marginBottom: 2,
   },
   field: {
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    gap: 4,
+    borderRadius: 14, borderWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 14, paddingVertical: 12, gap: 4,
   },
   fieldLabel: { fontSize: 11, fontFamily: "Inter_500Medium" },
   fieldInput: { fontSize: 15, fontFamily: "Inter_400Regular" },
   bioInput: { minHeight: 64, textAlignVertical: "top" },
   genderRow: { flexDirection: "row", gap: 8, marginTop: 4, flexWrap: "wrap" },
   genderPill: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    borderWidth: 1,
+    paddingHorizontal: 16, paddingVertical: 6,
+    borderRadius: 20, borderWidth: 1,
   },
   genderPillText: { fontSize: 13, fontFamily: "Inter_500Medium" },
   pickerRow: {
+    flexDirection: "row", alignItems: "center",
+    justifyContent: "space-between", gap: 8,
+  },
+
+  /* Phone field */
+  phoneRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    marginTop: 4,
+    borderRadius: 10,
+    overflow: "hidden",
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "transparent",
+  },
+  dialCodeBox: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    alignItems: "center",
+    justifyContent: "center",
+    minWidth: 62,
+  },
+  dialCodeText: {
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
+  localPhoneInput: {
+    flex: 1,
+    fontSize: 15,
+    fontFamily: "Inter_400Regular",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    padding: 0,
+  },
+  phonePreview: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    marginTop: 4,
+    opacity: 0.7,
   },
 });
