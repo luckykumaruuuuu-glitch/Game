@@ -1,6 +1,8 @@
+import { BlurView } from "expo-blur";
 import { Feather } from "@expo/vector-icons";
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  Animated,
   FlatList,
   Modal,
   Platform,
@@ -36,10 +38,46 @@ export function LocationPicker({
   const [query, setQuery] = useState("");
   const inputRef = useRef<TextInput>(null);
 
+  const overlayAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(500)).current;
+  const [mounted, setMounted] = useState(false);
+
   useEffect(() => {
     if (visible) {
       setQuery("");
-      setTimeout(() => inputRef.current?.focus(), 200);
+      overlayAnim.setValue(0);
+      slideAnim.setValue(500);
+      setMounted(true);
+      Animated.parallel([
+        Animated.timing(overlayAnim, {
+          toValue: 1,
+          duration: 230,
+          useNativeDriver: true,
+        }),
+        Animated.spring(slideAnim, {
+          toValue: 0,
+          damping: 24,
+          stiffness: 280,
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        setTimeout(() => inputRef.current?.focus(), 100);
+      });
+    } else {
+      Animated.parallel([
+        Animated.timing(overlayAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 500,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        if (finished) setMounted(false);
+      });
     }
   }, [visible]);
 
@@ -49,61 +87,104 @@ export function LocationPicker({
     return items.filter((item) => item.toLowerCase().includes(q));
   }, [items, query]);
 
+  const handleSelect = useCallback(
+    (item: string) => {
+      onSelect(item);
+      onClose();
+    },
+    [onSelect, onClose]
+  );
+
+  if (!mounted) return null;
+
   return (
     <Modal
-      visible={visible}
-      animationType="slide"
-      presentationStyle="pageSheet"
+      visible={mounted}
+      transparent
+      animationType="none"
+      statusBarTranslucent
       onRequestClose={onClose}
     >
-      <View style={[styles.container, { backgroundColor: colors.background }]}>
-        {/* Header */}
-        <View
-          style={[
-            styles.header,
-            {
-              paddingTop: Platform.OS === "ios" ? 16 : insets.top + 16,
-              borderBottomColor: colors.border,
-            },
-          ]}
-        >
-          <Text style={[styles.headerTitle, { color: colors.foreground }]}>
-            {title}
-          </Text>
-          <TouchableOpacity
-            style={[styles.closeBtn, { backgroundColor: colors.secondary }]}
-            onPress={onClose}
-          >
-            <Feather name="x" size={18} color={colors.foreground} />
-          </TouchableOpacity>
-        </View>
+      {/* Blurred dark overlay */}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { opacity: overlayAnim }]}
+        pointerEvents="none"
+      >
+        {Platform.OS !== "web" ? (
+          <BlurView intensity={85} tint="dark" style={StyleSheet.absoluteFill} />
+        ) : null}
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.60)" }]} />
+      </Animated.View>
 
-        {/* Search */}
-        <View style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <Feather name="search" size={16} color={colors.mutedForeground} />
-          <TextInput
-            ref={inputRef}
-            style={[styles.searchInput, { color: colors.foreground }]}
-            placeholder={`Search ${title.toLowerCase()}...`}
-            placeholderTextColor={colors.mutedForeground}
-            value={query}
-            onChangeText={setQuery}
-            autoCorrect={false}
-            clearButtonMode="while-editing"
-          />
-          {query.length > 0 && Platform.OS !== "ios" && (
-            <Pressable onPress={() => setQuery("")}>
-              <Feather name="x-circle" size={16} color={colors.mutedForeground} />
-            </Pressable>
-          )}
-        </View>
+      {/* Tap outside to close */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+
+      {/* Sheet */}
+      <Animated.View
+        style={[
+          styles.sheet,
+          {
+            backgroundColor: colors.background,
+            paddingBottom: insets.bottom + 12,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
+        <Pressable onPress={() => {}}>
+          {/* Handle bar */}
+          <View style={[styles.handle, { backgroundColor: colors.border }]} />
+
+          {/* Header */}
+          <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>
+              {title}
+            </Text>
+            <TouchableOpacity
+              style={[styles.closeBtn, { backgroundColor: colors.secondary }]}
+              onPress={onClose}
+            >
+              <Feather name="x" size={18} color={colors.foreground} />
+            </TouchableOpacity>
+          </View>
+
+          {/* Search */}
+          <View
+            style={[
+              styles.searchBar,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Feather name="search" size={16} color={colors.mutedForeground} />
+            <TextInput
+              ref={inputRef}
+              style={[styles.searchInput, { color: colors.foreground }]}
+              placeholder={`Search ${title.toLowerCase()}...`}
+              placeholderTextColor={colors.mutedForeground}
+              value={query}
+              onChangeText={setQuery}
+              autoCorrect={false}
+              autoCapitalize="none"
+              clearButtonMode="while-editing"
+              returnKeyType="search"
+            />
+            {query.length > 0 && Platform.OS === "android" && (
+              <Pressable onPress={() => setQuery("")}>
+                <Feather name="x-circle" size={16} color={colors.mutedForeground} />
+              </Pressable>
+            )}
+          </View>
+        </Pressable>
 
         {/* List */}
         <FlatList
           data={filtered}
           keyExtractor={(item) => item}
           keyboardShouldPersistTaps="handled"
-          contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 8 }}
           renderItem={({ item }) => {
             const isSelected = item === selected;
             return (
@@ -112,21 +193,22 @@ export function LocationPicker({
                   styles.row,
                   {
                     borderBottomColor: colors.border,
-                    backgroundColor: isSelected ? colors.primary + "12" : "transparent",
+                    backgroundColor: isSelected
+                      ? colors.primary + "14"
+                      : "transparent",
                   },
                 ]}
-                onPress={() => {
-                  onSelect(item);
-                  onClose();
-                }}
-                activeOpacity={0.65}
+                onPress={() => handleSelect(item)}
+                activeOpacity={0.6}
               >
                 <Text
                   style={[
                     styles.rowText,
                     {
                       color: isSelected ? colors.primary : colors.foreground,
-                      fontFamily: isSelected ? "Inter_600SemiBold" : "Inter_400Regular",
+                      fontFamily: isSelected
+                        ? "Inter_600SemiBold"
+                        : "Inter_400Regular",
                     },
                   ]}
                 >
@@ -140,31 +222,64 @@ export function LocationPicker({
           }}
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+              <Feather
+                name="search"
+                size={32}
+                color={colors.mutedForeground}
+                style={{ opacity: 0.4 }}
+              />
+              <Text
+                style={[styles.emptyText, { color: colors.mutedForeground }]}
+              >
                 No results for "{query}"
               </Text>
             </View>
           }
         />
-      </View>
+      </Animated.View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  sheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: "92%",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 30,
+    overflow: "hidden",
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: "center",
+    marginTop: 12,
+    marginBottom: 6,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingBottom: 14,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   headerTitle: { fontSize: 18, fontFamily: "Inter_700Bold" },
   closeBtn: {
-    width: 34, height: 34, borderRadius: 17,
-    alignItems: "center", justifyContent: "center",
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchBar: {
     flexDirection: "row",
@@ -173,7 +288,7 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: Platform.OS === "ios" ? 11 : 8,
     borderRadius: 14,
     borderWidth: StyleSheet.hairlineWidth,
   },
@@ -192,6 +307,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   rowText: { fontSize: 16 },
-  empty: { paddingTop: 60, alignItems: "center" },
-  emptyText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  empty: {
+    paddingTop: 60,
+    alignItems: "center",
+    gap: 12,
+  },
+  emptyText: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+  },
 });

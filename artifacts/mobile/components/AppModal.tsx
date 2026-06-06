@@ -32,18 +32,18 @@ export function AppModal({ visible, onClose, children }: AppModalProps) {
       Animated.parallel([
         Animated.timing(overlayOpacity, {
           toValue: 1,
-          duration: 220,
+          duration: 230,
           useNativeDriver: true,
         }),
         Animated.spring(cardScale, {
           toValue: 1,
           damping: 18,
-          stiffness: 280,
+          stiffness: 260,
           useNativeDriver: true,
         }),
         Animated.timing(cardOpacity, {
           toValue: 1,
-          duration: 180,
+          duration: 190,
           useNativeDriver: true,
         }),
       ]).start();
@@ -80,22 +80,26 @@ export function AppModal({ visible, onClose, children }: AppModalProps) {
       statusBarTranslucent
       onRequestClose={onClose}
     >
+      {/* Strong blur + dark overlay so background is unreadable */}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { opacity: overlayOpacity }]}
+        pointerEvents="none"
+      >
+        {Platform.OS !== "web" ? (
+          <BlurView
+            intensity={90}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
+        ) : null}
+        <View style={[StyleSheet.absoluteFill, styles.dimOverlay]} />
+      </Animated.View>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={styles.wrapper}
         pointerEvents="box-none"
       >
-        {/* Blurred + darkened overlay */}
-        <Animated.View
-          style={[StyleSheet.absoluteFill, { opacity: overlayOpacity }]}
-          pointerEvents="none"
-        >
-          {Platform.OS !== "web" ? (
-            <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} />
-          ) : null}
-          <View style={[StyleSheet.absoluteFill, styles.dimOverlay]} />
-        </Animated.View>
-
         {/* Tap outside → close */}
         {onClose ? (
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -113,7 +117,6 @@ export function AppModal({ visible, onClose, children }: AppModalProps) {
             },
           ]}
         >
-          {/* Inner Pressable stops tap propagation to the overlay */}
           <Pressable onPress={() => {}}>{children}</Pressable>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -129,7 +132,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
   },
   dimOverlay: {
-    backgroundColor: "rgba(0,0,0,0.52)",
+    backgroundColor: "rgba(0,0,0,0.62)",
   },
   cardWrapper: {
     width: "100%",

@@ -35,6 +35,7 @@ export interface UserProfile {
   dateOfBirth?: string;
   phone?: string;
   country?: string;
+  state?: string;
   city?: string;
 }
 
@@ -144,7 +145,7 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 
 export async function updateUserProfile(
   userId: string,
-  data: Partial<Pick<UserProfile, "name" | "bio" | "photo" | "gender" | "dateOfBirth" | "phone" | "country" | "city">>
+  data: Partial<Pick<UserProfile, "name" | "bio" | "photo" | "gender" | "dateOfBirth" | "phone" | "country" | "state" | "city">>
 ): Promise<void> {
   await updateDoc(doc(db, "users", userId), data);
 }
