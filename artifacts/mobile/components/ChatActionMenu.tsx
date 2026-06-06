@@ -123,10 +123,10 @@ export function ChatActionMenu({
         style={[StyleSheet.absoluteFill, { opacity: overlayOpacity }]}
         pointerEvents="none"
       >
-        {Platform.OS !== "web" ? (
-          <BlurView intensity={45} tint="dark" style={StyleSheet.absoluteFill} />
-        ) : null}
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.48)" }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.72)" }]} />
+        {Platform.OS !== "android" && (
+          <BlurView intensity={90} tint="dark" style={[StyleSheet.absoluteFill, { opacity: 0.9 }]} />
+        )}
       </Animated.View>
 
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />

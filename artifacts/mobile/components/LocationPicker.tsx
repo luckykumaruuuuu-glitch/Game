@@ -111,8 +111,8 @@ export function LocationPicker({
         pointerEvents="none"
       >
         <View style={[StyleSheet.absoluteFill, styles.solidOverlay]} />
-        {Platform.OS === "ios" && (
-          <BlurView intensity={70} tint="dark" style={[StyleSheet.absoluteFill, { opacity: 0.85 }]} />
+        {Platform.OS !== "android" && (
+          <BlurView intensity={90} tint="dark" style={[StyleSheet.absoluteFill, { opacity: 0.9 }]} />
         )}
       </Animated.View>
 

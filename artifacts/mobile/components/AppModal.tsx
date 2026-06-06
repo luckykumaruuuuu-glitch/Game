@@ -91,13 +91,13 @@ export function AppModal({ visible, onClose, children }: AppModalProps) {
         style={[StyleSheet.absoluteFill, { opacity: overlayOpacity }]}
         pointerEvents="none"
       >
-        {/* Solid dark — always works, makes background unreadable */}
+        {/* Solid dark — always rendered as base layer */}
         <View style={[StyleSheet.absoluteFill, styles.solidOverlay]} />
 
-        {/* Blur bonus — iOS only (works inside transparent Modal) */}
-        {Platform.OS === "ios" && (
+        {/* Blur layer — iOS & web (Android transparent Modal can't blur) */}
+        {Platform.OS !== "android" && (
           <BlurView
-            intensity={70}
+            intensity={90}
             tint="dark"
             style={[StyleSheet.absoluteFill, styles.blurLayer]}
           />
