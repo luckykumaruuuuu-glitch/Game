@@ -1,0 +1,1 @@
+- [Metro pnpm monorepo fix](metro-pnpm-fix.md) — Expo Metro can't resolve bundle URLs without a .pnpm symlink in the mobile package's node_modules.
