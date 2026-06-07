@@ -1,0 +1,37 @@
+{
+  "name": "leludo",
+  "version": "0.7.0",
+  "description": "Ludo board game — browser + Android via Capacitor",
+  "license": "GPL-3.0-or-later",
+  "author": "Vishal Gidwani",
+  "private": true,
+  "scripts": {
+    "dev": "node tools/dev.mjs",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "build:www": "node tools/build-www.mjs",
+    "version:sync": "node tools/sync-android-version.mjs",
+    "icons:generate": "node tools/generate-icons.mjs",
+    "whatsnew:extract": "node tools/extract-whatsnew.mjs",
+    "android:prepare": "npm run version:sync && npm run build:www && cap sync android",
+    "android:open": "npm run android:prepare && cap open android",
+    "android:run": "npm run android:prepare && cap run android"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.3.4",
+    "@playwright/test": "^1.60.0",
+    "five-server": "^0.5.0",
+    "happy-dom": "^20.9.0",
+    "vitest": "^4.1.7"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/core": "^8.3.4",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2"
+  }
+}
