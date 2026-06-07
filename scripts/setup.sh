@@ -5,6 +5,8 @@
 # even after the project is moved to a new account or environment.
 #
 # Uses a file lock so parallel workflow starts don't race on pnpm install.
+# Tries --frozen-lockfile first; falls back to a regular install if it fails
+# (e.g. on a fresh import where the lockfile may have minor mismatches).
 
 set -e
 
@@ -12,16 +14,25 @@ echo "🔧 Running setup check..."
 
 LOCK_FILE="/tmp/workspace-pnpm-install.lock"
 
-# Step 1: Install dependencies if node_modules is missing or incomplete.
-# flock ensures only one workflow runs the install at a time; the other waits.
-if [ ! -d "node_modules" ] || [ ! -d "artifacts/mobile/node_modules" ] || [ ! -d "artifacts/api-server/node_modules" ]; then
+needs_install() {
+  [ ! -d "node_modules" ] || \
+  [ ! -d "artifacts/mobile/node_modules" ] || \
+  [ ! -d "artifacts/api-server/node_modules" ]
+}
+
+if needs_install; then
   echo "📦 node_modules missing — acquiring install lock..."
   (
     flock -x 200
-    # Re-check inside the lock in case another workflow already installed
-    if [ ! -d "node_modules" ] || [ ! -d "artifacts/mobile/node_modules" ] || [ ! -d "artifacts/api-server/node_modules" ]; then
+    if needs_install; then
       echo "📦 Running pnpm install..."
-      pnpm install --frozen-lockfile
+      if pnpm install --frozen-lockfile 2>&1; then
+        echo "✅ Installed (frozen lockfile)"
+      else
+        echo "⚠️  Frozen lockfile failed — retrying without lockfile constraint..."
+        pnpm install --no-frozen-lockfile
+        echo "✅ Installed (no frozen lockfile)"
+      fi
     else
       echo "✅ node_modules already installed by another workflow"
     fi
@@ -30,7 +41,7 @@ else
   echo "✅ node_modules present"
 fi
 
-# Step 2: Fix the Metro .pnpm symlink (pnpm install wipes it)
+# Fix the Metro .pnpm symlink (pnpm install wipes it)
 # Without this, Metro cannot resolve bundle URLs in the mobile workspace.
 if [ ! -L "artifacts/mobile/node_modules/.pnpm" ]; then
   echo "🔗 Fixing Metro .pnpm symlink..."

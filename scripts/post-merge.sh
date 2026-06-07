@@ -2,10 +2,22 @@
 set -e
 
 echo "📦 Installing dependencies..."
-pnpm install --frozen-lockfile
+if pnpm install --frozen-lockfile 2>&1; then
+  echo "✅ Installed (frozen lockfile)"
+else
+  echo "⚠️  Frozen lockfile failed — retrying without lockfile constraint..."
+  pnpm install --no-frozen-lockfile
+  echo "✅ Installed (no frozen lockfile)"
+fi
 
-echo "🗄️ Pushing database schema..."
-pnpm --filter @workspace/db run push
+# Push DB schema only if DATABASE_URL is set — skip on fresh imports without a DB yet
+if [ -n "$DATABASE_URL" ]; then
+  echo "🗄️ Pushing database schema..."
+  pnpm --filter @workspace/db run push
+  echo "✅ Database schema up to date"
+else
+  echo "⚠️  DATABASE_URL not set — skipping db push (connect a database to enable this)"
+fi
 
 # Recreate the .pnpm symlink in mobile's node_modules so Metro can resolve
 # pnpm-style bundle URLs (e.g. /node_modules/.pnpm/expo-router@.../entry.bundle)
