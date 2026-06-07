@@ -2510,6 +2510,159 @@ wc-quick-start .seat-remove:hover {
 wc-quick-start .home-version {
     text-align: center;
 }
+
+/* ============================================================
+   GLASSMORPHISM OVERRIDES — Main App Design System
+   ============================================================ */
+.dark {
+    --color-bg: #080808;
+    --color-fg: #ffffff;
+    --color-surface: rgba(255, 255, 255, 0.06);
+    --color-surface-hover: rgba(255, 255, 255, 0.10);
+    --color-border: rgba(255, 255, 255, 0.10);
+    --color-board-cell: rgba(255, 255, 255, 0.04);
+    --color-board-border: rgba(255, 255, 255, 0.12);
+    --color-safe: rgba(124, 58, 237, 0.12);
+    --cta-bg: #7C3AED;
+    --cta-fg: #ffffff;
+}
+.dark body,
+.dark #pause-menu,
+.dark #settings-overlay {
+    background-image:
+        radial-gradient(ellipse 90% 60% at 50% 5%,
+            rgba(124, 58, 237, 0.22) 0%,
+            rgba(109, 40, 217, 0.10) 45%,
+            transparent 75%);
+}
+.cta-primary {
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    transition: opacity 150ms ease, transform 150ms ease;
+}
+.dark .cta-primary {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.92) 0%, rgba(109, 40, 217, 0.96) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.30);
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.45), 0 1px 0 rgba(255, 255, 255, 0.14) inset;
+    color: #ffffff;
+}
+.cta-primary:hover { transform: translateY(-1px); }
+.cta-primary:active { transform: translateY(0); }
+.cta-primary:disabled { transform: none; }
+.cta-secondary {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+.dark .cta-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+}
+.cta-secondary:hover { transform: translateY(-1px); }
+.cta-secondary:active { transform: translateY(0); }
+.dark .cta-green {
+    background: rgba(22, 163, 74, 0.85);
+    border: 1px solid rgba(74, 222, 128, 0.25);
+    box-shadow: 0 8px 28px rgba(22, 163, 74, 0.38), 0 1px 0 rgba(255, 255, 255, 0.10) inset;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+.icon-btn {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+.dark .icon-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+}
+.icon-btn:hover { transform: translateY(-1px); }
+.icon-btn:active { transform: translateY(0); }
+.surface-card {
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+}
+.dark .surface-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.dark .frame-overlay {
+    background: rgba(8, 8, 8, 0.88);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+}
+.dark wc-quick-start .seat-row {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.dark wc-quick-start .seat-row-empty {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.dark wc-quick-start .resume-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.20), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.dark wc-quick-start .resume-play {
+    background: rgba(124, 58, 237, 0.85);
+    border: 1px solid rgba(167, 139, 250, 0.30);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.dark .corner-pill:not(.corner-pill--active) {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.dark wc-game-end .ge-screen {
+    --ge-bg: #080808;
+    --ge-fg: #ffffff;
+    --ge-fg-mute: rgba(255, 255, 255, 0.62);
+    --ge-fg-faint: rgba(255, 255, 255, 0.40);
+    --ge-ring: rgba(255, 255, 255, 0.12);
+    --ge-surface: rgba(255, 255, 255, 0.05);
+    --ge-surface-border: rgba(255, 255, 255, 0.10);
+    --ge-cta-bg: #7C3AED;
+    --ge-cta-fg: #ffffff;
+    --ge-glow-tint: rgba(124, 58, 237, 0.28);
+    background-image: radial-gradient(ellipse 90% 55% at 50% 5%,
+        rgba(124, 58, 237, 0.22) 0%,
+        rgba(109, 40, 217, 0.08) 50%,
+        transparent 80%);
+}
+.dark wc-game-end .ge-card {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.dark wc-game-end .ge-cta {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.92) 0%, rgba(109, 40, 217, 0.96) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.30);
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.45), 0 1px 0 rgba(255, 255, 255, 0.14) inset;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+.dark wc-game-end .ge-home-pill {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.05);
+}
+.dark wc-game-end .ge-icon-btn {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.05);
+}
 </style>
 </head>
 <body>

@@ -32,16 +32,16 @@ wc-game-end .ge-screen {
 }
 
 .dark wc-game-end .ge-screen {
-    --ge-bg: #1a1410;
-    --ge-fg: #ebe3d6;
-    --ge-fg-mute: rgba(235, 227, 214, 0.62);
-    --ge-fg-faint: rgba(235, 227, 214, 0.40);
-    --ge-ring: rgba(235, 227, 214, 0.18);
-    --ge-surface: rgba(235, 227, 214, 0.05);
-    --ge-surface-border: rgba(235, 227, 214, 0.10);
-    --ge-cta-bg: #ecdfd0;
-    --ge-cta-fg: #1a1410;
-    --ge-glow-tint: rgba(217, 118, 68, 0.22);
+    --ge-bg: #080808;
+    --ge-fg: #ffffff;
+    --ge-fg-mute: rgba(255, 255, 255, 0.62);
+    --ge-fg-faint: rgba(255, 255, 255, 0.40);
+    --ge-ring: rgba(255, 255, 255, 0.12);
+    --ge-surface: rgba(255, 255, 255, 0.05);
+    --ge-surface-border: rgba(255, 255, 255, 0.10);
+    --ge-cta-bg: #7C3AED;
+    --ge-cta-fg: #ffffff;
+    --ge-glow-tint: rgba(124, 58, 237, 0.28);
 }
 
 wc-game-end .ge-glow {
@@ -226,6 +226,8 @@ wc-game-end .ge-card {
     border: 1px solid var(--ge-surface-border);
     border-left-width: 3px;
     border-radius: 14px;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
 }
 
 /* Border-left color picks up the player seat color. Specificity beats
@@ -358,7 +360,7 @@ wc-game-end .ge-cta {
     width: 100%;
     height: 54px;
     border-radius: 27px;
-    border: 0;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     background: var(--ge-cta-bg);
     color: var(--ge-cta-fg);
     font-family: inherit;
@@ -366,6 +368,14 @@ wc-game-end .ge-cta {
     font-weight: 600;
     cursor: pointer;
     transition: transform 120ms ease, opacity 120ms ease;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.dark wc-game-end .ge-cta {
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.92) 0%, rgba(109, 40, 217, 0.96) 100%);
+    border: 1px solid rgba(167, 139, 250, 0.30);
+    box-shadow: 0 8px 32px rgba(124, 58, 237, 0.45), 0 1px 0 rgba(255, 255, 255, 0.14) inset;
 }
 
 wc-game-end .ge-cta:hover {
