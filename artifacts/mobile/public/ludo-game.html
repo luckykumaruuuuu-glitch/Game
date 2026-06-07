@@ -7,8 +7,8 @@
 <meta name="theme-color" content="#080808"/>
 <title>Ludo</title>
 <script>
-/* Force dark mode immediately — matches main app's always-dark design system */
-document.documentElement.classList.add("dark");
+/* Apply theme from localStorage (set by React Native injected script before page load) */
+(function(){var t=localStorage.getItem('theme');document.documentElement.classList.add(t==='light'?'light':'dark');})();
 </script>
 <style>
 

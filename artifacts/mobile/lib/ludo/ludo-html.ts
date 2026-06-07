@@ -8,6 +8,9 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#080808"/>
 <title>Ludo</title>
+<script>
+(function(){var t=localStorage.getItem('theme');document.documentElement.classList.add(t==='light'?'light':'dark');})();
+</script>
 <style>
 
 

@@ -57,17 +57,38 @@ function LudoNative() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // Always keep a ref to the latest theme so callbacks don't become stale
+  const resolvedThemeRef = useRef(resolvedTheme);
+  useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
+
   const bgColor = isDark ? '#080808' : '#F5F0EA';
 
-  // Inject theme into localStorage + set class BEFORE any page script runs
-  const injectedJavaScriptBeforeContentLoaded = `(function(){try{localStorage.setItem('theme','${resolvedTheme}');document.documentElement.classList.toggle('dark',${isDark});}catch(e){}})();true;`;
+  // Frozen at first mount — changing this prop would reload the entire WebView and reset the game.
+  // We rely on injectJavaScript for all subsequent theme changes.
+  const injectedJavaScriptBeforeContentLoaded = useRef(
+    `(function(){try{localStorage.setItem('theme','${resolvedTheme}');}catch(e){}})();true;`
+  ).current;
 
-  // Send postMessage when theme changes while game is already open
-  useEffect(() => {
-    webViewRef.current?.postMessage(
-      JSON.stringify({ type: 'setTheme', theme: resolvedTheme })
+  // Inject theme directly into the WebView (RN → WebView direction = injectJavaScript, NOT postMessage)
+  const injectTheme = useCallback((theme: string) => {
+    webViewRef.current?.injectJavaScript(
+      `(function(){try{` +
+        `localStorage.setItem('theme','${theme}');` +
+        `if(typeof updateTheme==='function'){` +
+          `updateTheme('${theme}');` +
+        `}else{` +
+          `var r=document.documentElement;` +
+          `r.classList.remove('dark','light');` +
+          `r.classList.add('${theme}');` +
+        `}` +
+      `}catch(e){}})();true;`
     );
-  }, [resolvedTheme]);
+  }, []);
+
+  // Re-inject theme whenever it changes while the Ludo screen is open
+  useEffect(() => {
+    injectTheme(resolvedTheme);
+  }, [resolvedTheme, injectTheme]);
 
   // Safety: clear loading after 8s if onLoadEnd never fires
   useEffect(() => {
@@ -113,7 +134,11 @@ function LudoNative() {
         mediaPlaybackRequiresUserAction={false}
         injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
         onLoadStart={() => { setLoading(true); setError(false); }}
-        onLoadEnd={() => setLoading(false)}
+        onLoadEnd={() => {
+          setLoading(false);
+          // Re-apply current theme after load (handles navigation back to screen)
+          injectTheme(resolvedThemeRef.current);
+        }}
         onError={() => { setLoading(false); setError(true); }}
         onHttpError={() => { setLoading(false); setError(true); }}
         mixedContentMode="always"
