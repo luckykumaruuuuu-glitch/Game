@@ -353,6 +353,27 @@ wc-settings { display: none !important; }
     cursor: not-allowed;
 }
 
+.cta-green {
+    width: 100%;
+    height: 56px;
+    border-radius: 28px;
+    background: #16a34a;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    box-shadow: 0 8px 22px -8px rgba(22, 163, 74, 0.5);
+    transition: opacity 150ms ease;
+}
+.cta-green:hover { opacity: 0.92; }
+.cta-green:active { opacity: 0.85; }
+
 .cta-secondary {
     width: 100%;
     height: 54px;
@@ -6437,6 +6458,7 @@ var QuickStart = class extends HTMLElement {
 
                 <div class="frame-footer">
                     \${saved ? \`<button class="new-game-btn cta-primary">Start a new game</button>\` : \`<button class="new-game-btn cta-primary">New game</button>\`}
+                    <button class="online-friend-btn cta-green">Online friend</button>
                 </div>
             </div>
         \`
@@ -6446,6 +6468,10 @@ var QuickStart = class extends HTMLElement {
       playClickSound();
       this.showSetupScreen();
       goTo("setup");
+    });
+    el3.querySelector(".online-friend-btn").addEventListener("click", () => {
+      playClickSound();
+      alert("Online friend mode coming soon!");
     });
     const resumeEl = el3.querySelector(".resume-card");
     if (resumeEl) {
