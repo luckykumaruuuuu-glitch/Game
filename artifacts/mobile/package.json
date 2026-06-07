@@ -60,6 +60,7 @@
     "expo-clipboard": "^56.0.3",
     "expo-file-system": "^19.0.23",
     "firebase": "^12.14.0",
-    "react-native-qrcode-svg": "^6.3.21"
+    "react-native-qrcode-svg": "^6.3.21",
+    "react-native-webview": "^13.16.1"
   }
 }
