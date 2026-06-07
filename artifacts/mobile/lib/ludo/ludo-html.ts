@@ -6,7 +6,12 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="theme-color" content="#080808"/>
 <title>Ludo</title>
+<script>
+/* Force dark mode immediately — matches main app's always-dark design system */
+document.documentElement.classList.add("dark");
+</script>
 <style>
 
 
@@ -15,31 +20,32 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
    ============================================================ */
 
 :root {
-    /* Semantic colors */
-    --color-bg: hsl(37 22% 90%);
-    --color-fg: hsl(36 18% 10%);
-    --color-surface: hsl(39 36% 93%);
-    --color-surface-hover: hsl(39 28% 95%);
-    --color-border: hsl(37 15% 78%);
-    --color-board-cell: hsl(42 38% 95%);
-    --color-board-border: hsl(37 15% 78%);
-    --color-safe: hsl(40 28% 87%);
+    /* === Main App Design System — Dark Theme ===
+       Colors match artifacts/mobile/constants/colors.ts exactly */
+    --color-bg: #080808;
+    --color-fg: #ffffff;
+    --color-surface: rgba(255, 255, 255, 0.06);
+    --color-surface-hover: rgba(255, 255, 255, 0.10);
+    --color-border: rgba(255, 255, 255, 0.10);
+    --color-board-cell: rgba(255, 255, 255, 0.04);
+    --color-board-border: rgba(255, 255, 255, 0.12);
+    --color-safe: rgba(124, 58, 237, 0.15);
 
-    /* CTA pair pulled from the mockup palette for higher contrast
-       than the muddier --color-fg / --color-bg tokens. */
-    --cta-bg: #1a1410;
-    --cta-fg: #ede4d3;
+    /* CTA — purple primary to match app (#7C3AED) */
+    --cta-bg: #7C3AED;
+    --cta-fg: #ffffff;
 
     /* Player palettes — base swatches (kept as raw HSL triplets so they
-       can be remapped at runtime via --player-N = var(--base-color-X)). */
-    --base-color-0: 10 63% 48%;
-    --base-color-1: 152 38% 39%;
-    --base-color-2: 43 75% 48%;
-    --base-color-3: 223 54% 43%;
-    --base-color-0-light: 16 68% 88%;
-    --base-color-1-light: 148 30% 85%;
-    --base-color-2-light: 46 64% 82%;
-    --base-color-3-light: 220 42% 88%;
+       can be remapped at runtime via --player-N = var(--base-color-X)).
+       Game logic depends on these — do NOT change. */
+    --base-color-0: 10 63% 55%;
+    --base-color-1: 152 38% 45%;
+    --base-color-2: 43 75% 55%;
+    --base-color-3: 223 54% 55%;
+    --base-color-0-light: 10 40% 20%;
+    --base-color-1-light: 152 30% 18%;
+    --base-color-2-light: 43 40% 18%;
+    --base-color-3-light: 223 35% 20%;
 
     --player-0: var(--base-color-0);
     --player-1: var(--base-color-1);
@@ -49,10 +55,10 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
     --player-1-light: var(--base-color-1-light);
     --player-2-light: var(--base-color-2-light);
     --player-3-light: var(--base-color-3-light);
-    --player-0-path: 18 48% 83%;
-    --player-1-path: 148 26% 83%;
-    --player-2-path: 46 60% 78%;
-    --player-3-path: 215 38% 85%;
+    --player-0-path: 10 30% 25%;
+    --player-1-path: 148 20% 22%;
+    --player-2-path: 43 30% 22%;
+    --player-3-path: 223 25% 25%;
 
     /* Spacing scale (4px base) */
     --space-1: 4px;
@@ -65,17 +71,17 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
     --space-10: 40px;
     --space-12: 48px;
 
-    /* Radii */
+    /* Radii — match app (20px cards, 14px buttons) */
     --radius-sm: 6px;
     --radius-md: 10px;
-    --radius-lg: 12px;
+    --radius-lg: 14px;
     --radius-xl: 16px;
     --radius-2xl: 20px;
     --radius-pill: 9999px;
 
-    /* Fonts */
-    --font-display: "Instrument Serif", Georgia, serif;
-    --font-sans: "DM Sans", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    /* Fonts — Inter to match main app typography */
+    --font-display: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --font-sans: "Inter", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
 
     /* Layout */
@@ -91,17 +97,18 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
 }
 
 .dark {
-    --color-bg: hsl(30 20% 8%);
-    --color-fg: hsl(35 20% 90%);
-    --color-surface: hsl(30 15% 14%);
-    --color-surface-hover: hsl(30 15% 18%);
-    --color-border: hsl(30 10% 25%);
-    --color-board-cell: hsl(30 12% 20%);
-    --color-board-border: hsl(30 12% 28%);
-    --color-safe: hsl(30 15% 20%);
+    /* === Identical to :root — app is always dark, ensure consistency === */
+    --color-bg: #080808;
+    --color-fg: #ffffff;
+    --color-surface: rgba(255, 255, 255, 0.06);
+    --color-surface-hover: rgba(255, 255, 255, 0.10);
+    --color-border: rgba(255, 255, 255, 0.10);
+    --color-board-cell: rgba(255, 255, 255, 0.04);
+    --color-board-border: rgba(255, 255, 255, 0.12);
+    --color-safe: rgba(124, 58, 237, 0.15);
 
-    --cta-bg: #ecdfd0;
-    --cta-fg: #1a1410;
+    --cta-bg: #7C3AED;
+    --cta-fg: #ffffff;
 
     --base-color-0: 10 63% 55%;
     --base-color-1: 152 38% 45%;
@@ -155,9 +162,8 @@ body,
 #settings-overlay {
     background-image:
         radial-gradient(ellipse 80% 70% at 50% 50%,
-            hsl(31 50% 71% / 0.6) 0%,
-            hsl(31 42% 77% / 0.4) 35%,
-            hsl(31 35% 84% / 0.18) 65%,
+            rgba(124, 58, 237, 0.18) 0%,
+            rgba(15, 3, 32, 0.55) 50%,
             transparent 90%);
     background-attachment: fixed;
 }
@@ -167,9 +173,8 @@ body,
 .dark #settings-overlay {
     background-image:
         radial-gradient(ellipse 80% 70% at 50% 50%,
-            hsl(28 45% 25% / 0.85) 0%,
-            hsl(28 35% 20% / 0.5) 35%,
-            hsl(28 25% 15% / 0.2) 65%,
+            rgba(124, 58, 237, 0.18) 0%,
+            rgba(15, 3, 32, 0.55) 50%,
             transparent 90%);
 }
 
@@ -334,7 +339,7 @@ table td {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    box-shadow: 0 8px 22px -8px rgba(31, 27, 20, 0.4);
+    box-shadow: 0 8px 22px -8px rgba(124, 58, 237, 0.5);
     transition: opacity 150ms ease;
 }
 
@@ -615,9 +620,9 @@ wc-board .board-grid {
     aspect-ratio: 1 / 1;
     width: 100%;
     box-shadow:
-        0 14px 40px -10px rgba(31, 27, 20, 0.22),
-        0 2px 6px rgba(31, 27, 20, 0.06),
-        inset 0 0 0 1px rgba(31, 27, 20, 0.06);
+        0 14px 40px -10px rgba(0, 0, 0, 0.55),
+        0 2px 6px rgba(0, 0, 0, 0.3),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.06);
     /* Intentionally NOT overflow:hidden — tokens use animate-bounce
        (translateY -20%) and drop-shadow on the edge cells (e.g. m11)
        that need to render beyond the board's bounding box. The home
@@ -896,7 +901,7 @@ wc-quick-start .home-die-inner {
 
 wc-quick-start .home-title {
     font-family: var(--font-display);
-    font-weight: 400;
+    font-weight: 700;
     line-height: 0.92;
     letter-spacing: -0.02em;
     font-size: clamp(72px, 22vw, 86px);
@@ -4839,7 +4844,7 @@ function removeGameTokens() {
 }
 function resetThemeChrome() {
   const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) themeMeta.setAttribute("content", "#EFE9DC");
+  if (themeMeta) themeMeta.setAttribute("content", "#080808");
   document.body.style.background = "";
 }
 function resetGameDom() {
@@ -7063,7 +7068,7 @@ var GameEnd = class extends HTMLElement {
       this._prevThemeColor = themeMeta.getAttribute("content");
       themeMeta.setAttribute(
         "content",
-        document.documentElement.classList.contains("dark") ? "#1a1410" : "#ede4d3"
+        "#080808"
       );
     }
     this.appendChild(el3);
@@ -7241,7 +7246,7 @@ function ensureOverlay() {
   const overlay = document.getElementById("settings-overlay");
   overlay.querySelector("#settings-back").addEventListener("click", () => back());
   registerScreenHandler("settings", closeSettings);
-  const defaultTheme = localStorage.getItem("theme") || "system";
+  const defaultTheme = localStorage.getItem("theme") || "dark";
   updateTheme(defaultTheme);
   const themeRadio = overlay.querySelector(\`input[name="s-theme"][value="\${defaultTheme}"]\`);
   if (themeRadio) themeRadio.checked = true;
