@@ -2147,6 +2147,290 @@ wc-token .god-selected {
 }
 html,body{height:100%;margin:0;padding:0;overflow:hidden;}
 #root{height:100dvh;overflow:auto;}
+
+/* ============================================================
+   ENTRY SCREEN PREMIUM UI OVERRIDES
+   Only visual/layout — zero logic changes
+   ============================================================ */
+
+/* ── Home hero: more breathable spacing ── */
+wc-quick-start .home-frame {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+}
+
+wc-quick-start .home-hero {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 12px var(--space-6) var(--space-6);
+    gap: 0;
+}
+
+/* ── Dice icon: purple glow instead of red player-0 ── */
+wc-quick-start .home-die {
+    padding: 14px;
+    border-radius: 20px;
+    background: rgba(124, 58, 237, 0.15);
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    --pulse-color: rgba(124, 58, 237, 0.35);
+    margin-bottom: var(--space-6);
+    box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.2);
+}
+
+@keyframes home-die-pulse {
+    0%,100% { box-shadow: 0 0 0 0   rgba(124,58,237,0.35); }
+    50%      { box-shadow: 0 0 0 14px transparent; }
+}
+
+/* ── Title: white-to-lavender gradient text ── */
+wc-quick-start .home-title {
+    font-size: clamp(64px, 20vw, 82px);
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 0.9;
+    margin: 0;
+    background: linear-gradient(150deg, #ffffff 30%, #C4B5FD 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* ── Tagline: a touch more visible ── */
+wc-quick-start .home-tagline {
+    margin: var(--space-4) 0 0;
+    font-size: 15px;
+    line-height: 1.55;
+    opacity: 0.55;
+    max-width: 240px;
+    font-weight: 400;
+}
+
+/* ── Brand chip: purple-tinted glass ── */
+wc-quick-start .home-brand-chip {
+    background: rgba(124, 58, 237, 0.12);
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    border-radius: var(--radius-pill);
+}
+
+/* ── Resume card: glass + purple left accent ── */
+wc-quick-start .resume-card {
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.10);
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 16px;
+    gap: 14px;
+    border-left: 3px solid rgba(124, 58, 237, 0.6);
+    box-shadow: 0 4px 24px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: background 150ms ease, box-shadow 150ms ease;
+}
+
+wc-quick-start .resume-card:hover {
+    background: rgba(255,255,255,0.08);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+wc-quick-start .resume-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    font-weight: 700;
+    opacity: 0;
+    height: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+wc-quick-start .resume-title {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+wc-quick-start .resume-sub {
+    font-size: 12.5px;
+    opacity: 0.5;
+    margin-top: 3px;
+}
+
+/* ── Resume row + version: cleaner spacing ── */
+wc-quick-start .home-resume-row {
+    padding: 0 0 var(--space-2);
+}
+
+wc-quick-start .home-version {
+    font-size: 11px;
+    opacity: 0.25;
+    letter-spacing: 0.1em;
+    margin-top: 4px;
+}
+
+/* ── Frame footer: more breathing room ── */
+.frame-footer {
+    padding-top: var(--space-5);
+    padding-bottom: var(--space-4);
+    gap: 12px;
+}
+
+/* ── CTA primary: slightly taller, stronger presence ── */
+.cta-primary {
+    height: 58px;
+    border-radius: 30px;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    box-shadow:
+        0 10px 28px -6px rgba(124,58,237,0.55),
+        inset 0 1px 0 rgba(255,255,255,0.15);
+    transition: opacity 150ms ease, box-shadow 150ms ease, transform 100ms ease;
+}
+
+.cta-primary:active {
+    transform: scale(0.98);
+    box-shadow:
+        0 4px 14px -4px rgba(124,58,237,0.4),
+        inset 0 1px 0 rgba(255,255,255,0.1);
+}
+
+/* ── Setup screen: "Who's playing?" ── */
+wc-quick-start .setup-body {
+    text-align: center;
+    padding-top: var(--space-2);
+}
+
+wc-quick-start .setup-body .display-title {
+    text-align: center;
+    font-size: 34px;
+    letter-spacing: -0.025em;
+    background: linear-gradient(150deg, #ffffff 30%, #C4B5FD 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+wc-quick-start .setup-helper {
+    font-size: 13.5px;
+    opacity: 0.45;
+    padding: var(--space-2) var(--space-2) var(--space-6);
+    line-height: 1.5;
+}
+
+/* ── Seat rows: glass cards with subtle left accent ── */
+wc-quick-start .seat-list {
+    gap: 10px;
+}
+
+wc-quick-start .seat-row {
+    background: rgba(255,255,255,0.055);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: 18px;
+    padding: 12px 14px;
+    gap: 12px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+    transition: opacity 150ms ease, background 150ms ease;
+}
+
+wc-quick-start .seat-row-empty {
+    background: rgba(255,255,255,0.02);
+    border: 1px dashed rgba(124,58,237,0.25);
+    border-radius: 18px;
+    padding: 12px 14px;
+    gap: 12px;
+    transition: background 150ms ease, border-color 150ms ease;
+}
+
+wc-quick-start .seat-row-empty:hover {
+    background: rgba(124,58,237,0.06);
+    border-color: rgba(124,58,237,0.45);
+}
+
+/* ── Seat pawn avatar: more prominent ── */
+wc-quick-start .seat-color-cycle {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+/* ── Player type pill: Human/Bot toggle ── */
+wc-quick-start .seat-pill {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.10);
+    border-radius: var(--radius-pill);
+    padding: 3px;
+    gap: 0;
+}
+
+wc-quick-start .seat-half {
+    border-radius: var(--radius-pill);
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 5px 11px;
+    letter-spacing: 0.01em;
+}
+
+wc-quick-start .seat-half--inactive {
+    opacity: 0.45;
+    background: transparent;
+}
+
+/* Active seat half: purple tint */
+wc-quick-start .seat-half:not(.seat-half--inactive) {
+    background: rgba(124,58,237,0.22);
+    color: #C4B5FD;
+    opacity: 1;
+}
+
+wc-quick-start .seat-empty-title {
+    font-size: 15px;
+    font-weight: 500;
+    opacity: 0.5;
+}
+
+wc-quick-start .seat-empty-sub {
+    font-size: 12px;
+    opacity: 0.35;
+    margin-top: 2px;
+}
+
+/* ── Seat name input: cleaner underline ── */
+wc-quick-start .seat-name-wrap {
+    border-bottom: 1px solid rgba(255,255,255,0.10);
+}
+
+wc-quick-start .seat-name-wrap:focus-within {
+    border-bottom-color: rgba(124,58,237,0.6);
+    border-bottom-width: 2px;
+}
+
+wc-quick-start .seat-name {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+/* ── Remove button: cleaner ── */
+wc-quick-start .seat-remove {
+    opacity: 0.25;
+    border-radius: 50%;
+    transition: opacity 150ms ease, background 150ms ease;
+}
+
+wc-quick-start .seat-remove:hover {
+    opacity: 0.7;
+    background: rgba(255,80,80,0.12);
+}
+
+/* ── Section divider in footer ── */
+wc-quick-start .home-version {
+    text-align: center;
+}
 </style>
 </head>
 <body>
