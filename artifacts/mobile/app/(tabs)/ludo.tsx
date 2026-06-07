@@ -1,9 +1,19 @@
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
-import { useEffect } from 'react';
+import { useLudo } from '@/context/LudoContext';
 
 export default function LudoTab() {
-  useEffect(() => {
-    router.push('/ludo');
-  }, []);
+  const { show } = useLudo();
+
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS === 'web') {
+      router.push('/ludo' as any);
+    } else {
+      show();
+    }
+  }, [show]));
+
   return null;
 }

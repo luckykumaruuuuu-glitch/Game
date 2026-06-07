@@ -1,26 +1,10 @@
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
-  View, Pressable, StyleSheet, SafeAreaView,
-  StatusBar, ActivityIndicator, Text, Platform,
+  View, StyleSheet, SafeAreaView, StatusBar,
 } from 'react-native';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { LUDO_GAME_HTML } from '../../lib/ludo/ludo-html';
 import { useTheme } from '../../context/ThemeContext';
 
-function FloatingBackButton({ isDark }: { isDark: boolean }) {
-  return (
-    <Pressable
-      style={[styles.backBtn, isDark ? styles.backBtnDark : styles.backBtnLight]}
-      onPress={() => router.replace('/(tabs)' as any)}
-      hitSlop={12}
-    >
-      <Ionicons name="chevron-back" size={20} color={isDark ? '#FFFFFF' : '#1a1410'} />
-    </Pressable>
-  );
-}
-
-function LudoWeb() {
+export default function LudoGameScreen() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const iframeRef = useRef<any>(null);
@@ -54,8 +38,10 @@ function LudoWeb() {
     return () => window.removeEventListener('message', onMessage);
   }, []);
 
+  const bgColor = isDark ? '#080808' : '#F5F5F7';
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: isDark ? '#080808' : '#F5F5F7' }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: bgColor }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.iframeWrap}>
         <iframe
@@ -72,162 +58,12 @@ function LudoWeb() {
           title="Ludo"
           allow="autoplay"
         />
-        {ludoScreen === 'home' && <FloatingBackButton isDark={isDark} />}
       </View>
     </SafeAreaView>
   );
 }
 
-function LudoNative() {
-  const WebView = require('react-native-webview').WebView;
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === 'dark';
-  const webViewRef = useRef<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [ludoScreen, setLudoScreen] = useState('home');
-
-  const resolvedThemeRef = useRef(resolvedTheme);
-  useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
-
-  const bgColor = isDark ? '#080808' : '#F5F5F7';
-
-  const injectedJavaScriptBeforeContentLoaded = useRef(
-    `(function(){try{localStorage.setItem('theme','${resolvedTheme}');}catch(e){}})();true;`
-  ).current;
-
-  const injectTheme = useCallback((theme: string) => {
-    webViewRef.current?.injectJavaScript(
-      `(function(){try{` +
-        `localStorage.setItem('theme','${theme}');` +
-        `if(typeof updateTheme==='function'){` +
-          `updateTheme('${theme}');` +
-        `}else{` +
-          `var r=document.documentElement;` +
-          `r.classList.remove('dark','light');` +
-          `r.classList.add('${theme}');` +
-        `}` +
-      `}catch(e){}})();true;`
-    );
-  }, []);
-
-  useEffect(() => {
-    injectTheme(resolvedTheme);
-  }, [resolvedTheme, injectTheme]);
-
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 8000);
-    return () => clearTimeout(t);
-  }, []);
-
-  const onMessage = useCallback((event: any) => {
-    try {
-      const data = typeof event.nativeEvent.data === 'string'
-        ? JSON.parse(event.nativeEvent.data)
-        : event.nativeEvent.data;
-      if (data?.type === 'screenChange') {
-        setLudoScreen(data.screen ?? 'home');
-      }
-    } catch {}
-  }, []);
-
-  return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: bgColor }]}>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-
-      {loading && !error && (
-        <View style={[styles.loadingOverlay, { backgroundColor: bgColor }]}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={[styles.loadingText, { color: isDark ? '#9CA3AF' : '#6B5E4A' }]}>
-            Loading game…
-          </Text>
-        </View>
-      )}
-
-      {error && (
-        <View style={[styles.errorBox, { backgroundColor: bgColor }]}>
-          <Text style={[styles.errorText, { color: isDark ? '#9CA3AF' : '#6B5E4A' }]}>
-            Could not load game.
-          </Text>
-          <Pressable
-            onPress={() => { setError(false); setLoading(true); webViewRef.current?.reload(); }}
-            style={styles.retryBtn}
-          >
-            <Text style={styles.retryText}>Retry</Text>
-          </Pressable>
-        </View>
-      )}
-
-      <WebView
-        ref={webViewRef}
-        style={[styles.webview, error && styles.hidden]}
-        source={{ html: LUDO_GAME_HTML, baseUrl: 'https://leludo.app' }}
-        originWhitelist={['*']}
-        javaScriptEnabled
-        domStorageEnabled
-        allowsInlineMediaPlayback
-        mediaPlaybackRequiresUserAction={false}
-        injectedJavaScriptBeforeContentLoaded={injectedJavaScriptBeforeContentLoaded}
-        onLoadStart={() => { setLoading(true); setError(false); }}
-        onLoadEnd={() => {
-          setLoading(false);
-          injectTheme(resolvedThemeRef.current);
-        }}
-        onError={() => { setLoading(false); setError(true); }}
-        onHttpError={() => { setLoading(false); setError(true); }}
-        onMessage={onMessage}
-        mixedContentMode="always"
-        allowsBackForwardNavigationGestures={false}
-        bounces={false}
-        overScrollMode="never"
-      />
-
-      {ludoScreen === 'home' && <FloatingBackButton isDark={isDark} />}
-    </SafeAreaView>
-  );
-}
-
-export default function LudoGameScreen() {
-  return Platform.OS === 'web' ? <LudoWeb /> : <LudoNative />;
-}
-
 const styles = StyleSheet.create({
   safe: { flex: 1 },
   iframeWrap: { flex: 1, position: 'relative' } as any,
-  webview: { flex: 1 },
-  hidden: { opacity: 0, height: 0 },
-  backBtn: {
-    position: 'absolute',
-    top: 12,
-    left: 12,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 100,
-  },
-  backBtnDark: {
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  backBtnLight: {
-    backgroundColor: 'rgba(0,0,0,0.08)',
-  },
-  loadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 12,
-    zIndex: 10,
-  },
-  loadingText: { fontSize: 14 },
-  errorBox: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 16,
-  },
-  errorText: { fontSize: 15 },
-  retryBtn: {
-    backgroundColor: '#7C3AED', borderRadius: 10,
-    paddingHorizontal: 24, paddingVertical: 12,
-  },
-  retryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
 });
