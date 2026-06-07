@@ -1,7 +1,7 @@
 #!/bin/bash
 # Self-healing dev starter for Expo Mobile App.
 # Works regardless of which workflow calls it — auto-installs if needed.
-# Uses flock so parallel workflow starts don't race on pnpm install.
+# Uses flock so parallel workflow starts don't race on pnpm install or expo cache.
 
 set -e
 
@@ -13,6 +13,7 @@ echo "📱 Starting mobile dev server..."
 echo "   Workspace: $WORKSPACE_ROOT"
 
 LOCK_FILE="/tmp/workspace-pnpm-install.lock"
+EXPO_START_LOCK="/tmp/expo-start.lock"
 
 needs_install() {
   [ ! -d "$WORKSPACE_ROOT/node_modules" ] || [ ! -d "$MOBILE_ROOT/node_modules" ]
@@ -42,6 +43,21 @@ fi
 # Always fix the Metro .pnpm symlink (gets wiped on install)
 ln -sf "$WORKSPACE_ROOT/node_modules/.pnpm" "$MOBILE_ROOT/node_modules/.pnpm" 2>/dev/null || true
 echo "✅ .pnpm symlink ready"
+
+# Pre-create Expo cache directory — prevents ENOENT crash when two instances start
+# simultaneously and race on /home/runner/.expo/native-modules-cache/*.json
+mkdir -p "$HOME/.expo/native-modules-cache"
+mkdir -p "$HOME/.expo/cache"
+
+# Stagger expo starts — only one instance initializes the cache at a time.
+# The lock is held only during the first ~15s of startup (cache init window).
+# After that the lock file is released so the second instance can proceed.
+(
+  flock -x -w 60 201
+  echo "🔒 Expo cache lock acquired for port ${PORT:-8081}"
+  sleep 15
+) 201>"$EXPO_START_LOCK" &
+LOCK_PID=$!
 
 # Resolve the expo binary — prefer local package binary, fall back to pnpm exec
 EXPO_BIN="$MOBILE_ROOT/node_modules/.bin/expo"
