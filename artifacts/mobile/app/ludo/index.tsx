@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   View, Pressable, StyleSheet, SafeAreaView,
   StatusBar, ActivityIndicator, Text, Platform,
@@ -21,39 +21,35 @@ function WebBackButton({ onPress }: { onPress: () => void }) {
 
 // ─── Web (Expo web / browser preview): render an iframe ───────────────────────
 function LudoWeb() {
-  const [loaded, setLoaded] = useState(false);
-  const blob = React.useMemo(() => {
-    if (typeof Blob !== 'undefined') {
+  // HTML is already in memory — blob creation is instant.
+  // Do NOT gate rendering on onLoad (Replit proxy may never fire it).
+  const blobUrl = React.useMemo(() => {
+    try {
       return URL.createObjectURL(new Blob([LUDO_GAME_HTML], { type: 'text/html' }));
+    } catch {
+      return null;
     }
-    return null;
   }, []);
 
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" />
       <WebBackButton onPress={() => router.replace('/(tabs)' as any)} />
-      {!loaded && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#8B5CF6" />
-          <Text style={styles.loadingText}>Loading game…</Text>
-        </View>
-      )}
-      {blob ? (
+      <View style={styles.iframeWrap}>
         <iframe
-          src={blob}
-          style={{ flex: 1, border: 'none', width: '100%', height: '100%' } as any}
-          onLoad={() => setLoaded(true)}
+          src={blobUrl ?? undefined}
+          srcDoc={blobUrl ? undefined : LUDO_GAME_HTML}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            width: '100%',
+            height: '100%',
+            border: 'none',
+          } as any}
           title="Ludo"
+          allow="autoplay"
         />
-      ) : (
-        <iframe
-          srcDoc={LUDO_GAME_HTML}
-          style={{ flex: 1, border: 'none', width: '100%', height: '100%' } as any}
-          onLoad={() => setLoaded(true)}
-          title="Ludo"
-        />
-      )}
+      </View>
     </SafeAreaView>
   );
 }
@@ -64,6 +60,12 @@ function LudoNative() {
   const webViewRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+
+  // Safety: clear loading after 8s in case onLoadEnd never fires
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 8000);
+    return () => clearTimeout(t);
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -132,6 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   topTitle: { fontSize: 16, fontWeight: '600', color: '#1a1410' },
+  iframeWrap: { flex: 1, position: 'relative' } as any,
   webview: { flex: 1 },
   hidden: { opacity: 0, height: 0 },
   loadingOverlay: {
