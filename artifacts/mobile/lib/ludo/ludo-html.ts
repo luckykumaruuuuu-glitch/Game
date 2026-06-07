@@ -270,6 +270,8 @@ table td {
     padding-bottom: var(--space-6);
 }
 
+wc-settings { display: none !important; }
+
 .top-bar-title {
     flex: 1;
     text-align: center;

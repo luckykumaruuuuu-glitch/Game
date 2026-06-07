@@ -3,20 +3,8 @@ import {
   View, Pressable, StyleSheet, SafeAreaView,
   StatusBar, ActivityIndicator, Text, Platform,
 } from 'react-native';
-import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { LUDO_GAME_HTML } from '../../lib/ludo/ludo-html';
 import { useTheme } from '../../context/ThemeContext';
-
-function WebBackButton({ onPress, isDark }: { onPress: () => void; isDark: boolean }) {
-  return (
-    <View style={[styles.topBar, isDark ? styles.topBarDark : styles.topBarLight]}>
-      <Pressable style={styles.backBtn} onPress={onPress}>
-        <Ionicons name="chevron-back" size={20} color={isDark ? '#FFFFFF' : '#1a1410'} />
-      </Pressable>
-    </View>
-  );
-}
 
 function LudoWeb() {
   const { resolvedTheme } = useTheme();
@@ -41,7 +29,6 @@ function LudoWeb() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: isDark ? '#080808' : '#F5F0EA' }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <WebBackButton onPress={() => router.replace('/(tabs)' as any)} isDark={isDark} />
       <View style={styles.iframeWrap}>
         <iframe
           ref={iframeRef}
@@ -91,7 +78,6 @@ function LudoNative() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: bgColor }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
-      <WebBackButton onPress={() => router.replace('/(tabs)' as any)} isDark={isDark} />
 
       {loading && !error && (
         <View style={[styles.loadingOverlay, { backgroundColor: bgColor }]}>
@@ -145,27 +131,6 @@ export default function LudoGameScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-  },
-  topBarDark: {
-    backgroundColor: '#080808',
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  topBarLight: {
-    backgroundColor: '#F5F0EA',
-    borderBottomColor: '#D4C9B0',
-  },
-  backBtn: {
-    width: 36, height: 36, borderRadius: 18,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  topTitle: { fontSize: 16, fontWeight: '600' },
   iframeWrap: { flex: 1, position: 'relative' } as any,
   webview: { flex: 1 },
   hidden: { opacity: 0, height: 0 },
