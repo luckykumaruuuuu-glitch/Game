@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
-import { setUserOnline } from '@/lib/ludoFirestore';
+import { setUserOnline } from '@/lib/firestore';
 
 export function usePresence() {
   const { user } = useAuth();

@@ -24,7 +24,7 @@ import {
   removeFriend,
   FriendRequest,
 } from "@/lib/firestore";
-import { subscribeToFriendsPresence, UserPresence } from "@/lib/ludoFirestore";
+import { subscribeToFriendsPresence, UserPresence } from "@/lib/firestore";
 
 export default function FriendsTab() {
   const colors = useColors();

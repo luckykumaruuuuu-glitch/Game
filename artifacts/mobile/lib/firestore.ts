@@ -19,6 +19,36 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
+// ─── Presence ─────────────────────────────────────────────────────────────────
+
+export interface UserPresence {
+  online: boolean;
+  lastSeen: number;
+}
+
+export async function setUserOnline(userId: string, online: boolean): Promise<void> {
+  await setDoc(doc(db, "userPresence", userId), { online, lastSeen: Date.now() }, { merge: true });
+}
+
+export function subscribeToFriendsPresence(
+  friendIds: string[],
+  callback: (presence: Record<string, UserPresence>) => void
+): () => void {
+  if (friendIds.length === 0) { callback({}); return () => {}; }
+  const unsubs: (() => void)[] = [];
+  const presenceMap: Record<string, UserPresence> = {};
+  for (const uid of friendIds) {
+    const unsub = onSnapshot(doc(db, "userPresence", uid), (snap) => {
+      presenceMap[uid] = snap.exists()
+        ? (snap.data() as UserPresence)
+        : { online: false, lastSeen: 0 };
+      callback({ ...presenceMap });
+    });
+    unsubs.push(unsub);
+  }
+  return () => unsubs.forEach((u) => u());
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface UserProfile {
@@ -774,25 +804,6 @@ export async function deleteAllUserData(userId: string, username: string): Promi
         deletedUserId: userId,
       })
     )
-  );
-
-  const ludiSentSnap = await getDocs(query(collection(db, "ludoInvitations"), where("fromUserId", "==", userId)));
-  await batchDelete(ludiSentSnap.docs);
-
-  const ludiRecvSnap = await getDocs(query(collection(db, "ludoInvitations"), where("toUserId", "==", userId)));
-  await batchDelete(ludiRecvSnap.docs);
-
-  const ludoHostSnap = await getDocs(query(collection(db, "ludoRooms"), where("hostId", "==", userId)));
-  await Promise.all(ludoHostSnap.docs.map((d) => updateDoc(d.ref, { status: "cancelled" })));
-
-  const ludoPlayerSnap = await getDocs(query(collection(db, "ludoRooms"), where("playerIds", "array-contains", userId)));
-  await Promise.all(
-    ludoPlayerSnap.docs.map((d) => {
-      const data = d.data();
-      const updatedPlayerIds: string[] = (data.playerIds ?? []).filter((id: string) => id !== userId);
-      const updatedPlayers = (data.players ?? []).filter((p: any) => p.userId !== userId);
-      return updateDoc(d.ref, { playerIds: updatedPlayerIds, players: updatedPlayers });
-    })
   );
 
   try { await deleteDoc(doc(db, "userPresence", userId)); } catch { /* ignore */ }
