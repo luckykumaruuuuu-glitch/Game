@@ -3130,6 +3130,13 @@ function trackEvent(name, params) {
 var _handlers = /* @__PURE__ */ new Map();
 var _currentScreen = "home";
 var _initialized2 = false;
+function notifyNativeScreen(screen) {
+  try {
+    var msg = JSON.stringify({ type: "screenChange", screen: screen });
+    if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(msg); }
+    else if (window.parent !== window) { window.parent.postMessage(msg, "*"); }
+  } catch(e) {}
+}
 function registerScreenHandler(screen, fn) {
   _handlers.set(screen, fn);
 }
@@ -3144,6 +3151,7 @@ function initNavHistory() {
   window.addEventListener("popstate", handlePopState);
   installAndroidBackHandler();
   trackScreen(_currentScreen);
+  notifyNativeScreen(_currentScreen);
 }
 function goTo(screen) {
   if (_currentScreen === screen) return;
@@ -3153,6 +3161,7 @@ function goTo(screen) {
   }
   _currentScreen = screen;
   trackScreen(screen);
+  notifyNativeScreen(screen);
 }
 function replaceTo(screen) {
   const changed = _currentScreen !== screen;
@@ -3161,7 +3170,7 @@ function replaceTo(screen) {
   } catch {
   }
   _currentScreen = screen;
-  if (changed) trackScreen(screen);
+  if (changed) { trackScreen(screen); notifyNativeScreen(screen); }
 }
 function back() {
   history.back();
@@ -3177,11 +3186,13 @@ function handlePopState(event) {
     }
     _currentScreen = "game";
     trackScreen("pause");
+    notifyNativeScreen("pause");
     const onGameBack = _handlers.get("__game_back__");
     if (onGameBack) onGameBack();
     return;
   }
   trackScreen(target);
+  notifyNativeScreen(target);
   const closer = _handlers.get(previous);
   if (closer) closer(target);
 }

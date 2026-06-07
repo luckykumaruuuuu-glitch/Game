@@ -24,6 +24,7 @@ function LudoWeb() {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
   const iframeRef = useRef<any>(null);
+  const [ludoScreen, setLudoScreen] = useState('home');
 
   const gameUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/ludo-game.html`
@@ -40,8 +41,21 @@ function LudoWeb() {
     sendTheme();
   }, [sendTheme]);
 
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      try {
+        const data = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (data?.type === 'screenChange') {
+          setLudoScreen(data.screen ?? 'home');
+        }
+      } catch {}
+    }
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+
   return (
-    <SafeAreaView style={[styles.safe, { backgroundColor: isDark ? '#080808' : '#F5F0EA' }]}>
+    <SafeAreaView style={[styles.safe, { backgroundColor: isDark ? '#080808' : '#F5F5F7' }]}>
       <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} />
       <View style={styles.iframeWrap}>
         <iframe
@@ -58,7 +72,7 @@ function LudoWeb() {
           title="Ludo"
           allow="autoplay"
         />
-        <FloatingBackButton isDark={isDark} />
+        {ludoScreen === 'home' && <FloatingBackButton isDark={isDark} />}
       </View>
     </SafeAreaView>
   );
@@ -71,11 +85,12 @@ function LudoNative() {
   const webViewRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [ludoScreen, setLudoScreen] = useState('home');
 
   const resolvedThemeRef = useRef(resolvedTheme);
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
 
-  const bgColor = isDark ? '#080808' : '#F5F0EA';
+  const bgColor = isDark ? '#080808' : '#F5F5F7';
 
   const injectedJavaScriptBeforeContentLoaded = useRef(
     `(function(){try{localStorage.setItem('theme','${resolvedTheme}');}catch(e){}})();true;`
@@ -103,6 +118,17 @@ function LudoNative() {
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 8000);
     return () => clearTimeout(t);
+  }, []);
+
+  const onMessage = useCallback((event: any) => {
+    try {
+      const data = typeof event.nativeEvent.data === 'string'
+        ? JSON.parse(event.nativeEvent.data)
+        : event.nativeEvent.data;
+      if (data?.type === 'screenChange') {
+        setLudoScreen(data.screen ?? 'home');
+      }
+    } catch {}
   }, []);
 
   return (
@@ -149,13 +175,14 @@ function LudoNative() {
         }}
         onError={() => { setLoading(false); setError(true); }}
         onHttpError={() => { setLoading(false); setError(true); }}
+        onMessage={onMessage}
         mixedContentMode="always"
         allowsBackForwardNavigationGestures={false}
         bounces={false}
         overScrollMode="never"
       />
 
-      <FloatingBackButton isDark={isDark} />
+      {ludoScreen === 'home' && <FloatingBackButton isDark={isDark} />}
     </SafeAreaView>
   );
 }
