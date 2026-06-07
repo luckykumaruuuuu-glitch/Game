@@ -53,5 +53,7 @@ else
 fi
 
 # Start Expo from mobile root
+# Do NOT use --localhost — it binds to 127.0.0.1 only and breaks Replit's proxy.
+# Without it, Metro binds to 0.0.0.0 so Replit can reach it.
 cd "$MOBILE_ROOT"
-exec $EXPO_CMD start --localhost --port "${PORT:-8080}"
+exec $EXPO_CMD start --port "${PORT:-8081}"
