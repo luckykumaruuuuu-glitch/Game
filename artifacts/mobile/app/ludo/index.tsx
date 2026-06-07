@@ -14,8 +14,6 @@ function WebBackButton({ onPress, isDark }: { onPress: () => void; isDark: boole
       <Pressable style={styles.backBtn} onPress={onPress}>
         <Ionicons name="chevron-back" size={20} color={isDark ? '#FFFFFF' : '#1a1410'} />
       </Pressable>
-      <Text style={[styles.topTitle, { color: isDark ? '#FFFFFF' : '#1a1410' }]}>Ludo</Text>
-      <View style={styles.backBtn} />
     </View>
   );
 }

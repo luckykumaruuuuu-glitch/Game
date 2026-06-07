@@ -6386,15 +6386,13 @@ var QuickStart = class extends HTMLElement {
       `
             <div class="frame home-frame${saved ? " home-frame--in-progress" : ""}">
                 <div class="top-bar">
-                    <div class="icon-btn home-brand-chip" aria-label="leludo">${QUAD_CHIP_SVG(20)}</div>
                     <div class="top-bar-title"></div>
                     <wc-settings></wc-settings>
                 </div>
 
                 <div class="home-hero">
                     <div class="home-die"><div class="home-die-inner">${DICE_SVG(6, 48)}</div></div>
-                    <h1 class="home-title">leludo</h1>
-                    <p class="home-tagline">A quiet, faithful take on the classic four-player race.</p>
+                    <h1 class="home-title">Ludo</h1>
                 </div>
 
                 ${saved ? this._resumeCardHtml(saved) : ""}
