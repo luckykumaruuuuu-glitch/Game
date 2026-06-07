@@ -3,12 +3,14 @@ import React, {
 } from 'react';
 import {
   View, Pressable, StyleSheet, Platform,
-  StatusBar, ActivityIndicator, Text,
+  StatusBar, ActivityIndicator, Text, TouchableOpacity,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
+import { useAuth } from '@/context/AuthContext';
+import { subscribeToGameInvites } from '@/lib/firestore';
 import { LUDO_GAME_HTML } from '@/lib/ludo/ludo-html';
 
 interface LudoContextValue {
@@ -36,15 +38,24 @@ function LudoNativeOverlay({
 }) {
   const WebView = require('react-native-webview').WebView;
   const { resolvedTheme } = useTheme();
+  const { user } = useAuth();
   const insets = useSafeAreaInsets();
   const isDark = resolvedTheme === 'dark';
   const webViewRef = useRef<any>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [ludoScreen, setLudoScreen] = useState('home');
+  const [pendingInvites, setPendingInvites] = useState(0);
   const resolvedThemeRef = useRef(resolvedTheme);
   const hasEverLoaded = useRef(false);
 
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
+
+  useEffect(() => {
+    if (!user) return;
+    return subscribeToGameInvites(user.uid, (invites) => {
+      setPendingInvites(invites.length);
+    });
+  }, [user]);
 
   const bgColor = isDark ? '#080808' : '#F5F5F7';
 
@@ -75,9 +86,12 @@ function LudoNativeOverlay({
         : event.nativeEvent.data;
       if (data?.type === 'screenChange') {
         setLudoScreen(data.screen ?? 'home');
+      } else if (data?.type === 'action' && data?.action === 'onlineFriend') {
+        onHide();
+        router.push('/ludo/online-friend' as any);
       }
     } catch {}
-  }, []);
+  }, [onHide]);
 
   return (
     <View
@@ -125,6 +139,7 @@ function LudoNativeOverlay({
         overScrollMode="never"
       />
 
+      {/* Back button — shown only on home screen */}
       {isVisible && ludoScreen === 'home' && (
         <Pressable
           style={[
@@ -141,6 +156,32 @@ function LudoNativeOverlay({
         >
           <Ionicons name="chevron-back" size={20} color={isDark ? '#FFFFFF' : '#1a1410'} />
         </Pressable>
+      )}
+
+      {/* Invites button — top-right corner */}
+      {isVisible && (
+        <TouchableOpacity
+          style={[
+            styles.inviteBtn,
+            { top: insets.top + 10 },
+            isDark ? styles.backBtnDark : styles.backBtnLight,
+          ]}
+          onPress={() => {
+            onHide();
+            router.push('/ludo/invites' as any);
+          }}
+          hitSlop={12}
+          activeOpacity={0.8}
+        >
+          <Feather name="inbox" size={15} color={isDark ? '#FFFFFF' : '#1a1410'} />
+          {pendingInvites > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>
+                {pendingInvites > 9 ? '9+' : pendingInvites}
+              </Text>
+            </View>
+          )}
+        </TouchableOpacity>
       )}
     </View>
   );
@@ -208,4 +249,29 @@ const styles = StyleSheet.create({
   },
   backBtnDark: { backgroundColor: 'rgba(255,255,255,0.12)' },
   backBtnLight: { backgroundColor: 'rgba(0,0,0,0.08)' },
+  inviteBtn: {
+    position: 'absolute',
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    zIndex: 100,
+  },
+  badge: {
+    backgroundColor: '#EF4444',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontFamily: 'Inter_700Bold',
+  },
 });

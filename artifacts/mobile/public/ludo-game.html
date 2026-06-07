@@ -6499,7 +6499,7 @@ var QuickStart = class extends HTMLElement {
     });
     el3.querySelector(".online-friend-btn").addEventListener("click", () => {
       playClickSound();
-      alert("Online friend mode coming soon!");
+      window.parent.postMessage(JSON.stringify({ type: 'action', action: 'onlineFriend' }), '*');
     });
     const resumeEl = el3.querySelector(".resume-card");
     if (resumeEl) {

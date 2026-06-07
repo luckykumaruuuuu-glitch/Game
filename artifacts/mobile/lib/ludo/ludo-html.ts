@@ -6688,7 +6688,9 @@ var QuickStart = class extends HTMLElement {
     });
     el3.querySelector(".online-friend-btn").addEventListener("click", () => {
       playClickSound();
-      alert("Online friend mode coming soon!");
+      var _msg = JSON.stringify({ type: 'action', action: 'onlineFriend' });
+      if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(_msg); }
+      else { window.parent.postMessage(_msg, '*'); }
     });
     const resumeEl = el3.querySelector(".resume-card");
     if (resumeEl) {

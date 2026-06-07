@@ -810,3 +810,77 @@ export async function deleteAllUserData(userId: string, username: string): Promi
   try { await deleteDoc(doc(db, "usernames", username.toLowerCase())); } catch { /* ignore */ }
   try { await deleteDoc(doc(db, "users", userId)); } catch { /* ignore */ }
 }
+
+// ─── Game Invites ─────────────────────────────────────────────────────────────
+
+export interface GameInvite {
+  inviteId: string;
+  senderId: string;
+  senderName: string;
+  senderUsername: string;
+  senderPhoto: string;
+  receiverId: string;
+  gameMode: 2 | 3 | 4;
+  roomId: string;
+  status: "pending" | "accepted" | "declined";
+  createdAt: number;
+}
+
+export async function sendGameInvite(
+  senderId: string,
+  senderProfile: UserProfile,
+  receiverIds: string[],
+  gameMode: 2 | 3 | 4
+): Promise<string> {
+  const roomId = doc(collection(db, "gameRooms")).id;
+  await Promise.all(
+    receiverIds.map(async (receiverId) => {
+      await addDoc(collection(db, "gameInvites"), {
+        senderId,
+        senderName: senderProfile.name,
+        senderUsername: senderProfile.username,
+        senderPhoto: senderProfile.photo,
+        receiverId,
+        gameMode,
+        roomId,
+        status: "pending",
+        createdAt: Date.now(),
+      });
+      await createNotification(receiverId, {
+        type: "game_invite",
+        title: "Ludo Invite",
+        body: `${senderProfile.name} invited you to a ${gameMode}-player Ludo game!`,
+        fromUserId: senderId,
+      });
+    })
+  );
+  return roomId;
+}
+
+export function subscribeToGameInvites(
+  userId: string,
+  callback: (invites: GameInvite[]) => void
+): () => void {
+  const q = query(
+    collection(db, "gameInvites"),
+    where("receiverId", "==", userId),
+    where("status", "==", "pending"),
+    orderBy("createdAt", "desc")
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      callback(snap.docs.map((d) => ({ inviteId: d.id, ...d.data() } as GameInvite)));
+    },
+    () => callback([])
+  );
+}
+
+export async function respondToGameInvite(
+  inviteId: string,
+  accept: boolean
+): Promise<void> {
+  await updateDoc(doc(db, "gameInvites", inviteId), {
+    status: accept ? "accepted" : "declined",
+  });
+}
