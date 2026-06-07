@@ -96,7 +96,6 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
 }
 
 .dark {
-    /* === Identical to :root — app is always dark, ensure consistency === */
     --color-bg: #080808;
     --color-fg: #ffffff;
     --color-surface: rgba(255, 255, 255, 0.06);
@@ -122,6 +121,34 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
     --player-1-path: 148 20% 22%;
     --player-2-path: 43 30% 22%;
     --player-3-path: 223 25% 25%;
+}
+
+.light {
+    --color-bg: #F5F5F7;
+    --color-fg: #0A0A0A;
+    --color-surface: rgba(0, 0, 0, 0.05);
+    --color-surface-hover: rgba(0, 0, 0, 0.08);
+    --color-border: rgba(0, 0, 0, 0.10);
+    --color-board-cell: rgba(0, 0, 0, 0.03);
+    --color-board-border: rgba(0, 0, 0, 0.10);
+    --color-safe: rgba(124, 58, 237, 0.12);
+
+    --cta-bg: #7C3AED;
+    --cta-fg: #ffffff;
+
+    --base-color-0: 10 63% 48%;
+    --base-color-1: 152 38% 38%;
+    --base-color-2: 43 75% 48%;
+    --base-color-3: 223 54% 48%;
+    --base-color-0-light: 10 40% 28%;
+    --base-color-1-light: 152 30% 25%;
+    --base-color-2-light: 43 40% 25%;
+    --base-color-3-light: 223 35% 28%;
+
+    --player-0-path: 10 28% 38%;
+    --player-1-path: 148 22% 32%;
+    --player-2-path: 43 32% 32%;
+    --player-3-path: 223 28% 36%;
 }
 
 /* ============================================================
@@ -174,6 +201,16 @@ body,
         radial-gradient(ellipse 80% 70% at 50% 50%,
             rgba(124, 58, 237, 0.18) 0%,
             rgba(15, 3, 32, 0.55) 50%,
+            transparent 90%);
+}
+
+.light body,
+.light #pause-menu,
+.light #settings-overlay {
+    background-image:
+        radial-gradient(ellipse 80% 70% at 50% 50%,
+            rgba(124, 58, 237, 0.07) 0%,
+            rgba(245, 245, 247, 0.2) 50%,
             transparent 90%);
 }
 
@@ -840,6 +877,22 @@ wc-board #dice-home.hidden {
     box-shadow:
         inset 0 1px 2px rgba(255, 255, 255, 0.3),
         0 0.5px 0 rgba(0, 0, 0, 0.3) !important;
+}
+
+.light .die {
+    background: linear-gradient(145deg, #f0eeeb, #e3e0da) !important;
+    box-shadow:
+        3px 3px 8px rgba(0, 0, 0, 0.12),
+        -1px -1px 3px rgba(255, 255, 255, 0.9),
+        inset 0 1px 0 rgba(255, 255, 255, 0.95) !important;
+    border-color: rgba(0, 0, 0, 0.06) !important;
+}
+
+.light .die .dice-dot {
+    background: radial-gradient(circle at 40% 35%, #333, #111) !important;
+    box-shadow:
+        inset 0 1px 2px rgba(0, 0, 0, 0.15),
+        0 0.5px 0 rgba(255, 255, 255, 0.5) !important;
 }
 
 /* ----- Stack badge for >4 tokens on a cell ----- */
