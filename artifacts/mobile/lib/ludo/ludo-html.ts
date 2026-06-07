@@ -8,10 +8,6 @@ export const LUDO_GAME_HTML = `<!DOCTYPE html>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="theme-color" content="#080808"/>
 <title>Ludo</title>
-<script>
-/* Force dark mode immediately — matches main app's always-dark design system */
-document.documentElement.classList.add("dark");
-</script>
 <style>
 
 
@@ -7216,6 +7212,16 @@ function updateTheme(theme) {
   }
   localStorage.setItem("theme", theme);
 }
+window.addEventListener("message", function(event) {
+  try {
+    var data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+    if (data && data.type === "setTheme" && (data.theme === "dark" || data.theme === "light")) {
+      updateTheme(data.theme);
+      var radio = document.querySelector('input[name="s-theme"][value="' + data.theme + '"]');
+      if (radio) radio.checked = true;
+    }
+  } catch (e) {}
+});
 var _overlayInitialized = false;
 var _pausedBySettings = false;
 function openSettings() {
