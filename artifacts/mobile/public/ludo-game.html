@@ -1,6 +1,4 @@
-// Auto-generated from leludo-main source via esbuild bundle
-// Entry point: leludo-main/index.html → components/index.js + scripts/index.js
-export const LUDO_GAME_HTML = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
@@ -702,7 +700,7 @@ wc-board .path-arm-v > .path-cell {
 }
 
 /* Layout-only rule keeps full specificity (every cell is positioned).
-   \`min-width: 0; min-height: 0\` overrides the default \`min-content\`
+   `min-width: 0; min-height: 0` overrides the default `min-content`
    floor for grid items so token children (intrinsic 1:1 via SVG
    viewBox) don't stretch their row/column track. Without this, rows
    that contain a token grow taller than rows that don't, breaking
@@ -730,7 +728,7 @@ wc-board .path-cell.player-bg-path-3 {
 }
 
 /* Safe cells (m8, m21, m34, m47) keep the plain board-cell background
-   inherited from \`:where(.path-cell)\` and signal "safe" purely through
+   inherited from `:where(.path-cell)` and signal "safe" purely through
    the player-colored star SVG drawn inside. Don't add a background
    tint here — see test/e2e/board-styles.spec.js. */
 wc-board .path-cell--safe {
@@ -1675,7 +1673,7 @@ wc-game-end .ge-card {
 }
 
 /* Border-left color picks up the player seat color. Specificity beats
-   the generic \`wc-game-end .ge-card\` border-left shorthand above. */
+   the generic `wc-game-end .ge-card` border-left shorthand above. */
 wc-game-end .ge-card.player-border-0 { border-left-color: hsl(var(--player-0)); }
 wc-game-end .ge-card.player-border-1 { border-left-color: hsl(var(--player-1)); }
 wc-game-end .ge-card.player-border-2 { border-left-color: hsl(var(--player-2)); }
@@ -1908,9 +1906,9 @@ wc-dice {
    ============================================================ */
 
 /* The wc-token element is what scripts/render-logic.js
-   updateTokenContainer animates with \`style.transform = translate(...)\`
+   updateTokenContainer animates with `style.transform = translate(...)`
    between cell positions, so this duration drives per-step movement
-   speed. Match the pre-refactor Tailwind \`transition-transform\`
+   speed. Match the pre-refactor Tailwind `transition-transform`
    utility (150ms, cubic-bezier(0.4, 0, 0.2, 1)) — anything longer
    makes the dice-to-cell hopping feel sluggish. */
 wc-token {
@@ -2135,7 +2133,7 @@ wc-token .god-selected {
 .corner-dice--rolled {
     opacity: 0.5;
     padding: 4px;
-    /* width/style only — color comes from player-border-N. Using the \`border\`
+    /* width/style only — color comes from player-border-N. Using the `border`
        shorthand here would reset border-color to currentColor and clobber it. */
     border-width: 2px;
     border-style: solid;
@@ -2683,8 +2681,8 @@ function playDiceSound() {
 
 // attached_assets/leludo-main/leludo-main/scripts/platform.js
 var ANDROID_APP_ID = "com.leludo.ludo";
-var PLAY_STORE_WEB_URL = \`https://play.google.com/store/apps/details?id=\${ANDROID_APP_ID}\`;
-var PLAY_STORE_MARKET_URL = \`market://details?id=\${ANDROID_APP_ID}\`;
+var PLAY_STORE_WEB_URL = `https://play.google.com/store/apps/details?id=${ANDROID_APP_ID}`;
+var PLAY_STORE_MARKET_URL = `market://details?id=${ANDROID_APP_ID}`;
 function isCapacitorNative() {
   try {
     return !!window.Capacitor?.isNativePlatform?.();
@@ -2737,7 +2735,7 @@ function initAnalytics() {
   _enabled = true;
   const s = document.createElement("script");
   s.async = true;
-  s.src = \`https://www.googletagmanager.com/gtag/js?id=\${GA_MEASUREMENT_ID}\`;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`;
   document.head.appendChild(s);
   window.gtag = gtag;
   gtag("js", /* @__PURE__ */ new Date());
@@ -2752,8 +2750,8 @@ function trackScreen(name) {
   if (!_enabled) return;
   gtag("event", "page_view", {
     page_title: name,
-    page_path: \`/\${name}\`,
-    page_location: \`\${location.origin}/\${name}\`,
+    page_path: `/${name}`,
+    page_location: `${location.origin}/${name}`,
     app_version: VERSION
   });
 }
@@ -2852,7 +2850,7 @@ function injectCSS() {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement("style");
   style.id = STYLE_ID;
-  style.textContent = \`
+  style.textContent = `
       .kocap-root {
         position: absolute; inset: 0;
         pointer-events: none;
@@ -2906,7 +2904,7 @@ function injectCSS() {
         60% { transform: translate(1px, 0); }
       }
       .kocap-board-shake { animation: kocap-shake 320ms ease-out; }
-    \`;
+    `;
   document.head.appendChild(style);
 }
 function powSVG(attackerColor) {
@@ -3060,7 +3058,7 @@ function injectCSS2() {
   if (document.getElementById(STYLE_ID2)) return;
   const style = document.createElement("style");
   style.id = STYLE_ID2;
-  style.textContent = \`
+  style.textContent = `
       .hmarr-root {
         position: absolute; inset: 0;
         pointer-events: none;
@@ -3118,7 +3116,7 @@ function injectCSS2() {
         pointer-events: none;
         mix-blend-mode: screen;
       }
-    \`;
+    `;
   document.head.appendChild(style);
 }
 function el(cls, css) {
@@ -3274,7 +3272,7 @@ function injectCSS3() {
   if (document.getElementById(STYLE_ID3)) return;
   const style = document.createElement("style");
   style.id = STYLE_ID3;
-  style.textContent = \`
+  style.textContent = `
       .plnch-root {
         position: absolute; inset: 0;
         pointer-events: none;
@@ -3357,7 +3355,7 @@ function injectCSS3() {
         color: #1a1410;
         box-shadow: 0 6px 18px rgba(0,0,0,0.35);
       }
-    \`;
+    `;
   document.head.appendChild(style);
 }
 function ghostSVG(color, size) {
@@ -3606,17 +3604,17 @@ function playLandingFX(root, entry, color, pawnSize, label) {
 var FINISH_CELL_ID_RE = /^p\ds6$/;
 function getTokenContainerId(playerIndex, tokenIndex, tokenPosition) {
   if (tokenPosition === -1) {
-    return \`h-\${playerIndex}-\${tokenIndex}\`;
+    return `h-${playerIndex}-${tokenIndex}`;
   }
   if (tokenPosition > 50) {
     const safeIndex = tokenPosition % 50;
-    return \`p\${playerIndex}s\${safeIndex}\`;
+    return `p${playerIndex}s${safeIndex}`;
   }
   const markIndex2 = getMarkIndex(playerIndex, tokenPosition);
-  return \`m\${markIndex2}\`;
+  return `m${markIndex2}`;
 }
 function getTokenElementId(playerIndex, tokenIndex) {
-  return \`p-\${playerIndex}-\${tokenIndex}\`;
+  return `p-${playerIndex}-${tokenIndex}`;
 }
 var _tokenElementCache = /* @__PURE__ */ new Map();
 function getTokenElement(playerIndex, tokenIndex) {
@@ -3632,8 +3630,8 @@ function clearTokenElementCache() {
   _bouncingTokens.clear();
 }
 function updateDiceFace(lastDiceRoll, diceRoll) {
-  document.getElementById(\`d\${lastDiceRoll}\`).classList.add("hidden");
-  document.getElementById(\`d\${diceRoll}\`).classList.remove("hidden");
+  document.getElementById(`d${lastDiceRoll}`).classList.add("hidden");
+  document.getElementById(`d${diceRoll}`).classList.remove("hidden");
 }
 function animateDiceRoll(currentDiceRoll) {
   playDiceSound();
@@ -3685,10 +3683,10 @@ function pinTokenForCapture(element) {
   const rect = element.getBoundingClientRect();
   cell.style.position = "relative";
   element.style.position = "absolute";
-  element.style.top = \`\${rect.top - cellRect.top}px\`;
-  element.style.left = \`\${rect.left - cellRect.left}px\`;
-  element.style.width = \`\${rect.width}px\`;
-  element.style.height = \`\${rect.height}px\`;
+  element.style.top = `${rect.top - cellRect.top}px`;
+  element.style.left = `${rect.left - cellRect.left}px`;
+  element.style.width = `${rect.width}px`;
+  element.style.height = `${rect.height}px`;
   element.dataset.moving = "true";
 }
 function clearStackStyles(t) {
@@ -3728,7 +3726,7 @@ function applyFinishStacking(cell, tokens) {
         top = 100 - depthPct - sizePct;
         break;
     }
-    t.style.cssText = \`position:absolute;top:\${top}%;left:\${left}%;width:\${sizePct}%;height:\${sizePct}%;\`;
+    t.style.cssText = `position:absolute;top:${top}%;left:${left}%;width:${sizePct}%;height:${sizePct}%;`;
   }
   if (n <= 3) {
     const sizeMap = [22, 22, 22, 17];
@@ -3782,7 +3780,7 @@ function updateCellStacking(cell) {
     tokens[0].style.cssText += ";position:absolute;inset:8%;width:84%;height:84%;z-index:1;";
     const badgeEl = document.createElement("div");
     badgeEl.className = "stack-badge";
-    badgeEl.textContent = \`\xD7\${n}\`;
+    badgeEl.textContent = `\xD7${n}`;
     cell.appendChild(badgeEl);
   }
 }
@@ -3815,7 +3813,7 @@ function deriveAttackFrom(prevCell, capCell) {
 function readTokenColor(playerIndex, tokenIndex, fallback) {
   const el3 = getTokenElement(playerIndex, tokenIndex);
   if (!el3) return fallback;
-  const styled = el3.querySelector(\`[class*="player-fg-\${playerIndex}"]\`) || el3;
+  const styled = el3.querySelector(`[class*="player-fg-${playerIndex}"]`) || el3;
   const c = getComputedStyle(styled).color;
   return c && c !== "rgba(0, 0, 0, 0)" ? c : fallback;
 }
@@ -3982,7 +3980,7 @@ function updateTokenContainer(playerIndex, tokenIndex, currentTokenPosition, new
     const compDy = visualRect.top - originRect.top;
     if (Math.abs(compDx) > 0.5 || Math.abs(compDy) > 0.5) {
       element.style.transition = "none";
-      element.style.transform = \`translate(\${compDx}px, \${compDy}px)\`;
+      element.style.transform = `translate(${compDx}px, ${compDy}px)`;
       void element.offsetWidth;
       element.style.transition = "";
     }
@@ -4023,7 +4021,7 @@ function updateTokenContainer(playerIndex, tokenIndex, currentTokenPosition, new
       const targetRect = targetContainer.getBoundingClientRect();
       const offsetX = targetRect.left - originRect.left;
       const offsetY = targetRect.top - originRect.top;
-      element.style.transform = \`translate(\${offsetX}px, \${offsetY}px)\`;
+      element.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
       waitForTransitionEnd(element, () => {
         stepIndex++;
         requestAnimationFrame(step);
@@ -4091,14 +4089,14 @@ function showGame() {
   replaceTo("game");
   requestWakeLock();
 }
-var PAWN_SVG_MINI = (playerIndex) => \`
-    <svg viewBox="0 0 32 32" class="player-fg-\${playerIndex}" style="width:100%;height:100%;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.22));">
+var PAWN_SVG_MINI = (playerIndex) => `
+    <svg viewBox="0 0 32 32" class="player-fg-${playerIndex}" style="width:100%;height:100%;filter:drop-shadow(0 1px 1px rgba(0,0,0,0.22));">
         <ellipse cx="16" cy="28" rx="8" ry="1.5" fill="rgba(0,0,0,0.18)"/>
         <path d="M16 4c3.2 0 5.5 2.4 5.5 5.2 0 1.8-1 3.2-2.4 4 1.7.7 2.9 1.8 3.6 3.4l1.1 2.6c.4 1 .1 2-.7 2.4-.2.1-.4.1-.6.1H9.5c-.9 0-1.6-.7-1.6-1.6 0-.3.1-.6.2-.9l1.1-2.6c.7-1.6 1.9-2.7 3.6-3.4-1.4-.8-2.4-2.2-2.4-4C10.4 6.4 12.8 4 16 4z" fill="currentColor"/>
         <rect x="7.5" y="22" width="17" height="3.5" rx="1.4" fill="currentColor"/>
-    </svg>\`;
-var botGlyph = (size) => \`<svg width="\${size}" height="\${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>\`;
-var humanGlyph = (size) => \`<svg width="\${size}" height="\${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>\`;
+    </svg>`;
+var botGlyph = (size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
+var humanGlyph = (size) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:block;"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 var playerTypeGlyph = (type, size) => type === "BOT" ? botGlyph(size) : humanGlyph(size);
 var playerTypeLabel = (type) => type === "BOT" ? "Bot" : "Human";
 function escapeHtml(s) {
@@ -4118,35 +4116,35 @@ function renderPauseScoreboard() {
     const finished = _getFinishedCount ? _getFinishedCount(idx) : 0;
     const name = playerDisplayName(idx);
     const isActive = idx === currentIdx;
-    const dotCls = isActive ? \`player-bg-\${idx}\` : "pm-finish-dot--idle";
-    const tag = isActive ? \`<span class="pm-upnext">Up next</span>\` : "";
-    const typeBadge = \`
+    const dotCls = isActive ? `player-bg-${idx}` : "pm-finish-dot--idle";
+    const tag = isActive ? `<span class="pm-upnext">Up next</span>` : "";
+    const typeBadge = `
             <span class="pm-type">
-                \${playerTypeGlyph(type, 12)}
-                \${playerTypeLabel(type)}
-            </span>\`;
-    rows.push(\`
+                ${playerTypeGlyph(type, 12)}
+                ${playerTypeLabel(type)}
+            </span>`;
+    rows.push(`
             <div class="pm-row">
-                <div class="pm-pawn">\${PAWN_SVG_MINI(idx)}</div>
+                <div class="pm-pawn">${PAWN_SVG_MINI(idx)}</div>
                 <div class="pm-body">
                     <div class="pm-name-row">
-                        <span class="pm-name">\${escapeHtml(name)}</span>
-                        \${tag}
+                        <span class="pm-name">${escapeHtml(name)}</span>
+                        ${tag}
                     </div>
-                    \${typeBadge}
+                    ${typeBadge}
                 </div>
                 <div class="pm-finish">
-                    <span class="pm-finish-count">\${finished}<span class="pm-finish-count-total">/4</span></span>
-                    <span class="pm-finish-dot \${dotCls}"></span>
+                    <span class="pm-finish-count">${finished}<span class="pm-finish-count-total">/4</span></span>
+                    <span class="pm-finish-dot ${dotCls}"></span>
                 </div>
-            </div>\`);
+            </div>`);
   });
   board.innerHTML = rows.join("");
 }
 function showPauseMenu() {
   const overlay = document.getElementById("pause-menu");
   const turnEl = overlay.querySelector("#pm-turn-count");
-  if (turnEl) turnEl.textContent = \`Turn \${turnCount}\`;
+  if (turnEl) turnEl.textContent = `Turn ${turnCount}`;
   renderPauseScoreboard();
   overlay.classList.remove("hidden");
   releaseWakeLock();
@@ -4159,16 +4157,16 @@ function resumeGame() {
 function applyColorMap(colorMap) {
   const root = document.documentElement;
   colorMap.forEach((originalColor, position) => {
-    root.style.setProperty(\`--player-\${position}\`, \`var(--base-color-\${originalColor})\`);
-    root.style.setProperty(\`--player-\${position}-light\`, \`var(--base-color-\${originalColor}-light)\`);
-    root.style.setProperty(\`--player-\${position}-path\`, \`var(--base-color-\${originalColor}-light)\`);
+    root.style.setProperty(`--player-${position}`, `var(--base-color-${originalColor})`);
+    root.style.setProperty(`--player-${position}-light`, `var(--base-color-${originalColor}-light)`);
+    root.style.setProperty(`--player-${position}-path`, `var(--base-color-${originalColor}-light)`);
   });
 }
 var turnCount = 0;
 var _playerTypes = null;
 var _playerNames = ["", "", "", ""];
 function playerDisplayName(idx) {
-  return _playerNames[idx] && String(_playerNames[idx]).trim() || \`P\${idx + 1}\`;
+  return _playerNames[idx] && String(_playerNames[idx]).trim() || `P${idx + 1}`;
 }
 var _getCurrentPlayerIndex = null;
 var _getFinishedCount = null;
@@ -4188,8 +4186,8 @@ var DIE_PIPS = {
   6: [[1, 1], [1, 3], [2, 1], [2, 3], [3, 1], [3, 3]]
 };
 function staticDieMarkup(value) {
-  const pips = (DIE_PIPS[value] || []).map(([r, c]) => \`<div class="dice-dot" style="grid-row:\${r};grid-column:\${c};"></div>\`).join("");
-  return \`<div class="die"><div class="dice-face">\${pips}</div></div>\`;
+  const pips = (DIE_PIPS[value] || []).map(([r, c]) => `<div class="dice-dot" style="grid-row:${r};grid-column:${c};"></div>`).join("");
+  return `<div class="die"><div class="dice-face">${pips}</div></div>`;
 }
 function initRailDeps(pt, getCpi, getFC) {
   _playerTypes = pt;
@@ -4211,15 +4209,15 @@ var CORNER_CFG = [
 ];
 function pillMarkup(idx, finished, active) {
   const type = _playerTypes ? _playerTypes[idx] : null;
-  const glyph = \`<span class="corner-pill-glyph">\${playerTypeGlyph(type, 14)}</span>\`;
-  const cls = active ? \`corner-pill corner-pill--active player-bg-\${idx}\` : \`corner-pill\`;
+  const glyph = `<span class="corner-pill-glyph">${playerTypeGlyph(type, 14)}</span>`;
+  const cls = active ? `corner-pill corner-pill--active player-bg-${idx}` : `corner-pill`;
   const name = playerDisplayName(idx);
   const safe = escapeHtml(name);
-  return \`
-        <div class="\${cls}">
-            \${glyph}
-            <div class="corner-pill-name">\${safe}</div>
-        </div>\`;
+  return `
+        <div class="${cls}">
+            ${glyph}
+            <div class="corner-pill-name">${safe}</div>
+        </div>`;
 }
 function updateCornerWidgets() {
   if (!_playerTypes) return;
@@ -4240,8 +4238,8 @@ function updateCornerWidgets() {
     const pillEl = pill.firstElementChild;
     const diceBtn = document.createElement("div");
     if (isActive) {
-      diceBtn.className = \`corner-dice corner-dice--active player-bg-\${idx} active-dice-pulse\`;
-      diceBtn.style.setProperty("--pulse-color", \`hsl(var(--player-\${idx}) / 0.55)\`);
+      diceBtn.className = `corner-dice corner-dice--active player-bg-${idx} active-dice-pulse`;
+      diceBtn.style.setProperty("--pulse-color", `hsl(var(--player-${idx}) / 0.55)`);
       if (dice) {
         dice.style.cssText = "width:100%;height:100%;";
         dice.className = "";
@@ -4250,10 +4248,10 @@ function updateCornerWidgets() {
     } else {
       const lastRoll = _lastRollByPlayer[idx];
       if (lastRoll) {
-        diceBtn.className = \`corner-dice corner-dice--rolled player-border-\${idx}\`;
+        diceBtn.className = `corner-dice corner-dice--rolled player-border-${idx}`;
         diceBtn.innerHTML = staticDieMarkup(lastRoll);
       } else {
-        diceBtn.className = \`corner-dice corner-dice--idle player-bg-\${idx}\`;
+        diceBtn.className = `corner-dice corner-dice--idle player-bg-${idx}`;
       }
     }
     if (layout === "TD") {
@@ -4269,7 +4267,7 @@ function updateCornerWidgets() {
 function updateTurnCounter() {
   turnCount++;
   const el3 = document.getElementById("turn-counter");
-  if (el3) el3.textContent = \`Turn \${turnCount}\`;
+  if (el3) el3.textContent = `Turn ${turnCount}`;
 }
 function resetTurnCount() {
   turnCount = 0;
@@ -5347,8 +5345,8 @@ function pickKnockoutKing(stats, seats, winnerIndex) {
     playerIndex: pi,
     type: "ko",
     title: "Knockout king",
-    body: \`\${nameOf(seats, pi)} sent rivals home\`,
-    stat: \`\${max}\xD7\`
+    body: `${nameOf(seats, pi)} sent rivals home`,
+    stat: `${max}\xD7`
   };
 }
 function pickHotDice(stats, seats) {
@@ -5369,7 +5367,7 @@ function pickHotDice(stats, seats) {
     playerIndex: bestPi,
     type: "dice",
     title: "Hot dice",
-    body: \`\${nameOf(seats, bestPi)} rolled \${word} \${best.value}s in a row on turn \${best.atTurn}\`,
+    body: `${nameOf(seats, bestPi)} rolled ${word} ${best.value}s in a row on turn ${best.atTurn}`,
     stat: repeated
   };
 }
@@ -5389,8 +5387,8 @@ function pickFirstHome(stats, seats) {
     playerIndex: pi,
     type: "home",
     title: "First home",
-    body: \`\${nameOf(seats, pi)} got the first pawn home\`,
-    stat: \`T-\${best}\`
+    body: `${nameOf(seats, pi)} got the first pawn home`,
+    stat: `T-${best}`
   };
 }
 function pickRoughDay(stats, seats) {
@@ -5408,8 +5406,8 @@ function pickRoughDay(stats, seats) {
     playerIndex: pi,
     type: "send",
     title: "Rough day",
-    body: \`\${nameOf(seats, pi)} was sent home\`,
-    stat: \`\${max}\xD7\`
+    body: `${nameOf(seats, pi)} was sent home`,
+    stat: `${max}\xD7`
   };
 }
 function pickLongRoad(stats, seats, skipPi) {
@@ -5429,8 +5427,8 @@ function pickLongRoad(stats, seats, skipPi) {
     playerIndex: pi,
     type: "bolt",
     title: "Long road",
-    body: \`\${nameOf(seats, pi)} crossed the finish at turn \${max}\`,
-    stat: \`T-\${max}\`
+    body: `${nameOf(seats, pi)} crossed the finish at turn ${max}`,
+    stat: `T-${max}`
   };
 }
 function pickSlowStart(stats, seats) {
@@ -5448,7 +5446,7 @@ function pickSlowStart(stats, seats) {
     playerIndex: pi,
     type: "bolt",
     title: "Slow start",
-    body: \`\${nameOf(seats, pi)} took a while to leave home\`,
+    body: `${nameOf(seats, pi)} took a while to leave home`,
     stat: "T-20"
   };
 }
@@ -5457,7 +5455,7 @@ function pickChampion(stats, seats, winnerIndex) {
     playerIndex: winnerIndex,
     type: "crown",
     title: "Champion",
-    body: \`\${nameOf(seats, winnerIndex)} crossed the finish first\`,
+    body: `${nameOf(seats, winnerIndex)} crossed the finish first`,
     stat: "1st"
   };
 }
@@ -5477,8 +5475,8 @@ function pickDistanceLeader(stats, seats, skipPi) {
     playerIndex: pi,
     type: "bolt",
     title: "Distance run",
-    body: \`\${nameOf(seats, pi)} clocked the most steps\`,
-    stat: \`\${max}\`
+    body: `${nameOf(seats, pi)} clocked the most steps`,
+    stat: `${max}`
   };
 }
 function selectHighlights({ stats, seats, winnerIndex }) {
@@ -5518,8 +5516,8 @@ function selectHighlights({ stats, seats, winnerIndex }) {
       playerIndex: winnerIndex,
       type: "crown",
       title: "Match wrap",
-      body: \`\${nameOf(seats, winnerIndex)} closed it out\`,
-      stat: \`T-\${stats.turnCount || 0}\`
+      body: `${nameOf(seats, winnerIndex)} closed it out`,
+      stat: `T-${stats.turnCount || 0}`
     });
   }
   return cards.slice(0, 4);
@@ -5737,7 +5735,7 @@ initNavHistory();
 // attached_assets/leludo-main/leludo-main/components/wc-dice.js
 var DICE_HTML = (
   /*html*/
-  \`
+  `
 <div id="dice" class="die">
     <div id="d1" class="dice-face">
         <div class="dice-dot" style="grid-row:2;grid-column:2;"></div>
@@ -5773,7 +5771,7 @@ var DICE_HTML = (
         <div class="dice-dot" style="grid-row:3;grid-column:3;"></div>
     </div>
 </div>
-\`
+`
 );
 var Dice = class extends HTMLElement {
   constructor() {
@@ -5801,15 +5799,15 @@ window.customElements.define("wc-dice", Dice);
 // attached_assets/leludo-main/leludo-main/components/wc-token.js
 var TOKEN_HTML = (playerIndex) => (
   /*html*/
-  \`
+  `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"
-         class="player-fg-\${playerIndex}">
+         class="player-fg-${playerIndex}">
         <defs>
-            <linearGradient id="pb\${playerIndex}" x1="0.2" y1="0" x2="0.8" y2="1">
+            <linearGradient id="pb${playerIndex}" x1="0.2" y1="0" x2="0.8" y2="1">
                 <stop offset="0%" stop-color="white" stop-opacity="0.35"/>
                 <stop offset="100%" stop-color="black" stop-opacity="0.12"/>
             </linearGradient>
-            <radialGradient id="ph\${playerIndex}" cx="0.4" cy="0.35" r="0.5">
+            <radialGradient id="ph${playerIndex}" cx="0.4" cy="0.35" r="0.5">
                 <stop offset="0%" stop-color="white" stop-opacity="0.45"/>
                 <stop offset="100%" stop-color="white" stop-opacity="0"/>
             </radialGradient>
@@ -5817,14 +5815,14 @@ var TOKEN_HTML = (playerIndex) => (
         <ellipse cx="50" cy="88" rx="30" ry="8" fill="currentColor"/>
         <ellipse cx="50" cy="88" rx="30" ry="8" fill="black" opacity="0.1"/>
         <path d="M32 85 Q30 70 36 55 Q40 45 42 38 L58 38 Q60 45 64 55 Q70 70 68 85 Z" fill="currentColor" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
-        <path d="M32 85 Q30 70 36 55 Q40 45 42 38 L58 38 Q60 45 64 55 Q70 70 68 85 Z" fill="url(#pb\${playerIndex})"/>
+        <path d="M32 85 Q30 70 36 55 Q40 45 42 38 L58 38 Q60 45 64 55 Q70 70 68 85 Z" fill="url(#pb${playerIndex})"/>
         <ellipse cx="50" cy="38" rx="13" ry="4" fill="currentColor"/>
         <ellipse cx="50" cy="38" rx="13" ry="4" fill="white" opacity="0.15"/>
         <circle cx="50" cy="24" r="16" fill="currentColor" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
-        <circle cx="50" cy="24" r="16" fill="url(#ph\${playerIndex})"/>
+        <circle cx="50" cy="24" r="16" fill="url(#ph${playerIndex})"/>
         <ellipse cx="44" cy="18" rx="5" ry="3.5" fill="white" opacity="0.4" transform="rotate(-20 44 18)"/>
     </svg>
-\`
+`
 );
 var Token = class extends HTMLElement {
   static observedAttributes = ["id"];
@@ -6006,11 +6004,11 @@ function readSeatNameMap() {
 }
 function getSavedSeatName(type, seatIndex) {
   const map = readSeatNameMap();
-  return map[\`\${type}.\${seatIndex}\`] || "";
+  return map[`${type}.${seatIndex}`] || "";
 }
 function setSavedSeatName(type, seatIndex, name) {
   const map = readSeatNameMap();
-  const key = \`\${type}.\${seatIndex}\`;
+  const key = `${type}.${seatIndex}`;
   if (name) map[key] = name;
   else delete map[key];
   localStorage.setItem(SEAT_NAME_KEY, JSON.stringify(map));
@@ -6031,17 +6029,17 @@ var DICE_SVG = (value, size = 56) => {
   const cell = (size - pad * 2) / 2;
   const pips = PIP_LAYOUTS[value] || PIP_LAYOUTS[1];
   const pipSvgs = pips.map(
-    ([gr, gc]) => \`<circle cx="\${pad + gc * cell}" cy="\${pad + gr * cell}" r="\${pip / 2}" fill="var(--color-fg)"/>\`
+    ([gr, gc]) => `<circle cx="${pad + gc * cell}" cy="${pad + gr * cell}" r="${pip / 2}" fill="var(--color-fg)"/>`
   ).join("");
-  return \`<svg width="\${size}" height="\${size}" viewBox="0 0 \${size} \${size}">
-        <rect x="0.5" y="0.5" width="\${size - 1}" height="\${size - 1}" rx="\${size * 0.22}" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1"/>
-        \${pipSvgs}
-    </svg>\`;
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        <rect x="0.5" y="0.5" width="${size - 1}" height="${size - 1}" rx="${size * 0.22}" fill="var(--color-surface)" stroke="var(--color-border)" stroke-width="1"/>
+        ${pipSvgs}
+    </svg>`;
 };
 var QUAD_CHIP_SVG = (size = 26) => MINI_BOARD_SVG(size);
-var PLAY_ICON_SVG = (size = 14) => \`<svg width="\${size}" height="\${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>\`;
+var PLAY_ICON_SVG = (size = 14) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
 var MINI_BOARD_SVG = (size = 52) => {
-  return \`<svg width="\${size}" height="\${size}" viewBox="0 0 60 60" style="border-radius:7px;overflow:hidden;display:block;">
+  return `<svg width="${size}" height="${size}" viewBox="0 0 60 60" style="border-radius:7px;overflow:hidden;display:block;">
         <rect x="0"  y="0"  width="30" height="30" fill="hsl(var(--player-1))"/>
         <rect x="30" y="0"  width="30" height="30" fill="hsl(var(--player-2))"/>
         <rect x="0"  y="30" width="30" height="30" fill="hsl(var(--player-3))"/>
@@ -6053,21 +6051,21 @@ var MINI_BOARD_SVG = (size = 52) => {
         <rect x="-3.4" y="-3.4" width="6.8" height="6.8"
               transform="translate(30 30) rotate(45)"
               fill="rgba(255,250,240,0.78)"/>
-    </svg>\`;
+    </svg>`;
 };
-var PAWN_SVG = (playerIndex) => \`
-    <svg viewBox="0 0 32 32" class="player-fg-\${playerIndex}" style="width:100%;height:100%;filter:drop-shadow(0 1.2px 1.5px rgba(0,0,0,0.28));">
+var PAWN_SVG = (playerIndex) => `
+    <svg viewBox="0 0 32 32" class="player-fg-${playerIndex}" style="width:100%;height:100%;filter:drop-shadow(0 1.2px 1.5px rgba(0,0,0,0.28));">
         <ellipse cx="16" cy="28" rx="8" ry="1.5" fill="rgba(0,0,0,0.18)"/>
         <path d="M16 4c3.2 0 5.5 2.4 5.5 5.2 0 1.8-1 3.2-2.4 4 1.7.7 2.9 1.8 3.6 3.4l1.1 2.6c.4 1 .1 2-.7 2.4-.2.1-.4.1-.6.1H9.5c-.9 0-1.6-.7-1.6-1.6 0-.3.1-.6.2-.9l1.1-2.6c.7-1.6 1.9-2.7 3.6-3.4-1.4-.8-2.4-2.2-2.4-4C10.4 6.4 12.8 4 16 4z" fill="currentColor"/>
         <path d="M16 4c3.2 0 5.5 2.4 5.5 5.2 0 1.8-1 3.2-2.4 4-.6-.3-1.3-.5-2-.5h-2.2c-.7 0-1.4.2-2 .5-1.4-.8-2.4-2.2-2.4-4C10.4 6.4 12.8 4 16 4z" fill="rgba(255,255,255,0.24)"/>
         <rect x="7.5" y="22" width="17" height="3.5" rx="1.4" fill="currentColor"/>
         <rect x="7.5" y="22" width="17" height="1.2" rx="0.6" fill="rgba(255,255,255,0.38)"/>
-    </svg>\`;
-var ICON_BACK = \`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>\`;
-var ICON_CLOSE = \`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>\`;
-var ICON_USER = \`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0"/></svg>\`;
-var ICON_BOT = \`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M8 7h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zM9 13h.01M15 13h.01M9 17h6"/></svg>\`;
-var ICON_PENCIL = \`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>\`;
+    </svg>`;
+var ICON_BACK = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>`;
+var ICON_CLOSE = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg>`;
+var ICON_USER = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 21a8 8 0 0116 0"/></svg>`;
+var ICON_BOT = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v3M8 7h8a3 3 0 013 3v7a3 3 0 01-3 3H8a3 3 0 01-3-3v-7a3 3 0 013-3zM9 13h.01M15 13h.01M9 17h6"/></svg>`;
+var ICON_PENCIL = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>`;
 var QuickStart = class extends HTMLElement {
   constructor() {
     super();
@@ -6082,7 +6080,7 @@ var QuickStart = class extends HTMLElement {
       const saved = getSavedSeatName(slot.type, i);
       let name;
       if (slot.type === "PLAYER") {
-        name = saved || \`Player \${i + 1}\`;
+        name = saved || `Player ${i + 1}`;
       } else if (saved && !botNames.includes(saved)) {
         name = saved;
         botNames.push(name);
@@ -6096,7 +6094,7 @@ var QuickStart = class extends HTMLElement {
   }
   _defaultName(seat, seatIndex) {
     const saved = getSavedSeatName(seat.type, seatIndex);
-    if (seat.type !== "BOT") return saved || \`Player \${seatIndex + 1}\`;
+    if (seat.type !== "BOT") return saved || `Player ${seatIndex + 1}`;
     const used = this.seats.filter((s) => s !== seat && s.active && s.type === "BOT").map((s) => s.name);
     if (saved && !used.includes(saved)) return saved;
     return randomBotName(used);
@@ -6131,27 +6129,27 @@ var QuickStart = class extends HTMLElement {
     const saved = this._readSavedGame();
     const html = (
       /*html*/
-      \`
-            <div class="frame home-frame\${saved ? " home-frame--in-progress" : ""}">
+      `
+            <div class="frame home-frame${saved ? " home-frame--in-progress" : ""}">
                 <div class="top-bar">
-                    <div class="icon-btn home-brand-chip" aria-label="leludo">\${QUAD_CHIP_SVG(20)}</div>
+                    <div class="icon-btn home-brand-chip" aria-label="leludo">${QUAD_CHIP_SVG(20)}</div>
                     <div class="top-bar-title"></div>
                     <wc-settings></wc-settings>
                 </div>
 
                 <div class="home-hero">
-                    <div class="home-die"><div class="home-die-inner">\${DICE_SVG(6, 48)}</div></div>
+                    <div class="home-die"><div class="home-die-inner">${DICE_SVG(6, 48)}</div></div>
                     <h1 class="home-title">leludo</h1>
                     <p class="home-tagline">A quiet, faithful take on the classic four-player race.</p>
                 </div>
 
-                \${saved ? this._resumeCardHtml(saved) : ""}
+                ${saved ? this._resumeCardHtml(saved) : ""}
 
                 <div class="frame-footer">
-                    \${saved ? \`<button class="new-game-btn cta-primary">Start a new game</button>\` : \`<button class="new-game-btn cta-primary">New game</button>\`}
+                    ${saved ? `<button class="new-game-btn cta-primary">Start a new game</button>` : `<button class="new-game-btn cta-primary">New game</button>`}
                 </div>
             </div>
-        \`
+        `
     );
     const el3 = htmlToElement(html);
     el3.querySelector(".new-game-btn").addEventListener("click", () => {
@@ -6178,8 +6176,8 @@ var QuickStart = class extends HTMLElement {
     let face = 6;
     const cycle = () => {
       colorIdx = (colorIdx + 1) % 4;
-      die.style.backgroundColor = \`hsl(var(--player-\${colorIdx}))\`;
-      die.style.setProperty("--pulse-color", \`hsl(var(--player-\${colorIdx}) / 0.55)\`);
+      die.style.backgroundColor = `hsl(var(--player-${colorIdx}))`;
+      die.style.setProperty("--pulse-color", `hsl(var(--player-${colorIdx}) / 0.55)`);
       inner.classList.remove("dice-rolling");
       void inner.offsetWidth;
       inner.classList.add("dice-rolling");
@@ -6226,27 +6224,27 @@ var QuickStart = class extends HTMLElement {
     const turn = Number.isFinite(saved.turnCount) && saved.turnCount > 0 ? saved.turnCount : 1;
     const activeIdx = [0, 1, 2, 3].filter((i) => types[i]);
     const currentIsHuman = types[cpi] === "PLAYER";
-    const currentName = (names[cpi] || "").trim() || \`Player \${cpi + 1}\`;
-    const turnLine = currentIsHuman ? \`Turn \${turn} \xB7 your move\` : \`Turn \${turn} \xB7 \${currentName}'s move\`;
-    const opponents = activeIdx.filter((i) => i !== cpi).map((i) => (names[i] || "").trim() || \`P\${i + 1}\`).join(", ");
+    const currentName = (names[cpi] || "").trim() || `Player ${cpi + 1}`;
+    const turnLine = currentIsHuman ? `Turn ${turn} \xB7 your move` : `Turn ${turn} \xB7 ${currentName}'s move`;
+    const opponents = activeIdx.filter((i) => i !== cpi).map((i) => (names[i] || "").trim() || `P${i + 1}`).join(", ");
     const dots = activeIdx.map(
-      (i) => \`<span class="resume-dot" style="background:hsl(var(--player-\${i}));"></span>\`
+      (i) => `<span class="resume-dot" style="background:hsl(var(--player-${i}));"></span>`
     ).join("");
     return (
       /*html*/
-      \`
+      `
             <div class="home-resume-row">
                 <div class="resume-eyebrow">IN&nbsp;PROGRESS</div>
                 <button class="resume-card" type="button">
-                    <span class="resume-mini-board">\${MINI_BOARD_SVG(52)}</span>
+                    <span class="resume-mini-board">${MINI_BOARD_SVG(52)}</span>
                     <span class="resume-body">
-                        <span class="resume-title">\${escapeHtml(turnLine)}</span>
-                        <span class="resume-sub">vs \${escapeHtml(opponents)}</span>
-                        <span class="resume-dots">\${dots}</span>
+                        <span class="resume-title">${escapeHtml(turnLine)}</span>
+                        <span class="resume-sub">vs ${escapeHtml(opponents)}</span>
+                        <span class="resume-dots">${dots}</span>
                     </span>
-                    <span class="resume-play">\${PLAY_ICON_SVG(14)}</span>
+                    <span class="resume-play">${PLAY_ICON_SVG(14)}</span>
                 </button>
-            </div>\`
+            </div>`
     );
   }
   showSetupScreen() {
@@ -6254,10 +6252,10 @@ var QuickStart = class extends HTMLElement {
     this.innerHTML = "";
     const html = (
       /*html*/
-      \`
+      `
             <div class="frame">
                 <div class="top-bar">
-                    <button class="back-btn icon-btn">\${ICON_BACK}</button>
+                    <button class="back-btn icon-btn">${ICON_BACK}</button>
                     <div class="top-bar-title"></div>
                     <wc-settings></wc-settings>
                 </div>
@@ -6273,7 +6271,7 @@ var QuickStart = class extends HTMLElement {
                     <button class="start-btn cta-primary">Start game</button>
                 </div>
             </div>
-        \`
+        `
     );
     const el3 = htmlToElement(html);
     el3.querySelector(".back-btn").addEventListener("click", () => {
@@ -6297,32 +6295,32 @@ var QuickStart = class extends HTMLElement {
         const isPlayer = seat.type === "PLAYER";
         const NAME_MAX = 9;
         if (!seat.name) seat.name = this._defaultName(seat, i);
-        const colorVar = \`hsl(var(--player-\${i}))\`;
-        const playerActiveStyle = isPlayer ? \`style="background:\${colorVar};color:#fff;"\` : "";
-        const botActiveStyle = !isPlayer ? \`style="background:\${colorVar};color:#fff;"\` : "";
+        const colorVar = `hsl(var(--player-${i}))`;
+        const playerActiveStyle = isPlayer ? `style="background:${colorVar};color:#fff;"` : "";
+        const botActiveStyle = !isPlayer ? `style="background:${colorVar};color:#fff;"` : "";
         const dimmed = this._focusedSeatIndex !== null && this._focusedSeatIndex !== i;
         const rowDimStyle = dimmed ? "opacity:0.35;" : "";
         const charLen = (seat.name || "").length;
         const seatHtml = (
           /*html*/
-          \`
-                    <div class="seat-row" data-seat-idx="\${i}" style="\${rowDimStyle}">
-                        <div class="seat-color-cycle" style="background:\${colorVar};">
-                            <div class="seat-pawn">\${PAWN_SVG(i)}</div>
+          `
+                    <div class="seat-row" data-seat-idx="${i}" style="${rowDimStyle}">
+                        <div class="seat-color-cycle" style="background:${colorVar};">
+                            <div class="seat-pawn">${PAWN_SVG(i)}</div>
                         </div>
                         <div class="seat-body">
                             <label class="seat-name-wrap">
-                                <input class="seat-name" type="text" name="ludo-seat-\${i}" autocomplete="off" autocorrect="off" autocapitalize="words" data-form-type="other" data-lpignore="true" data-1p-ignore="true" style="caret-color:\${colorVar};" value="\${(seat.name || "").replace(/"/g, "&quot;")}" maxlength="\${NAME_MAX}" spellcheck="false" />
-                                <span class="seat-name-pencil">\${ICON_PENCIL}</span>
-                                <span class="seat-char-count hidden" style="color:\${colorVar};">\${charLen}/\${NAME_MAX}</span>
+                                <input class="seat-name" type="text" name="ludo-seat-${i}" autocomplete="off" autocorrect="off" autocapitalize="words" data-form-type="other" data-lpignore="true" data-1p-ignore="true" style="caret-color:${colorVar};" value="${(seat.name || "").replace(/"/g, "&quot;")}" maxlength="${NAME_MAX}" spellcheck="false" />
+                                <span class="seat-name-pencil">${ICON_PENCIL}</span>
+                                <span class="seat-char-count hidden" style="color:${colorVar};">${charLen}/${NAME_MAX}</span>
                             </label>
                         </div>
                         <div class="seat-pill">
-                            <button data-half="PLAYER" class="seat-half \${isPlayer ? "" : "seat-half--inactive"}" \${playerActiveStyle}>\${ICON_USER}<span>Human</span></button>
-                            <button data-half="BOT" class="seat-half \${!isPlayer ? "" : "seat-half--inactive"}" \${botActiveStyle}>\${ICON_BOT}<span>Bot</span></button>
+                            <button data-half="PLAYER" class="seat-half ${isPlayer ? "" : "seat-half--inactive"}" ${playerActiveStyle}>${ICON_USER}<span>Human</span></button>
+                            <button data-half="BOT" class="seat-half ${!isPlayer ? "" : "seat-half--inactive"}" ${botActiveStyle}>${ICON_BOT}<span>Bot</span></button>
                         </div>
-                        <button class="remove-seat seat-remove">\${ICON_CLOSE}</button>
-                    </div>\`
+                        <button class="remove-seat seat-remove">${ICON_CLOSE}</button>
+                    </div>`
         );
         const seatEl = htmlToElement(seatHtml);
         seatEl.querySelectorAll(".seat-half").forEach((btn) => {
@@ -6341,7 +6339,7 @@ var QuickStart = class extends HTMLElement {
         const pencil = seatEl.querySelector(".seat-name-pencil");
         if (nameInput) {
           const updateCount = () => {
-            if (charCount) charCount.textContent = \`\${(nameInput.value || "").length}/\${nameInput.maxLength}\`;
+            if (charCount) charCount.textContent = `${(nameInput.value || "").length}/${nameInput.maxLength}`;
           };
           nameInput.addEventListener("input", () => {
             seat.name = nameInput.value;
@@ -6392,23 +6390,23 @@ var QuickStart = class extends HTMLElement {
         });
         container.appendChild(seatEl);
       } else {
-        const ghostVar = \`hsl(var(--player-\${i}))\`;
+        const ghostVar = `hsl(var(--player-${i}))`;
         const emptyHtml = (
           /*html*/
-          \`
+          `
                     <div class="seat-row-empty">
-                        <div class="seat-empty-color" style="border-color:color-mix(in srgb, \${ghostVar} 55%, transparent);background:color-mix(in srgb, \${ghostVar} 14%, transparent);">
-                            <div class="seat-pawn seat-pawn-ghost">\${PAWN_SVG(i)}</div>
+                        <div class="seat-empty-color" style="border-color:color-mix(in srgb, ${ghostVar} 55%, transparent);background:color-mix(in srgb, ${ghostVar} 14%, transparent);">
+                            <div class="seat-pawn seat-pawn-ghost">${PAWN_SVG(i)}</div>
                         </div>
                         <div class="seat-body">
                             <div class="seat-empty-title">Empty seat</div>
                             <div class="seat-empty-sub">Tap a side to fill</div>
                         </div>
                         <div class="seat-pill">
-                            <button data-add="PLAYER" class="seat-add">\${ICON_USER}<span>Human</span></button>
-                            <button data-add="BOT" class="seat-add">\${ICON_BOT}<span>Bot</span></button>
+                            <button data-add="PLAYER" class="seat-add">${ICON_USER}<span>Human</span></button>
+                            <button data-add="BOT" class="seat-add">${ICON_BOT}<span>Bot</span></button>
                         </div>
-                    </div>\`
+                    </div>`
         );
         const emptyEl = htmlToElement(emptyHtml);
         const rowEl = emptyEl.firstElementChild;
@@ -6466,7 +6464,7 @@ var QuickStart = class extends HTMLElement {
         }
       }
     }
-    const quickStartId = \`qs,\${humanCount},\${botCount},\${[...humanColors, ...botColors].join(",")}\`;
+    const quickStartId = `qs,${humanCount},${botCount},${[...humanColors, ...botColors].join(",")}`;
     dispatch({ type: COMMANDS.START_GAME, quickStartId, namesByPlayerIndex });
   }
 };
@@ -6474,17 +6472,17 @@ window.customElements.define("wc-quick-start", QuickStart);
 
 // attached_assets/leludo-main/leludo-main/components/wc-board.js
 var STAR_D = "M12 2.2l2.8 6.3 6.8.5-5.2 4.4 1.6 6.6L12 16.6l-6 3.4 1.6-6.6L2.4 9l6.8-.5z";
-var CORNER_RIGHT_DOWN = \`<polyline points="10 15 15 20 20 15"/><path d="M4 4h7a4 4 0 0 1 4 4v12"/>\`;
-var CORNER_UP_RIGHT = \`<polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>\`;
-var CORNER_DOWN_LEFT = \`<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>\`;
-var CORNER_LEFT_UP = \`<polyline points="14 9 9 4 4 9"/><path d="M20 20h-7a4 4 0 0 1-4-4V4"/>\`;
-var entryCellSvg = (playerIndex, cornerInner) => \`
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="path-cell-entry-svg player-fg-\${playerIndex}">\${cornerInner}</svg>\`;
-var safeCellSvg = (playerIndex) => \`
-    <svg viewBox="0 0 24 24" class="path-cell-safe-svg"><path d="\${STAR_D}" class="player-fill-\${playerIndex}" opacity="0.85"/></svg>\`;
+var CORNER_RIGHT_DOWN = `<polyline points="10 15 15 20 20 15"/><path d="M4 4h7a4 4 0 0 1 4 4v12"/>`;
+var CORNER_UP_RIGHT = `<polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/>`;
+var CORNER_DOWN_LEFT = `<polyline points="9 10 4 15 9 20"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/>`;
+var CORNER_LEFT_UP = `<polyline points="14 9 9 4 4 9"/><path d="M20 20h-7a4 4 0 0 1-4-4V4"/>`;
+var entryCellSvg = (playerIndex, cornerInner) => `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="path-cell-entry-svg player-fg-${playerIndex}">${cornerInner}</svg>`;
+var safeCellSvg = (playerIndex) => `
+    <svg viewBox="0 0 24 24" class="path-cell-safe-svg"><path d="${STAR_D}" class="player-fill-${playerIndex}" opacity="0.85"/></svg>`;
 var BOARD_HTML = (
   /*html*/
-  \`
+  `
     <div class="board-frame">
         <!-- Top bar -->
         <div class="board-topbar">
@@ -6527,12 +6525,12 @@ var BOARD_HTML = (
 
                     <div class="path-arm-v">
                         <div id="m10" class="path-cell"></div>
-                        <div id="m11" class="path-cell path-cell--entry">\${entryCellSvg(1, CORNER_RIGHT_DOWN)}</div>
+                        <div id="m11" class="path-cell path-cell--entry">${entryCellSvg(1, CORNER_RIGHT_DOWN)}</div>
                         <div id="m12" class="path-cell"></div>
                         <div id="m9" class="path-cell"></div>
                         <div id="p1s1" class="path-cell player-bg-path-1"></div>
                         <div id="m13" class="path-cell player-bg-path-1"></div>
-                        <div id="m8" class="path-cell path-cell--safe">\${safeCellSvg(1)}</div>
+                        <div id="m8" class="path-cell path-cell--safe">${safeCellSvg(1)}</div>
                         <div id="p1s2" class="path-cell player-bg-path-1"></div>
                         <div id="m14" class="path-cell"></div>
                         <div id="m7" class="path-cell"></div>
@@ -6562,7 +6560,7 @@ var BOARD_HTML = (
                         <div id="m2" class="path-cell"></div>
                         <div id="m3" class="path-cell"></div>
                         <div id="m4" class="path-cell"></div>
-                        <div id="m50" class="path-cell path-cell--entry">\${entryCellSvg(0, CORNER_UP_RIGHT)}</div>
+                        <div id="m50" class="path-cell path-cell--entry">${entryCellSvg(0, CORNER_UP_RIGHT)}</div>
                         <div id="p0s1" class="path-cell player-bg-path-0"></div>
                         <div id="p0s2" class="path-cell player-bg-path-0"></div>
                         <div id="p0s3" class="path-cell player-bg-path-0"></div>
@@ -6570,7 +6568,7 @@ var BOARD_HTML = (
                         <div id="p0s5" class="path-cell player-bg-path-0"></div>
                         <div id="m49" class="path-cell"></div>
                         <div id="m48" class="path-cell"></div>
-                        <div id="m47" class="path-cell path-cell--safe">\${safeCellSvg(0)}</div>
+                        <div id="m47" class="path-cell path-cell--safe">${safeCellSvg(0)}</div>
                         <div id="m46" class="path-cell"></div>
                         <div id="m45" class="path-cell"></div>
                         <div id="m44" class="path-cell"></div>
@@ -6587,7 +6585,7 @@ var BOARD_HTML = (
                         <div id="m18" class="path-cell"></div>
                         <div id="m19" class="path-cell"></div>
                         <div id="m20" class="path-cell"></div>
-                        <div id="m21" class="path-cell path-cell--safe">\${safeCellSvg(2)}</div>
+                        <div id="m21" class="path-cell path-cell--safe">${safeCellSvg(2)}</div>
                         <div id="m22" class="path-cell"></div>
                         <div id="m23" class="path-cell"></div>
                         <div id="p2s5" class="path-cell player-bg-path-2"></div>
@@ -6595,7 +6593,7 @@ var BOARD_HTML = (
                         <div id="p2s3" class="path-cell player-bg-path-2"></div>
                         <div id="p2s2" class="path-cell player-bg-path-2"></div>
                         <div id="p2s1" class="path-cell player-bg-path-2"></div>
-                        <div id="m24" class="path-cell path-cell--entry">\${entryCellSvg(2, CORNER_DOWN_LEFT)}</div>
+                        <div id="m24" class="path-cell path-cell--entry">${entryCellSvg(2, CORNER_DOWN_LEFT)}</div>
                         <div id="m30" class="path-cell"></div>
                         <div id="m29" class="path-cell"></div>
                         <div id="m28" class="path-cell"></div>
@@ -6625,12 +6623,12 @@ var BOARD_HTML = (
                         <div id="m33" class="path-cell"></div>
                         <div id="m40" class="path-cell"></div>
                         <div id="p3s2" class="path-cell player-bg-path-3"></div>
-                        <div id="m34" class="path-cell path-cell--safe">\${safeCellSvg(3)}</div>
+                        <div id="m34" class="path-cell path-cell--safe">${safeCellSvg(3)}</div>
                         <div id="m39" class="path-cell player-bg-path-3"></div>
                         <div id="p3s1" class="path-cell player-bg-path-3"></div>
                         <div id="m35" class="path-cell"></div>
                         <div id="m38" class="path-cell"></div>
-                        <div id="m37" class="path-cell path-cell--entry">\${entryCellSvg(3, CORNER_LEFT_UP)}</div>
+                        <div id="m37" class="path-cell path-cell--entry">${entryCellSvg(3, CORNER_LEFT_UP)}</div>
                         <div id="m36" class="path-cell"></div>
                     </div>
 
@@ -6656,7 +6654,7 @@ var BOARD_HTML = (
         <!-- Spacer balances the top one so the board sits vertically centered -->
         <div class="board-spacer"></div>
     </div>
-\`
+`
 );
 var Board = class extends HTMLElement {
   constructor() {
@@ -6731,40 +6729,40 @@ function confettiPieces() {
     const w = isRect ? size : size + 2;
     const h = isRect ? Math.round(size * 1.4) : size + 2;
     const radius = isRect ? 1 : 50;
-    out.push(\`<div class="ge-confetti-piece" style="
-            left:\${left}%;
-            width:\${w}px;
-            height:\${h}px;
-            background:hsl(\${color});
-            border-radius:\${radius}\${isRect ? "px" : "%"};
-            animation-delay:\${delay}s;
-            animation-duration:\${duration}s;
-            --ge-drift:\${drift}px;
-            --ge-rot0:\${rot0}deg;
-            --ge-rot1:\${rot1}deg;
-        "></div>\`);
+    out.push(`<div class="ge-confetti-piece" style="
+            left:${left}%;
+            width:${w}px;
+            height:${h}px;
+            background:hsl(${color});
+            border-radius:${radius}${isRect ? "px" : "%"};
+            animation-delay:${delay}s;
+            animation-duration:${duration}s;
+            --ge-drift:${drift}px;
+            --ge-rot0:${rot0}deg;
+            --ge-rot1:${rot1}deg;
+        "></div>`);
   }
   return out.join("");
 }
 function pawnSvg(playerIndex, size) {
-  return \`<svg viewBox="0 0 32 32" class="player-fg-\${playerIndex}" style="width:\${size}px;height:\${size}px;">
+  return `<svg viewBox="0 0 32 32" class="player-fg-${playerIndex}" style="width:${size}px;height:${size}px;">
         <path d="M16 4c3.2 0 5.5 2.4 5.5 5.2 0 1.8-1 3.2-2.4 4 1.7.7 2.9 1.8 3.6 3.4l1.1 2.6c.4 1 .1 2-.7 2.4-.2.1-.4.1-.6.1H9.5c-.9 0-1.6-.7-1.6-1.6 0-.3.1-.6.2-.9l1.1-2.6c.7-1.6 1.9-2.7 3.6-3.4-1.4-.8-2.4-2.2-2.4-4C10.4 6.4 12.8 4 16 4z" fill="currentColor"/>
         <path d="M16 4c3.2 0 5.5 2.4 5.5 5.2 0 1.8-1 3.2-2.4 4-.6-.3-1.3-.5-2-.5h-2.2c-.7 0-1.4.2-2 .5-1.4-.8-2.4-2.2-2.4-4C10.4 6.4 12.8 4 16 4z" fill="rgba(255,255,255,0.24)"/>
         <rect x="7.5" y="22" width="17" height="3.5" rx="1.4" fill="currentColor"/>
         <rect x="7.5" y="22" width="17" height="1.2" rx="0.6" fill="rgba(255,255,255,0.38)"/>
-    </svg>\`;
+    </svg>`;
 }
-var ICON_STAR = \`<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.6 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z"/></svg>\`;
-var ICON_DOWNLOAD = \`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>\`;
-var ICON_BACK2 = \`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M15 6l-6 6 6 6"/></svg>\`;
-var ICON_SHARE = \`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 4v12"/><path d="M7 9l5-5 5 5"/><path d="M5 20h14"/></svg>\`;
+var ICON_STAR = `<svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.6 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z"/></svg>`;
+var ICON_DOWNLOAD = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>`;
+var ICON_BACK2 = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M15 6l-6 6 6 6"/></svg>`;
+var ICON_SHARE = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M12 4v12"/><path d="M7 9l5-5 5 5"/><path d="M5 20h14"/></svg>`;
 var CARD_ICONS = {
-  ko: \`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14"><circle cx="12" cy="12" r="7"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>\`,
-  dice: \`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.3" fill="currentColor"/><circle cx="15" cy="15" r="1.3" fill="currentColor"/><circle cx="15" cy="9" r="1.3" fill="currentColor"/><circle cx="9" cy="15" r="1.3" fill="currentColor"/></svg>\`,
-  bolt: \`<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>\`,
-  send: \`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>\`,
-  home: \`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>\`,
-  crown: \`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 7l4 5 5-7 5 7 4-5v11H3z"/></svg>\`
+  ko: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" width="14" height="14"><circle cx="12" cy="12" r="7"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/></svg>`,
+  dice: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.3" fill="currentColor"/><circle cx="15" cy="15" r="1.3" fill="currentColor"/><circle cx="15" cy="9" r="1.3" fill="currentColor"/><circle cx="9" cy="15" r="1.3" fill="currentColor"/></svg>`,
+  bolt: `<svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14"><path d="M13 2L4 14h6l-1 8 9-12h-6l1-8z"/></svg>`,
+  send: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>`,
+  home: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>`,
+  crown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M3 7l4 5 5-7 5 7 4-5v11H3z"/></svg>`
 };
 function storeNudgeHtml() {
   if (!shouldShowStoreNudge()) return "";
@@ -6773,15 +6771,15 @@ function storeNudgeHtml() {
   const title = native ? "Enjoying Leludo?" : "Get the Leludo app";
   const body = native ? "A quick Play Store rating helps a ton." : "Free on the Play Store \u2014 play offline, no ads.";
   const action = native ? "Rate us" : "Get the app";
-  return \`
-        <button id="ge-store" class="ge-store" data-native="\${native ? "1" : "0"}">
-            <span class="ge-store-icon">\${icon}</span>
+  return `
+        <button id="ge-store" class="ge-store" data-native="${native ? "1" : "0"}">
+            <span class="ge-store-icon">${icon}</span>
             <span class="ge-store-text">
-                <span class="ge-store-title">\${title}</span>
-                <span class="ge-store-body">\${body}</span>
+                <span class="ge-store-title">${title}</span>
+                <span class="ge-store-body">${body}</span>
             </span>
-            <span class="ge-store-action">\${action}</span>
-        </button>\`;
+            <span class="ge-store-action">${action}</span>
+        </button>`;
 }
 function nameFor(pi) {
   const raw = playerNames[pi] && String(playerNames[pi]).trim();
@@ -6809,18 +6807,18 @@ function buildStats() {
   };
 }
 function playerHsl(playerIndex) {
-  const raw = getComputedStyle(document.documentElement).getPropertyValue(\`--player-\${playerIndex}\`).trim();
-  return raw ? \`hsl(\${raw})\` : "#888";
+  const raw = getComputedStyle(document.documentElement).getPropertyValue(`--player-${playerIndex}`).trim();
+  return raw ? `hsl(${raw})` : "#888";
 }
 function pawnSvgString(playerIndex) {
   const fill = playerHsl(playerIndex);
-  return \`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="320" height="320">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="320" height="320">
         <ellipse cx="16" cy="28" rx="8" ry="1.5" fill="rgba(0,0,0,0.25)"/>
-        <path d="M16 4c3.2 0 5.5 2.4 5.5 5.2 0 1.8-1 3.2-2.4 4 1.7.7 2.9 1.8 3.6 3.4l1.1 2.6c.4 1 .1 2-.7 2.4-.2.1-.4.1-.6.1H9.5c-.9 0-1.6-.7-1.6-1.6 0-.3.1-.6.2-.9l1.1-2.6c.7-1.6 1.9-2.7 3.6-3.4-1.4-.8-2.4-2.2-2.4-4C10.4 6.4 12.8 4 16 4z" fill="\${fill}"/>
+        <path d="M16 4c3.2 0 5.5 2.4 5.5 5.2 0 1.8-1 3.2-2.4 4 1.7.7 2.9 1.8 3.6 3.4l1.1 2.6c.4 1 .1 2-.7 2.4-.2.1-.4.1-.6.1H9.5c-.9 0-1.6-.7-1.6-1.6 0-.3.1-.6.2-.9l1.1-2.6c.7-1.6 1.9-2.7 3.6-3.4-1.4-.8-2.4-2.2-2.4-4C10.4 6.4 12.8 4 16 4z" fill="${fill}"/>
         <path d="M16 4c3.2 0 5.5 2.4 5.5 5.2 0 1.8-1 3.2-2.4 4-.6-.3-1.3-.5-2-.5h-2.2c-.7 0-1.4.2-2 .5-1.4-.8-2.4-2.2-2.4-4C10.4 6.4 12.8 4 16 4z" fill="rgba(255,255,255,0.24)"/>
-        <rect x="7.5" y="22" width="17" height="3.5" rx="1.4" fill="\${fill}"/>
+        <rect x="7.5" y="22" width="17" height="3.5" rx="1.4" fill="${fill}"/>
         <rect x="7.5" y="22" width="17" height="1.2" rx="0.6" fill="rgba(255,255,255,0.38)"/>
-    </svg>\`;
+    </svg>`;
 }
 function loadSvgImage(svgString) {
   return new Promise((resolve, reject) => {
@@ -6923,7 +6921,7 @@ async function buildShareImage(winnerIndex, winText, highlights) {
   return new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
 }
 async function shareGameEnd(winnerIndex, winText, highlights) {
-  const shareText = \`\${winText} The recap from my Leludo game.\`;
+  const shareText = `${winText} The recap from my Leludo game.`;
   const shareUrl = window.location.origin;
   let blob = null;
   try {
@@ -6971,52 +6969,52 @@ var GameEnd = class extends HTMLElement {
     }
     const isHumanWinner = playerTypes[winnerIndex] === "PLAYER";
     const winnerName = nameFor(winnerIndex);
-    const eyebrow = isHumanWinner ? "Game over \xB7 You won" : \`Game over \xB7 \${winnerName} won\`;
-    const winText = isHumanWinner ? "You won." : \`\${winnerName} won.\`;
+    const eyebrow = isHumanWinner ? "Game over \xB7 You won" : `Game over \xB7 ${winnerName} won`;
+    const winText = isHumanWinner ? "You won." : `${winnerName} won.`;
     const seats = buildSeats();
     const stats = buildStats();
     const highlights = selectHighlights({ stats, seats, winnerIndex });
-    const cardsHTML = highlights.map((h) => \`
-            <div class="ge-card player-border-\${h.playerIndex}">
-                <div class="ge-card-icon player-fg-\${h.playerIndex}"
-                     style="background-color: hsl(var(--player-\${h.playerIndex}) / 0.13);">
-                    \${CARD_ICONS[h.type] || CARD_ICONS.crown}
+    const cardsHTML = highlights.map((h) => `
+            <div class="ge-card player-border-${h.playerIndex}">
+                <div class="ge-card-icon player-fg-${h.playerIndex}"
+                     style="background-color: hsl(var(--player-${h.playerIndex}) / 0.13);">
+                    ${CARD_ICONS[h.type] || CARD_ICONS.crown}
                 </div>
                 <div class="ge-card-text">
-                    <div class="ge-card-title">\${escapeHtml(h.title)}</div>
-                    <div class="ge-card-body">\${escapeHtml(h.body)}</div>
+                    <div class="ge-card-title">${escapeHtml(h.title)}</div>
+                    <div class="ge-card-body">${escapeHtml(h.body)}</div>
                 </div>
-                <div class="ge-card-stat">\${escapeHtml(h.stat)}</div>
-            </div>\`).join("");
-    const html = \`
+                <div class="ge-card-stat">${escapeHtml(h.stat)}</div>
+            </div>`).join("");
+    const html = `
             <div class="ge-screen">
                 <div class="ge-glow"></div>
-                <div class="ge-confetti">\${confettiPieces()}</div>
+                <div class="ge-confetti">${confettiPieces()}</div>
 
                 <div class="ge-inner">
                     <div class="ge-header">
                         <button id="ge-home" class="ge-home-pill" aria-label="Home">
-                            \${ICON_BACK2} Home
+                            ${ICON_BACK2} Home
                         </button>
                         <button id="ge-share" class="ge-icon-btn" aria-label="Share">
-                            \${ICON_SHARE}
+                            ${ICON_SHARE}
                         </button>
                     </div>
 
                     <div class="ge-hero">
                         <div class="ge-hero-pawn">
                             <div class="ge-pawn-shadow"></div>
-                            <div class="ge-pawn-bob">\${pawnSvg(winnerIndex, 78)}</div>
+                            <div class="ge-pawn-bob">${pawnSvg(winnerIndex, 78)}</div>
                         </div>
                         <div class="ge-hero-text">
-                            <div class="ge-eyebrow">\${escapeHtml(eyebrow)}</div>
+                            <div class="ge-eyebrow">${escapeHtml(eyebrow)}</div>
                             <div class="ge-headline">The recap</div>
                         </div>
                     </div>
 
-                    <div class="ge-cards">\${cardsHTML}</div>
+                    <div class="ge-cards">${cardsHTML}</div>
 
-                    \${storeNudgeHtml()}
+                    ${storeNudgeHtml()}
 
                     <div class="ge-spacer"></div>
 
@@ -7024,7 +7022,7 @@ var GameEnd = class extends HTMLElement {
                         <button id="ge-play-again" class="ge-cta">Play again</button>
                     </div>
                 </div>
-            </div>\`;
+            </div>`;
     const el3 = htmlToElement(html);
     el3.querySelector("#ge-home").addEventListener("click", () => {
       playClickSound();
@@ -7085,38 +7083,38 @@ function readAssistPref(t) {
   if (v === null) return t.default;
   return v === "true";
 }
-var ICON_BACK3 = \`<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>\`;
+var ICON_BACK3 = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>`;
 var SETTINGS_HTML = (
   /*html*/
-  \`
+  `
 <button id="settings-icon" class="icon-btn">
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
         <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
         <circle cx="12" cy="12" r="3" />
     </svg>
 </button>
-\`
+`
 );
 function toggleHtml(id, label, checked = false, withBorder = true) {
-  return \`<div class="settings-row\${withBorder ? " settings-row--bordered" : ""}">
-        <label for="\${id}" class="settings-row-label">\${label}</label>
-        <input type="checkbox" id="\${id}" class="toggle-input" \${checked ? "checked" : ""} />
-        <label for="\${id}" class="toggle-track">
+  return `<div class="settings-row${withBorder ? " settings-row--bordered" : ""}">
+        <label for="${id}" class="settings-row-label">${label}</label>
+        <input type="checkbox" id="${id}" class="toggle-input" ${checked ? "checked" : ""} />
+        <label for="${id}" class="toggle-track">
             <div class="toggle-knob"></div>
         </label>
-    </div>\`;
+    </div>`;
 }
 function settingsGroup(label, content) {
-  return \`<div>
-        <div class="section-label" style="margin-bottom:8px;">\${label}</div>
-        <div class="surface-card settings-group-card">\${content}</div>
-    </div>\`;
+  return `<div>
+        <div class="section-label" style="margin-bottom:8px;">${label}</div>
+        <div class="surface-card settings-group-card">${content}</div>
+    </div>`;
 }
 function buildSettingsOverlay() {
-  return \`<div id="settings-overlay" class="frame-overlay hidden">
+  return `<div id="settings-overlay" class="frame-overlay hidden">
         <div class="frame">
             <div class="top-bar">
-                <button id="settings-back" class="icon-btn">\${ICON_BACK3}</button>
+                <button id="settings-back" class="icon-btn">${ICON_BACK3}</button>
                 <div class="top-bar-title"></div>
                 <div class="icon-btn-spacer"></div>
             </div>
@@ -7127,7 +7125,7 @@ function buildSettingsOverlay() {
                 </div>
 
                 <div class="settings-groups">
-                \${settingsGroup("Theme", \`
+                ${settingsGroup("Theme", `
                     <div class="theme-row">
                         <label class="theme-tile-wrap">
                             <input type="radio" name="s-theme" value="light" class="theme-tile-input" />
@@ -7151,38 +7149,38 @@ function buildSettingsOverlay() {
                             </div>
                         </label>
                     </div>
-                \`)}
+                `)}
 
-                \${settingsGroup("Sound", toggleHtml("s-sound", "Sound effects", !isSoundMuted(), false))}
+                ${settingsGroup("Sound", toggleHtml("s-sound", "Sound effects", !isSoundMuted(), false))}
 
-                \${settingsGroup("Assist", ASSIST_TOGGLES.map((t, idx, arr) => toggleHtml(t.id, t.label, readAssistPref(t), idx < arr.length - 1)).join(""))}
+                ${settingsGroup("Assist", ASSIST_TOGGLES.map((t, idx, arr) => toggleHtml(t.id, t.label, readAssistPref(t), idx < arr.length - 1)).join(""))}
 
-                \${settingsGroup("Bot vibe", \`
+                ${settingsGroup("Bot vibe", `
                     <div class="bot-pool-list">
-                        \${Object.keys(BOT_NAME_POOLS).map((key) => {
+                        ${Object.keys(BOT_NAME_POOLS).map((key) => {
     const sample = BOT_NAME_POOLS[key].slice(0, 3).join(" \xB7 ");
-    return \`<label class="bot-pool-row">
+    return `<label class="bot-pool-row">
                                 <div class="bot-pool-body">
-                                    <span class="bot-pool-name">\${BOT_POOL_LABELS[key]}</span>
-                                    <span class="bot-pool-sample">\${sample}</span>
+                                    <span class="bot-pool-name">${BOT_POOL_LABELS[key]}</span>
+                                    <span class="bot-pool-sample">${sample}</span>
                                 </div>
-                                <input type="radio" name="s-bot-pool" value="\${key}" class="bot-pool-input hidden" />
+                                <input type="radio" name="s-bot-pool" value="${key}" class="bot-pool-input hidden" />
                                 <span class="bot-pool-dot"></span>
-                            </label>\`;
+                            </label>`;
   }).join("")}
                     </div>
-                \`)}
+                `)}
 
-                \${isGodModeAvailable() ? settingsGroup("Debug (localhost only)", \`
-                    \${toggleHtml("s-god-mode", "God mode (teleport pawn)", isGodModeEnabled(), false)}
+                ${isGodModeAvailable() ? settingsGroup("Debug (localhost only)", `
+                    ${toggleHtml("s-god-mode", "God mode (teleport pawn)", isGodModeEnabled(), false)}
                     <div class="god-mode-hint">Click a pawn, then click any cell to teleport it. Bypasses dice and turn order.</div>
-                \`) : ""}
+                `) : ""}
 
-                \${settingsGroup("About", \`
+                ${settingsGroup("About", `
                     <div class="about-list">
                         <div class="about-row">
                             <span class="about-key">Version</span>
-                            <span class="about-value-mono">\${VERSION}</span>
+                            <span class="about-value-mono">${VERSION}</span>
                         </div>
                         <div class="about-row about-row--separator">
                             <span class="about-key">Source</span>
@@ -7193,11 +7191,11 @@ function buildSettingsOverlay() {
                             <a href="privacy.html" class="about-link">Read policy</a>
                         </div>
                     </div>
-                \`)}
+                `)}
                 </div>
             </div>
         </div>
-    </div>\`;
+    </div>`;
 }
 function updateTheme(theme) {
   const rootElement = window.document.documentElement;
@@ -7243,7 +7241,7 @@ function ensureOverlay() {
   registerScreenHandler("settings", closeSettings);
   const defaultTheme = localStorage.getItem("theme") || "system";
   updateTheme(defaultTheme);
-  const themeRadio = overlay.querySelector(\`input[name="s-theme"][value="\${defaultTheme}"]\`);
+  const themeRadio = overlay.querySelector(`input[name="s-theme"][value="${defaultTheme}"]`);
   if (themeRadio) themeRadio.checked = true;
   overlay.querySelectorAll("input[name='s-theme']").forEach((el3) => {
     el3.addEventListener("change", ($event) => {
@@ -7257,7 +7255,7 @@ function ensureOverlay() {
   });
   ASSIST_TOGGLES.forEach((t) => {
     const value = readAssistPref(t);
-    const el3 = overlay.querySelector(\`#\${t.id}\`);
+    const el3 = overlay.querySelector(`#${t.id}`);
     el3.checked = value;
     setAssistFlag(t.flag, value);
     el3.addEventListener("change", ($event) => {
@@ -7276,7 +7274,7 @@ function ensureOverlay() {
     }
   }
   const activePool = getActivePoolKey();
-  const poolRadio = overlay.querySelector(\`input[name="s-bot-pool"][value="\${activePool}"]\`);
+  const poolRadio = overlay.querySelector(`input[name="s-bot-pool"][value="${activePool}"]`);
   if (poolRadio) poolRadio.checked = true;
   overlay.querySelectorAll("input[name='s-bot-pool']").forEach((el3) => {
     el3.addEventListener("change", ($event) => {
@@ -7303,4 +7301,4 @@ var Header = class extends HTMLElement {
 window.customElements.define("wc-settings", Header);
 </script>
 </body>
-</html>`;
+</html>

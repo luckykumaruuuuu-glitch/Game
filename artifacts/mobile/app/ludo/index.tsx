@@ -21,15 +21,12 @@ function WebBackButton({ onPress }: { onPress: () => void }) {
 
 // ─── Web (Expo web / browser preview): render an iframe ───────────────────────
 function LudoWeb() {
-  // HTML is already in memory — blob creation is instant.
-  // Do NOT gate rendering on onLoad (Replit proxy may never fire it).
-  const blobUrl = React.useMemo(() => {
-    try {
-      return URL.createObjectURL(new Blob([LUDO_GAME_HTML], { type: 'text/html' }));
-    } catch {
-      return null;
-    }
-  }, []);
+  // Serve ludo-game.html as a static file from Expo's public/ folder.
+  // This gives the script a proper HTTP origin so <script type="module"> runs
+  // without CSP issues that blob: / srcDoc iframes hit in Replit's proxy.
+  const gameUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/ludo-game.html`
+    : '/ludo-game.html';
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -37,8 +34,7 @@ function LudoWeb() {
       <WebBackButton onPress={() => router.replace('/(tabs)' as any)} />
       <View style={styles.iframeWrap}>
         <iframe
-          src={blobUrl ?? undefined}
-          srcDoc={blobUrl ? undefined : LUDO_GAME_HTML}
+          src={gameUrl}
           style={{
             position: 'absolute',
             inset: 0,
