@@ -3,8 +3,22 @@ import {
   View, Pressable, StyleSheet, SafeAreaView,
   StatusBar, ActivityIndicator, Text, Platform,
 } from 'react-native';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { LUDO_GAME_HTML } from '../../lib/ludo/ludo-html';
 import { useTheme } from '../../context/ThemeContext';
+
+function FloatingBackButton({ isDark }: { isDark: boolean }) {
+  return (
+    <Pressable
+      style={[styles.backBtn, isDark ? styles.backBtnDark : styles.backBtnLight]}
+      onPress={() => router.replace('/(tabs)' as any)}
+      hitSlop={12}
+    >
+      <Ionicons name="chevron-back" size={20} color={isDark ? '#FFFFFF' : '#1a1410'} />
+    </Pressable>
+  );
+}
 
 function LudoWeb() {
   const { resolvedTheme } = useTheme();
@@ -44,6 +58,7 @@ function LudoWeb() {
           title="Ludo"
           allow="autoplay"
         />
+        <FloatingBackButton isDark={isDark} />
       </View>
     </SafeAreaView>
   );
@@ -57,19 +72,15 @@ function LudoNative() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  // Always keep a ref to the latest theme so callbacks don't become stale
   const resolvedThemeRef = useRef(resolvedTheme);
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
 
   const bgColor = isDark ? '#080808' : '#F5F0EA';
 
-  // Frozen at first mount — changing this prop would reload the entire WebView and reset the game.
-  // We rely on injectJavaScript for all subsequent theme changes.
   const injectedJavaScriptBeforeContentLoaded = useRef(
     `(function(){try{localStorage.setItem('theme','${resolvedTheme}');}catch(e){}})();true;`
   ).current;
 
-  // Inject theme directly into the WebView (RN → WebView direction = injectJavaScript, NOT postMessage)
   const injectTheme = useCallback((theme: string) => {
     webViewRef.current?.injectJavaScript(
       `(function(){try{` +
@@ -85,12 +96,10 @@ function LudoNative() {
     );
   }, []);
 
-  // Re-inject theme whenever it changes while the Ludo screen is open
   useEffect(() => {
     injectTheme(resolvedTheme);
   }, [resolvedTheme, injectTheme]);
 
-  // Safety: clear loading after 8s if onLoadEnd never fires
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 8000);
     return () => clearTimeout(t);
@@ -136,7 +145,6 @@ function LudoNative() {
         onLoadStart={() => { setLoading(true); setError(false); }}
         onLoadEnd={() => {
           setLoading(false);
-          // Re-apply current theme after load (handles navigation back to screen)
           injectTheme(resolvedThemeRef.current);
         }}
         onError={() => { setLoading(false); setError(true); }}
@@ -146,6 +154,8 @@ function LudoNative() {
         bounces={false}
         overScrollMode="never"
       />
+
+      <FloatingBackButton isDark={isDark} />
     </SafeAreaView>
   );
 }
@@ -159,6 +169,23 @@ const styles = StyleSheet.create({
   iframeWrap: { flex: 1, position: 'relative' } as any,
   webview: { flex: 1 },
   hidden: { opacity: 0, height: 0 },
+  backBtn: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  backBtnDark: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  backBtnLight: {
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
   loadingOverlay: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
