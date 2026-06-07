@@ -16,6 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import {
   GameInvite,
+  joinGameRoom,
   respondToGameInvite,
   subscribeToGameInvites,
 } from '@/lib/firestore';
@@ -65,8 +66,9 @@ export default function InvitesScreen() {
     }));
     try {
       await respondToGameInvite(invite.inviteId, accept);
-      if (accept) {
-        router.back();
+      if (accept && profile) {
+        await joinGameRoom(invite.roomId, user!.uid, profile);
+        router.replace({ pathname: '/ludo/room', params: { id: invite.roomId } } as any);
       }
     } catch (e) {
       console.error('respondToGameInvite error', e);

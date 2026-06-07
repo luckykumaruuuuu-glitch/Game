@@ -833,6 +833,7 @@ export async function sendGameInvite(
   gameMode: 2 | 3 | 4
 ): Promise<string> {
   const roomId = doc(collection(db, "gameRooms")).id;
+  await createGameRoom(roomId, senderId, senderProfile, gameMode);
   await Promise.all(
     receiverIds.map(async (receiverId) => {
       await addDoc(collection(db, "gameInvites"), {
@@ -864,13 +865,15 @@ export function subscribeToGameInvites(
   const q = query(
     collection(db, "gameInvites"),
     where("receiverId", "==", userId),
-    where("status", "==", "pending"),
-    orderBy("createdAt", "desc")
+    where("status", "==", "pending")
   );
   return onSnapshot(
     q,
     (snap) => {
-      callback(snap.docs.map((d) => ({ inviteId: d.id, ...d.data() } as GameInvite)));
+      const invites = snap.docs
+        .map((d) => ({ inviteId: d.id, ...d.data() } as GameInvite))
+        .sort((a, b) => b.createdAt - a.createdAt);
+      callback(invites);
     },
     () => callback([])
   );
@@ -883,4 +886,87 @@ export async function respondToGameInvite(
   await updateDoc(doc(db, "gameInvites", inviteId), {
     status: accept ? "accepted" : "declined",
   });
+}
+
+// ─── Game Rooms ───────────────────────────────────────────────────────────────
+
+export interface GameRoomPlayer {
+  userId: string;
+  name: string;
+  photo: string;
+  isReady: boolean;
+  joinedAt: number;
+}
+
+export interface GameRoom {
+  roomId: string;
+  hostId: string;
+  hostName: string;
+  gameMode: 2 | 3 | 4;
+  status: "waiting" | "ready" | "starting";
+  players: Record<string, GameRoomPlayer>;
+  createdAt: number;
+}
+
+export async function createGameRoom(
+  roomId: string,
+  hostId: string,
+  hostProfile: UserProfile,
+  gameMode: 2 | 3 | 4
+): Promise<void> {
+  await setDoc(doc(db, "gameRooms", roomId), {
+    roomId,
+    hostId,
+    hostName: hostProfile.name,
+    gameMode,
+    status: "waiting",
+    players: {
+      [hostId]: {
+        userId: hostId,
+        name: hostProfile.name,
+        photo: hostProfile.photo || "",
+        isReady: true,
+        joinedAt: Date.now(),
+      },
+    },
+    createdAt: Date.now(),
+  });
+}
+
+export async function joinGameRoom(
+  roomId: string,
+  userId: string,
+  userProfile: UserProfile
+): Promise<void> {
+  const roomRef = doc(db, "gameRooms", roomId);
+  await updateDoc(roomRef, {
+    [`players.${userId}`]: {
+      userId,
+      name: userProfile.name,
+      photo: userProfile.photo || "",
+      isReady: true,
+      joinedAt: Date.now(),
+    },
+  });
+  const snap = await getDoc(roomRef);
+  if (snap.exists()) {
+    const room = snap.data() as GameRoom;
+    const playerCount = Object.keys(room.players).length;
+    if (playerCount >= room.gameMode) {
+      await updateDoc(roomRef, { status: "ready" });
+    }
+  }
+}
+
+export function subscribeToGameRoom(
+  roomId: string,
+  callback: (room: GameRoom | null) => void
+): () => void {
+  return onSnapshot(
+    doc(db, "gameRooms", roomId),
+    (snap) => {
+      callback(snap.exists() ? ({ roomId: snap.id, ...snap.data() } as GameRoom) : null);
+    },
+    () => callback(null)
+  );
 }

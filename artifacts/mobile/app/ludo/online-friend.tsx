@@ -101,9 +101,8 @@ export default function OnlineFriendScreen() {
     if (!user || !profile || !mode || selected.size === 0) return;
     setSending(true);
     try {
-      await sendGameInvite(user.uid, profile, Array.from(selected), mode);
-      setSent(true);
-      setTimeout(() => router.back(), 1400);
+      const roomId = await sendGameInvite(user.uid, profile, Array.from(selected), mode);
+      router.replace({ pathname: '/ludo/room', params: { id: roomId } } as any);
     } catch (e) {
       console.error('sendGameInvite error', e);
       setSending(false);
