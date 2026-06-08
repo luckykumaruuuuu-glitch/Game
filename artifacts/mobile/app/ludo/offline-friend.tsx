@@ -17,7 +17,6 @@ import { useColors } from '@/hooks/useColors';
 import {
   UserPresence,
   UserProfile,
-  sendGameInvite,
   subscribeToFriends,
   subscribeToFriendsPresence,
 } from '@/lib/firestore';
@@ -43,15 +42,13 @@ function timeAgo(ts: number): string {
 export default function OfflineFriendScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
 
   const [mode, setMode] = useState<GameMode | null>(null);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [presence, setPresence] = useState<Record<string, UserPresence>>({});
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
 
   const presenceUnsubRef = useRef<(() => void) | null>(null);
 
@@ -100,20 +97,7 @@ export default function OfflineFriendScreen() {
     });
   }
 
-  async function handleSendInvite() {
-    if (!user || !profile || !mode || selected.size === 0) return;
-    setSending(true);
-    try {
-      const roomId = await sendGameInvite(user.uid, profile, Array.from(selected), mode);
-      router.replace({ pathname: '/ludo/room', params: { id: roomId } } as any);
-    } catch (e) {
-      console.error('sendGameInvite error', e);
-      setSending(false);
-    }
-  }
-
   const topPad = insets.top + (Platform.OS === 'web' ? 0 : 4);
-  const canSend = mode !== null && selected.size === maxSelectable && !sending && !sent;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -127,15 +111,7 @@ export default function OfflineFriendScreen() {
           <Ionicons name="chevron-back" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.foreground }]}>Offline Friend</Text>
-        <TouchableOpacity
-          style={[styles.activeGamesBtn, { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
-          onPress={() => router.push('/ludo/active-games' as any)}
-          hitSlop={8}
-          activeOpacity={0.7}
-        >
-          <Feather name="activity" size={16} color={colors.primary} />
-          <Text style={[styles.activeGamesBtnText, { color: colors.primary }]}>Active</Text>
-        </TouchableOpacity>
+        <View style={styles.backBtn} />
       </View>
 
       {/* ── Info Banner ─────────────────────────────────────── */}
@@ -296,59 +272,6 @@ export default function OfflineFriendScreen() {
         </View>
       )}
 
-      {/* ── Send Button ────────────────────────────────────── */}
-      {mode !== null && offlineFriends.length > 0 && (
-        <View
-          style={[
-            styles.footer,
-            {
-              paddingBottom: insets.bottom + 16,
-              borderTopColor: colors.border,
-              backgroundColor: colors.background,
-            },
-          ]}
-        >
-          <TouchableOpacity
-            style={[
-              styles.sendBtn,
-              {
-                backgroundColor: sent
-                  ? '#10B981'
-                  : canSend
-                  ? '#dc2626'
-                  : colors.isDark
-                  ? 'rgba(255,255,255,0.08)'
-                  : '#E5E5E5',
-                opacity: sending ? 0.7 : 1,
-              },
-            ]}
-            onPress={handleSendInvite}
-            disabled={!canSend}
-            activeOpacity={0.8}
-          >
-            {sending ? (
-              <ActivityIndicator color="#fff" size="small" />
-            ) : sent ? (
-              <>
-                <Feather name="check-circle" size={18} color="#fff" />
-                <Text style={styles.sendBtnText}>Invite Sent!</Text>
-              </>
-            ) : (
-              <>
-                <Feather name="send" size={18} color={canSend ? '#fff' : colors.mutedForeground} />
-                <Text
-                  style={[
-                    styles.sendBtnText,
-                    { color: canSend ? '#fff' : colors.mutedForeground },
-                  ]}
-                >
-                  Send Game Invite
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 }
@@ -368,18 +291,6 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  activeGamesBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 20,
-  },
-  activeGamesBtnText: {
-    fontSize: 13,
-    fontFamily: 'Inter_600SemiBold',
   },
   title: {
     fontSize: 18,
@@ -528,23 +439,5 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  footer: {
-    paddingTop: 12,
-    paddingHorizontal: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
-  sendBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 16,
-    borderRadius: 14,
-  },
-  sendBtnText: {
-    fontSize: 16,
-    fontFamily: 'Inter_600SemiBold',
-    color: '#fff',
   },
 });

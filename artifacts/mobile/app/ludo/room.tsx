@@ -805,4 +805,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
     letterSpacing: 0.5,
   },
+  kickBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  kickBtnText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+  },
 });
