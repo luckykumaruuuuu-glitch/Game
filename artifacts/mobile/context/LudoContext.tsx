@@ -4,6 +4,7 @@ import React, {
 import {
   View, Pressable, StyleSheet, Platform,
   StatusBar, ActivityIndicator, Text, TouchableOpacity,
+  AppState,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -16,8 +17,13 @@ import {
   writeGameAction,
   writeCurrentTurn,
   saveGameState,
+  markPlayerExit,
+  markPlayerRejoin,
+  castExitVote,
   GameAction,
   SavedGameState,
+  GameRoomPlayer,
+  PlayerStatus,
 } from '@/lib/firestore';
 import { LUDO_GAME_HTML } from '@/lib/ludo/ludo-html';
 
@@ -31,7 +37,10 @@ interface LudoContextValue {
     roomId?: string,
     myPlayerIndex?: number,
     userId?: string,
-    savedGameState?: SavedGameState
+    savedGameState?: SavedGameState,
+    isHost?: boolean,
+    playerIndexMap?: Record<string, number>,
+    gameMode?: 2 | 3 | 4
   ) => void;
 }
 
@@ -82,12 +91,27 @@ type PendingGame = {
   myPlayerIndex?: number;
   userId?: string;
   savedGameState?: SavedGameState;
+  isHost?: boolean;
+  playerIndexMap?: Record<string, number>;
+  gameMode?: 2 | 3 | 4;
 };
 
 type MpConfig = {
   roomId: string;
   myPlayerIndex: number;
   userId: string;
+  isHost: boolean;
+  playerIndexMap: Record<string, number>;
+  gameMode: 2 | 3 | 4;
+};
+
+type ExitPlayer = {
+  userId: string;
+  name: string;
+  playerIndex: number;
+  voteCount: number;
+  hasMyVote: boolean;
+  votesNeeded: number;
 };
 
 type MoveLogEntry = {
@@ -138,18 +162,37 @@ function LudoNativeOverlay({
   const lastWrittenSeqRef = useRef(0);
   const lastKnownTurnRef = useRef(-1);
 
+  // Exit detection state
+  const [exitPlayers, setExitPlayers] = useState<ExitPlayer[]>([]);
+  const [winnerInfo, setWinnerInfo] = useState<{ name: string } | null>(null);
+  const kickedIndicesRef = useRef<Set<number>>(new Set());
+
   // Debounce timer for game state saves
   const saveStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Helper to compute next non-kicked player index
+  function nextActiveIndex(from: number, total: number): number {
+    const kicked = kickedIndicesRef.current;
+    let next = (from + 1) % total;
+    for (let i = 0; i < total; i++) {
+      if (!kicked.has(next)) return next;
+      next = (next + 1) % total;
+    }
+    return from;
+  }
 
   // Helper: activate a new multiplayer session
   function activateMpConfig(cfg: MpConfig) {
     lastSeenSeqRef.current = 0;
     lastWrittenSeqRef.current = 0;
     lastKnownTurnRef.current = -1;
+    kickedIndicesRef.current = new Set();
     mpConfigRef.current = cfg;
     setMpConfig(cfg);
     setDebugTurn(-1);
     setMoveLog([]);
+    setExitPlayers([]);
+    setWinnerInfo(null);
   }
 
   useEffect(() => {
@@ -164,14 +207,62 @@ function LudoNativeOverlay({
     const unsub = subscribeToGameRoom(mpConfig.roomId, (room) => {
       if (!room) return;
 
+      // ── EXIT / KICKED player tracking ─────────────────────────────────────
+      const players = Object.values(room.players) as GameRoomPlayer[];
+      const activePlayers = players.filter(p => p.playerStatus !== 'KICKED');
+
+      // Rebuild kicked indices set
+      const newKicked = new Set<number>();
+      players.forEach(p => {
+        if (p.playerStatus === 'KICKED') {
+          const idx = mpConfig.playerIndexMap[p.userId];
+          if (typeof idx === 'number') newKicked.add(idx);
+        }
+      });
+      kickedIndicesRef.current = newKicked;
+
+      // Build EXIT_PENDING list for overlay
+      const pendingExit = players.filter(p => p.playerStatus === 'EXIT_PENDING');
+      const newExitPlayers: ExitPlayer[] = pendingExit.map(p => {
+        const voterCount = activePlayers.filter(a => a.playerStatus !== 'EXIT_PENDING').length;
+        const needed = Math.floor(voterCount / 2) + 1;
+        return {
+          userId: p.userId,
+          name: p.name,
+          playerIndex: mpConfig.playerIndexMap[p.userId] ?? 0,
+          voteCount: (p.exitVotes ?? []).length,
+          hasMyVote: (p.exitVotes ?? []).includes(mpConfig.userId),
+          votesNeeded: needed,
+        };
+      });
+      setExitPlayers(newExitPlayers);
+
+      // ── Winner detection (2-player: last player wins) ─────────────────────
+      if (room.status === 'finished' && (room as any).winnerId === mpConfig.userId) {
+        setWinnerInfo({ name: 'You' });
+      }
+
       // ── currentTurnPlayerIndex sync ───────────────────────────────────────
-      // If Firebase reports a different current turn than what we last knew,
-      // inject _setTurnPlayer so the local WebView self-heals without needing
-      // to replay a full action (handles reconnect and state drift).
       if (typeof room.currentTurnPlayerIndex === 'number') {
         const fbTurn = room.currentTurnPlayerIndex;
+
+        // If it's a kicked player's turn, HOST auto-advances
+        if (kickedIndicesRef.current.has(fbTurn) && mpConfig.isHost) {
+          const next = nextActiveIndex(fbTurn, mpConfig.gameMode);
+          if (next !== fbTurn) {
+            writeCurrentTurn(mpConfig.roomId, next).catch(console.warn);
+            const skipJs =
+              `(function(){try{` +
+                `if(typeof window._setTurnPlayer==='function'){` +
+                  `window._setTurnPlayer(${next});` +
+                `}` +
+              `}catch(e){}})();true;`;
+            setTimeout(() => { webViewRef.current?.injectJavaScript(skipJs); }, 100);
+          }
+          return;
+        }
+
         if (fbTurn !== lastKnownTurnRef.current && fbTurn !== mpConfig.myPlayerIndex) {
-          // Only force-correct for non-local-player turns (local player manages own state)
           lastKnownTurnRef.current = fbTurn;
           const syncJs =
             `(function(){try{` +
@@ -189,9 +280,9 @@ function LudoNativeOverlay({
       // ── lastAction relay ──────────────────────────────────────────────────
       if (!room.lastAction) return;
       const action = room.lastAction;
-      if (action.seq <= lastSeenSeqRef.current) return; // already processed
+      if (action.seq <= lastSeenSeqRef.current) return;
       lastSeenSeqRef.current = action.seq;
-      if (action.actorId === mpConfig.userId) return; // own action — already applied
+      if (action.actorId === mpConfig.userId) return;
       const js =
         `(function(){try{` +
           `if(typeof window._applyRemoteAction==='function'){` +
@@ -204,17 +295,46 @@ function LudoNativeOverlay({
     return unsub;
   }, [mpConfig]);
 
+  // ── AppState listener: mark EXIT_PENDING when app goes background ────────
+  useEffect(() => {
+    if (!mpConfig) return;
+    const sub = AppState.addEventListener('change', (nextState) => {
+      const cfg = mpConfigRef.current;
+      if (!cfg) return;
+      if (nextState === 'background' || nextState === 'inactive') {
+        markPlayerExit(cfg.roomId, cfg.userId).catch(console.warn);
+      } else if (nextState === 'active') {
+        markPlayerRejoin(cfg.roomId, cfg.userId).catch(console.warn);
+      }
+    });
+    return () => sub.remove();
+  }, [mpConfig?.roomId, mpConfig?.userId]);
+
+  // ── Vote to kick a disconnected player ──────────────────────────────────
+  async function handleVoteKick(targetUserId: string) {
+    const cfg = mpConfigRef.current;
+    if (!cfg) return;
+    try {
+      const result = await castExitVote(cfg.roomId, targetUserId, cfg.userId);
+      if (result.isLastPlayer && result.winnerId === cfg.userId) {
+        setWinnerInfo({ name: 'You' });
+      }
+    } catch (e) {
+      console.warn('[MP] castExitVote failed', e);
+    }
+  }
+
   // When startOnlineGame is called and the WebView is already loaded, inject
   // the START_GAME command immediately (onLoadEnd won't fire a second time).
   useEffect(() => {
     if (gameStartTrigger === 0) return;
-    if (!hasEverLoaded.current) return; // onLoadEnd will handle it
+    if (!hasEverLoaded.current) return;
     if (!pendingOnlineGame.current) return;
-    const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState } = pendingOnlineGame.current;
+    const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState, isHost, playerIndexMap, gameMode } = pendingOnlineGame.current;
     pendingOnlineGame.current = null;
     const js = buildStartGameJS(quickStartId, namesByPlayerIndex, myPlayerIndex, savedGameState);
     if (roomId && typeof myPlayerIndex === 'number' && userId) {
-      activateMpConfig({ roomId, myPlayerIndex, userId });
+      activateMpConfig({ roomId, myPlayerIndex, userId, isHost: isHost ?? false, playerIndexMap: playerIndexMap ?? {}, gameMode: gameMode ?? 4 });
     }
     setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 400);
   }, [gameStartTrigger]);
@@ -358,11 +478,11 @@ function LudoNativeOverlay({
           injectTheme(resolvedThemeRef.current);
           // If a room-based online game is waiting to start, inject it now
           if (pendingOnlineGame.current) {
-            const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState } = pendingOnlineGame.current;
+            const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState, isHost, playerIndexMap, gameMode } = pendingOnlineGame.current;
             pendingOnlineGame.current = null;
             const js = buildStartGameJS(quickStartId, namesByPlayerIndex, myPlayerIndex, savedGameState);
             if (roomId && typeof myPlayerIndex === 'number' && userId) {
-              activateMpConfig({ roomId, myPlayerIndex, userId });
+              activateMpConfig({ roomId, myPlayerIndex, userId, isHost: isHost ?? false, playerIndexMap: playerIndexMap ?? {}, gameMode: gameMode ?? 4 });
             }
             setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 400);
           }
@@ -458,6 +578,55 @@ function LudoNativeOverlay({
         </View>
       )}
 
+      {/* EXIT players voting panel — shown during online games when someone disconnects */}
+      {isVisible && mpConfig && exitPlayers.length > 0 && (
+        <View style={[styles.exitPanel, { bottom: insets.bottom + 56 }]}>
+          <Text style={styles.exitPanelTitle}>⚠ Player(s) Disconnected</Text>
+          {exitPlayers.map(ep => (
+            <View key={ep.userId} style={styles.exitPlayerRow}>
+              <Text style={styles.exitPlayerEmoji}>
+                {MP_COLORS[ep.playerIndex]?.emoji ?? '⬜'}
+              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.exitPlayerName} numberOfLines={1}>{ep.name}</Text>
+                <Text style={styles.exitVoteCount}>
+                  {ep.voteCount}/{ep.votesNeeded} votes to kick
+                </Text>
+              </View>
+              {ep.hasMyVote ? (
+                <View style={styles.votedPill}>
+                  <Text style={styles.votedPillText}>Voted</Text>
+                </View>
+              ) : ep.userId !== mpConfig.userId ? (
+                <TouchableOpacity
+                  style={styles.kickBtn}
+                  onPress={() => handleVoteKick(ep.userId)}
+                  activeOpacity={0.75}
+                >
+                  <Text style={styles.kickBtnText}>Kick</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Winner overlay — shown when last player wins by kick-out */}
+      {isVisible && winnerInfo && (
+        <View style={styles.winnerOverlay}>
+          <Text style={styles.winnerEmoji}>🏆</Text>
+          <Text style={styles.winnerTitle}>You Win!</Text>
+          <Text style={styles.winnerSub}>All other players were removed</Text>
+          <TouchableOpacity
+            style={styles.winnerCloseBtn}
+            onPress={() => setWinnerInfo(null)}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.winnerCloseBtnText}>Continue</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -485,9 +654,12 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
     roomId?: string,
     myPlayerIndex?: number,
     userId?: string,
-    savedGameState?: SavedGameState
+    savedGameState?: SavedGameState,
+    isHost?: boolean,
+    playerIndexMap?: Record<string, number>,
+    gameMode?: 2 | 3 | 4
   ) => {
-    pendingOnlineGame.current = { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState };
+    pendingOnlineGame.current = { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState, isHost, playerIndexMap, gameMode };
     setHasLoaded(true);
     setIsVisible(true);
     setGameStartTrigger(n => n + 1);
@@ -605,5 +777,99 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.1,
+  },
+  exitPanel: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(20,10,0,0.88)',
+    borderRadius: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    zIndex: 300,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.35)',
+  },
+  exitPanelTitle: {
+    color: '#F59E0B',
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  exitPlayerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  exitPlayerEmoji: {
+    fontSize: 18,
+  },
+  exitPlayerName: {
+    color: '#F3F4F6',
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  exitVoteCount: {
+    color: '#9CA3AF',
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+  },
+  kickBtn: {
+    backgroundColor: 'rgba(239,68,68,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.45)',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+  },
+  kickBtnText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  votedPill: {
+    backgroundColor: 'rgba(245,158,11,0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  votedPillText: {
+    color: '#F59E0B',
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+  },
+  winnerOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 9999,
+    gap: 12,
+  },
+  winnerEmoji: { fontSize: 64 },
+  winnerTitle: {
+    color: '#FFFFFF',
+    fontSize: 36,
+    fontFamily: 'Inter_700Bold',
+  },
+  winnerSub: {
+    color: '#9CA3AF',
+    fontSize: 15,
+    fontFamily: 'Inter_500Medium',
+  },
+  winnerCloseBtn: {
+    marginTop: 8,
+    backgroundColor: '#8B5CF6',
+    borderRadius: 14,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+  },
+  winnerCloseBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
   },
 });

@@ -21,7 +21,9 @@ import { useLudo } from '@/context/LudoContext';
 import {
   GameRoom,
   GameRoomPlayer,
+  PlayerStatus,
   cancelRoomStart,
+  castExitVote,
   setRoomInGame,
   setRoomStarting,
   subscribeToGameRoom,
@@ -54,25 +56,38 @@ function PlayerRow({
   isHost,
   isMe,
   colors,
+  canVote,
+  hasMyVote,
+  voteCount,
+  votesNeeded,
+  onVote,
 }: {
   player: GameRoomPlayer;
   isHost: boolean;
   isMe: boolean;
   colors: any;
+  canVote?: boolean;
+  hasMyVote?: boolean;
+  voteCount?: number;
+  votesNeeded?: number;
+  onVote?: () => void;
 }) {
-  const dotColor = player.isReady ? '#10B981' : '#9CA3AF';
-  const cardBg = isMe
+  const status = player.playerStatus ?? 'ACTIVE';
+  const isExiting = status === 'EXIT_PENDING';
+  const isKicked = status === 'KICKED';
+  const dotColor = isKicked ? '#EF4444' : isExiting ? '#F59E0B' : player.isReady ? '#10B981' : '#9CA3AF';
+  const cardBg = isKicked
+    ? colors.isDark ? 'rgba(239,68,68,0.08)' : 'rgba(239,68,68,0.05)'
+    : isExiting
+    ? colors.isDark ? 'rgba(245,158,11,0.12)' : 'rgba(245,158,11,0.07)'
+    : isMe
     ? colors.isDark ? 'rgba(124,58,237,0.15)' : 'rgba(124,58,237,0.07)'
     : colors.card;
-  const dotBorder = isMe ? cardBg : colors.card;
+  const borderColor = isKicked ? '#EF444440' : isExiting ? '#F59E0B60' : isMe ? colors.primary : colors.border;
+  const dotBorder = cardBg;
 
   return (
-    <View
-      style={[
-        styles.playerRow,
-        { backgroundColor: cardBg, borderColor: isMe ? colors.primary : colors.border },
-      ]}
-    >
+    <View style={[styles.playerRow, { backgroundColor: cardBg, borderColor, opacity: isKicked ? 0.55 : 1 }]}>
       <View style={styles.avatarWrap}>
         {player.photo ? (
           <Image source={{ uri: player.photo }} style={styles.avatar} />
@@ -86,41 +101,81 @@ function PlayerRow({
 
       <View style={{ flex: 1 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <Text style={[styles.playerName, { color: colors.foreground }]} numberOfLines={1}>
+          <Text
+            style={[
+              styles.playerName,
+              { color: isKicked ? colors.mutedForeground : colors.foreground },
+              isKicked && { textDecorationLine: 'line-through' },
+            ]}
+            numberOfLines={1}
+          >
             {player.name}
           </Text>
-          {isHost && (
+          {isHost && !isKicked && (
             <View style={[styles.badge, { backgroundColor: colors.isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)' }]}>
               <Text style={[styles.badgeText, { color: '#F59E0B' }]}>Host</Text>
             </View>
           )}
-          {isMe && (
+          {isMe && !isKicked && (
             <View style={[styles.badge, { backgroundColor: colors.isDark ? 'rgba(124,58,237,0.25)' : 'rgba(124,58,237,0.12)' }]}>
               <Text style={[styles.badgeText, { color: colors.primary }]}>You</Text>
             </View>
           )}
+          {isExiting && (
+            <View style={[styles.badge, { backgroundColor: colors.isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.15)' }]}>
+              <Text style={[styles.badgeText, { color: '#F59E0B' }]}>EXIT</Text>
+            </View>
+          )}
+          {isKicked && (
+            <View style={[styles.badge, { backgroundColor: colors.isDark ? 'rgba(239,68,68,0.25)' : 'rgba(239,68,68,0.12)' }]}>
+              <Text style={[styles.badgeText, { color: '#EF4444' }]}>KICKED</Text>
+            </View>
+          )}
         </View>
-        <Text style={[styles.readyLabel, { color: dotColor }]}>
-          {player.isReady ? '✓ Ready' : '○ Not Ready'}
-        </Text>
+
+        {isExiting && typeof voteCount === 'number' && typeof votesNeeded === 'number' ? (
+          <Text style={[styles.readyLabel, { color: '#F59E0B' }]}>
+            {`Disconnected · ${voteCount}/${votesNeeded} votes to kick`}
+          </Text>
+        ) : isKicked ? (
+          <Text style={[styles.readyLabel, { color: '#EF4444' }]}>Removed from game</Text>
+        ) : (
+          <Text style={[styles.readyLabel, { color: dotColor }]}>
+            {player.isReady ? '✓ Ready' : '○ Not Ready'}
+          </Text>
+        )}
       </View>
 
-      {/* Right-side ready pill */}
-      <View
-        style={[
-          styles.readyPill,
-          {
-            backgroundColor: player.isReady
-              ? colors.isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.12)'
-              : colors.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-            borderColor: player.isReady ? '#10B98140' : colors.border,
-          },
-        ]}
-      >
-        <Text style={[styles.readyPillText, { color: player.isReady ? '#10B981' : '#9CA3AF' }]}>
-          {player.isReady ? 'Ready' : 'Waiting'}
-        </Text>
-      </View>
+      {/* Right side: ready pill OR kick button */}
+      {isExiting && canVote && !hasMyVote && onVote ? (
+        <TouchableOpacity
+          style={[styles.kickBtn, { backgroundColor: colors.isDark ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.1)', borderColor: '#EF444450' }]}
+          onPress={onVote}
+          activeOpacity={0.75}
+        >
+          <Text style={[styles.kickBtnText, { color: '#EF4444' }]}>Kick</Text>
+        </TouchableOpacity>
+      ) : isExiting && hasMyVote ? (
+        <View style={[styles.readyPill, { backgroundColor: 'transparent', borderColor: '#F59E0B40' }]}>
+          <Text style={[styles.readyPillText, { color: '#F59E0B' }]}>Voted</Text>
+        </View>
+      ) : !isExiting && !isKicked ? (
+        <View
+          style={[
+            styles.readyPill,
+            {
+              backgroundColor: player.isReady
+                ? colors.isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.12)'
+                : colors.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+              borderColor: player.isReady ? '#10B98140' : colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.readyPillText, { color: player.isReady ? '#10B981' : '#9CA3AF' }]}>
+            {player.isReady ? 'Ready' : 'Waiting'}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -251,7 +306,21 @@ export default function RoomLobbyScreen() {
         // Compute this user's board color index: join order → HUMAN_PREFERRED_POSITIONS mapping.
         const myJoinIndex = sortedPlayers.findIndex((p) => p.userId === user?.uid);
         const myPlayerIndex = myJoinIndex >= 0 ? HUMAN_PREFERRED_POSITIONS[myJoinIndex] : 0;
-        startOnlineGame(quickStartId, namesByPlayerIndex, roomId ?? undefined, myPlayerIndex, user?.uid, room.gameState);
+        const playerIndexMap: Record<string, number> = {};
+        sortedPlayers.slice(0, room.gameMode).forEach((p, i) => {
+          playerIndexMap[p.userId] = HUMAN_PREFERRED_POSITIONS[i];
+        });
+        startOnlineGame(
+          quickStartId,
+          namesByPlayerIndex,
+          roomId ?? undefined,
+          myPlayerIndex,
+          user?.uid,
+          room.gameState,
+          user?.uid === room.hostId,
+          playerIndexMap,
+          room.gameMode
+        );
       } else {
         // Fallback: just open the game home screen
         showLudo();
@@ -316,6 +385,15 @@ export default function RoomLobbyScreen() {
     await Clipboard.setStringAsync(shortCode(roomId));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  async function handleKickVote(targetUserId: string) {
+    if (!roomId || !user) return;
+    try {
+      await castExitVote(roomId, targetUserId, user.uid);
+    } catch (e) {
+      console.error('castExitVote error', e);
+    }
   }
 
   async function handleToggleReady() {
@@ -455,15 +533,35 @@ export default function RoomLobbyScreen() {
         {/* ── Players ────────────────────────────────────────── */}
         <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>PLAYERS</Text>
 
-        {players.map((player) => (
-          <PlayerRow
-            key={player.userId}
-            player={player}
-            isHost={player.userId === room.hostId}
-            isMe={player.userId === user?.uid}
-            colors={colors}
-          />
-        ))}
+        {players.map((player) => {
+          const myUid = user?.uid ?? '';
+          const myPlayerObj = room.players[myUid];
+          const myNotKicked = !myPlayerObj || myPlayerObj.playerStatus !== 'KICKED';
+          const votes = player.exitVotes ?? [];
+          const otherActive = Object.values(room.players).filter(
+            p => p.userId !== player.userId && p.playerStatus !== 'KICKED'
+          );
+          const votesNeeded = Math.floor(otherActive.length / 2) + 1;
+          return (
+            <PlayerRow
+              key={player.userId}
+              player={player}
+              isHost={player.userId === room.hostId}
+              isMe={player.userId === myUid}
+              colors={colors}
+              canVote={
+                player.playerStatus === 'EXIT_PENDING' &&
+                player.userId !== myUid &&
+                myNotKicked &&
+                !votes.includes(myUid)
+              }
+              hasMyVote={votes.includes(myUid)}
+              voteCount={votes.length}
+              votesNeeded={votesNeeded}
+              onVote={() => handleKickVote(player.userId)}
+            />
+          );
+        })}
 
         {emptySlots.map((slot) => (
           <EmptySlot key={slot} slot={slot} colors={colors} />

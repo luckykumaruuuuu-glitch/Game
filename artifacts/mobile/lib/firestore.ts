@@ -895,12 +895,16 @@ export async function respondToGameInvite(
 
 // ─── Game Rooms ───────────────────────────────────────────────────────────────
 
+export type PlayerStatus = 'ACTIVE' | 'EXIT_PENDING' | 'KICKED';
+
 export interface GameRoomPlayer {
   userId: string;
   name: string;
   photo: string;
   isReady: boolean;
   joinedAt: number;
+  playerStatus?: PlayerStatus;
+  exitVotes?: string[];
 }
 
 export interface GameAction {
@@ -1154,6 +1158,91 @@ export async function saveGameState(
     gameState,
     lastActivityAt: Date.now(),
   });
+}
+
+// ─── Player Exit / Voting ─────────────────────────────────────────────────────
+
+export async function markPlayerExit(roomId: string, userId: string): Promise<void> {
+  const snap = await getDoc(doc(db, "gameRooms", roomId));
+  if (!snap.exists()) return;
+  const room = snap.data() as GameRoom;
+  if (room.players?.[userId]?.playerStatus === 'KICKED') return;
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    [`players.${userId}.playerStatus`]: 'EXIT_PENDING' as PlayerStatus,
+    lastActivityAt: Date.now(),
+  });
+}
+
+export async function markPlayerRejoin(roomId: string, userId: string): Promise<void> {
+  const snap = await getDoc(doc(db, "gameRooms", roomId));
+  if (!snap.exists()) return;
+  const room = snap.data() as GameRoom;
+  const player = room.players?.[userId];
+  if (!player || player.playerStatus === 'KICKED') return;
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    [`players.${userId}.playerStatus`]: 'ACTIVE' as PlayerStatus,
+    [`players.${userId}.exitVotes`]: [],
+    lastActivityAt: Date.now(),
+  });
+}
+
+export async function castExitVote(
+  roomId: string,
+  targetUserId: string,
+  voterUserId: string
+): Promise<{ kicked: boolean; isLastPlayer: boolean; winnerId?: string }> {
+  let kicked = false;
+  let isLastPlayer = false;
+  let winnerId: string | undefined;
+
+  await runTransaction(db, async (txn) => {
+    const ref = doc(db, "gameRooms", roomId);
+    const snap = await txn.get(ref);
+    if (!snap.exists()) return;
+    const room = snap.data() as GameRoom;
+
+    const target = room.players?.[targetUserId];
+    if (!target || target.playerStatus !== 'EXIT_PENDING') return;
+
+    const currentVotes: string[] = target.exitVotes ?? [];
+    if (currentVotes.includes(voterUserId)) return;
+
+    const newVotes = [...currentVotes, voterUserId];
+
+    const activeVoters = Object.values(room.players).filter(
+      (p) =>
+        p.userId !== targetUserId &&
+        p.playerStatus !== 'KICKED' &&
+        p.playerStatus !== 'EXIT_PENDING'
+    );
+
+    // Majority = floor(n/2)+1 so: 1→1, 2→2, 3→2
+    const needed = Math.floor(activeVoters.length / 2) + 1;
+
+    const update: Record<string, unknown> = {
+      [`players.${targetUserId}.exitVotes`]: newVotes,
+      lastActivityAt: Date.now(),
+    };
+
+    if (newVotes.length >= needed) {
+      update[`players.${targetUserId}.playerStatus`] = 'KICKED';
+      kicked = true;
+
+      const remaining = Object.values(room.players).filter(
+        (p) => p.userId !== targetUserId && p.playerStatus !== 'KICKED'
+      );
+      if (remaining.length === 1) {
+        update['status'] = 'finished';
+        update['winnerId'] = remaining[0].userId;
+        isLastPlayer = true;
+        winnerId = remaining[0].userId;
+      }
+    }
+
+    txn.update(ref, update);
+  });
+
+  return { kicked, isLastPlayer, winnerId };
 }
 
 export async function cleanupExpiredRooms(userId: string): Promise<void> {
