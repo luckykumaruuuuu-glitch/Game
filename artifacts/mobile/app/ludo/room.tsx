@@ -17,6 +17,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import { useLudo } from '@/context/LudoContext';
 import {
   GameRoom,
   GameRoomPlayer,
@@ -159,6 +160,7 @@ export default function RoomLobbyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { show: showLudo } = useLudo();
 
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [copied, setCopied] = useState(false);
@@ -197,6 +199,7 @@ export default function RoomLobbyScreen() {
     if (room.status === 'starting' && !hasStartedCountdown.current && !hasNavigated.current) {
       // ALL players: begin local countdown
       hasStartedCountdown.current = true;
+      console.log('[COUNTDOWN_STARTED]');
       setCountdown(3);
       return;
     }
@@ -215,10 +218,22 @@ export default function RoomLobbyScreen() {
     if (countdown === 0) {
       if (hasNavigated.current) return;
       hasNavigated.current = true;
+      console.log('[COUNTDOWN_FINISHED]');
       // HOST marks room as in_game (best-effort, others just navigate)
       if (isHost && roomId) setRoomInGame(roomId).catch(console.error);
-      // All players navigate to the existing Ludo game
-      router.replace('/ludo' as any);
+      console.log('[GAME_LAUNCH_CALLED]');
+      if (Platform.OS !== 'web') {
+        // Native (Expo Go / standalone): the game lives inside the LudoContext
+        // WebView overlay — show() makes it visible. router.replace('/ludo')
+        // would render an <iframe> which does not exist in React Native and
+        // causes expo-router to fall back to the home screen.
+        showLudo();
+        router.replace('/(tabs)' as any);
+      } else {
+        // Web: navigate to the /ludo iframe screen
+        router.replace('/ludo' as any);
+      }
+      console.log('[GAME_SCREEN_OPENED]');
       return;
     }
 
