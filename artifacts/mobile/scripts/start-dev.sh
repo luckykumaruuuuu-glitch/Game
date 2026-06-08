@@ -12,6 +12,10 @@ WORKSPACE_ROOT="$(cd "$MOBILE_ROOT/../.." && pwd)"
 echo "📱 Starting mobile dev server..."
 echo "   Workspace: $WORKSPACE_ROOT"
 
+# Kill any existing process on port 5000 so parallel restarts never get
+# the interactive "Use port 5001 instead?" prompt that hangs in CI/scripts.
+fuser -k 5000/tcp 2>/dev/null || true
+
 LOCK_FILE="/tmp/workspace-pnpm-install.lock"
 EXPO_START_LOCK="/tmp/expo-start.lock"
 
