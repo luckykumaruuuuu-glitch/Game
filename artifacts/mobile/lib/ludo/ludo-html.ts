@@ -2224,6 +2224,52 @@ wc-token .god-selected {
 .corner-dice--rolled .die {
     cursor: default;
 }
+
+/* ── Inactive player slot (2-player / 3-player modes) ── */
+.corner-widget--inactive {
+    pointer-events: none;
+    opacity: 1;
+}
+
+.corner-dice--not-playing {
+    width: 56px;
+    height: 56px;
+    box-sizing: border-box;
+    border-radius: var(--radius-2xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.22;
+}
+
+.corner-pill--not-playing {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: var(--radius-pill);
+    padding: 7px 10px;
+    height: 32px;
+    box-sizing: border-box;
+    background: transparent;
+    border: 1px dashed color-mix(in srgb, var(--color-fg) 20%, transparent);
+    opacity: 0.55;
+}
+
+.corner-pill-not-playing-icon {
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0.7;
+}
+
+.corner-pill-not-playing-text {
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    color: var(--color-fg);
+    opacity: 0.65;
+    white-space: nowrap;
+}
+
 html,body{height:100%;margin:0;padding:0;overflow:hidden;}
 #root{height:100dvh;overflow:auto;}
 
@@ -4758,10 +4804,28 @@ function updateCornerWidgets() {
     const el3 = document.getElementById(anchor);
     if (!el3) return;
     el3.innerHTML = "";
-    if (!_playerTypes[idx]) return;
+    const wrap = document.createElement("div");
+    if (!_playerTypes[idx]) {
+      // ── Inactive slot: show greyed-out "Not Playing" widget ──
+      wrap.className = "corner-widget corner-widget--inactive";
+      const diceSlot = document.createElement("div");
+      diceSlot.className = \`corner-dice corner-dice--not-playing player-bg-\${idx}\`;
+      diceSlot.innerHTML = \`<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>\`;
+      const pillEl = document.createElement("div");
+      pillEl.className = "corner-pill corner-pill--not-playing";
+      pillEl.innerHTML = \`<span class="corner-pill-not-playing-icon">✕</span><span class="corner-pill-not-playing-text">Not Playing</span>\`;
+      if (layout === "TD") {
+        wrap.appendChild(pillEl);
+        wrap.appendChild(diceSlot);
+      } else {
+        wrap.appendChild(diceSlot);
+        wrap.appendChild(pillEl);
+      }
+      el3.appendChild(wrap);
+      return;
+    }
     const isActive = idx === pi;
     const finished = _getFinishedCount(idx);
-    const wrap = document.createElement("div");
     wrap.className = "corner-widget";
     const pill = document.createElement("div");
     pill.innerHTML = pillMarkup(idx, finished, isActive);
