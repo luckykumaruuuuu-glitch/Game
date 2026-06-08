@@ -925,7 +925,7 @@ export async function createGameRoom(
         userId: hostId,
         name: hostProfile.name,
         photo: hostProfile.photo || "",
-        isReady: true,
+        isReady: false,
         joinedAt: Date.now(),
       },
     },
@@ -944,16 +944,29 @@ export async function joinGameRoom(
       userId,
       name: userProfile.name,
       photo: userProfile.photo || "",
-      isReady: true,
+      isReady: false,
       joinedAt: Date.now(),
     },
   });
+}
+
+export async function togglePlayerReady(
+  roomId: string,
+  userId: string,
+  ready: boolean
+): Promise<void> {
+  const roomRef = doc(db, "gameRooms", roomId);
+  await updateDoc(roomRef, { [`players.${userId}.isReady`]: ready });
   const snap = await getDoc(roomRef);
   if (snap.exists()) {
     const room = snap.data() as GameRoom;
-    const playerCount = Object.keys(room.players).length;
-    if (playerCount >= room.gameMode) {
+    const players = Object.values(room.players) as GameRoomPlayer[];
+    const allJoined = players.length >= room.gameMode;
+    const allReady = players.every((p) => p.isReady);
+    if (allJoined && allReady) {
       await updateDoc(roomRef, { status: "ready" });
+    } else if (room.status === "ready") {
+      await updateDoc(roomRef, { status: "waiting" });
     }
   }
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Easing,
   Image,
@@ -16,34 +17,32 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
-import { GameRoom, GameRoomPlayer, subscribeToGameRoom } from '@/lib/firestore';
+import {
+  GameRoom,
+  GameRoomPlayer,
+  subscribeToGameRoom,
+  togglePlayerReady,
+} from '@/lib/firestore';
 
 function shortCode(roomId: string): string {
   return roomId.slice(0, 6).toUpperCase();
 }
 
 const MODE_EMOJI: Record<number, string> = { 2: '👤', 3: '👥', 4: '👨‍👩‍👧‍👦' };
-const MODE_COLOR: Record<string, string> = {
-  waiting: '#F59E0B',
-  ready: '#10B981',
-  starting: '#10B981',
-};
 
 function PulsingDot({ color }: { color: string }) {
   const scale = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(scale, { toValue: 1.35, duration: 700, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
+        Animated.timing(scale, { toValue: 1.4, duration: 700, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
         Animated.timing(scale, { toValue: 1, duration: 700, useNativeDriver: true, easing: Easing.inOut(Easing.ease) }),
       ])
     );
     anim.start();
     return () => anim.stop();
   }, [scale]);
-  return (
-    <Animated.View style={[styles.pulsingDot, { backgroundColor: color, transform: [{ scale }] }]} />
-  );
+  return <Animated.View style={[styles.pulsingDot, { backgroundColor: color, transform: [{ scale }] }]} />;
 }
 
 function PlayerRow({
@@ -57,18 +56,17 @@ function PlayerRow({
   isMe: boolean;
   colors: any;
 }) {
+  const dotColor = player.isReady ? '#10B981' : '#9CA3AF';
+  const cardBg = isMe
+    ? colors.isDark ? 'rgba(124,58,237,0.15)' : 'rgba(124,58,237,0.07)'
+    : colors.card;
+  const dotBorder = isMe ? cardBg : colors.card;
+
   return (
     <View
       style={[
         styles.playerRow,
-        {
-          backgroundColor: isMe
-            ? colors.isDark
-              ? 'rgba(124,58,237,0.15)'
-              : 'rgba(124,58,237,0.07)'
-            : colors.card,
-          borderColor: isMe ? colors.primary : colors.border,
-        },
+        { backgroundColor: cardBg, borderColor: isMe ? colors.primary : colors.border },
       ]}
     >
       <View style={styles.avatarWrap}>
@@ -76,31 +74,48 @@ function PlayerRow({
           <Image source={{ uri: player.photo }} style={styles.avatar} />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback, { backgroundColor: colors.primary }]}>
-            <Text style={styles.avatarInitial}>
-              {(player.name || '?')[0].toUpperCase()}
-            </Text>
+            <Text style={styles.avatarInitial}>{(player.name || '?')[0].toUpperCase()}</Text>
           </View>
         )}
-        <View style={[styles.readyDot, { backgroundColor: '#10B981', borderColor: isMe ? (colors.isDark ? 'rgba(124,58,237,0.15)' : 'rgba(124,58,237,0.07)') : colors.card }]} />
+        <View style={[styles.statusDot, { backgroundColor: dotColor, borderColor: dotBorder }]} />
       </View>
 
       <View style={{ flex: 1 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <Text style={[styles.playerName, { color: colors.foreground }]} numberOfLines={1}>
             {player.name}
           </Text>
           {isHost && (
-            <View style={[styles.hostBadge, { backgroundColor: colors.isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)' }]}>
-              <Text style={styles.hostBadgeText}>Host</Text>
+            <View style={[styles.badge, { backgroundColor: colors.isDark ? 'rgba(245,158,11,0.2)' : 'rgba(245,158,11,0.15)' }]}>
+              <Text style={[styles.badgeText, { color: '#F59E0B' }]}>Host</Text>
             </View>
           )}
           {isMe && (
-            <View style={[styles.meBadge, { backgroundColor: colors.isDark ? 'rgba(124,58,237,0.25)' : 'rgba(124,58,237,0.12)' }]}>
-              <Text style={[styles.meBadgeText, { color: colors.primary }]}>You</Text>
+            <View style={[styles.badge, { backgroundColor: colors.isDark ? 'rgba(124,58,237,0.25)' : 'rgba(124,58,237,0.12)' }]}>
+              <Text style={[styles.badgeText, { color: colors.primary }]}>You</Text>
             </View>
           )}
         </View>
-        <Text style={[styles.readyText, { color: '#10B981' }]}>Ready ✓</Text>
+        <Text style={[styles.readyLabel, { color: dotColor }]}>
+          {player.isReady ? '✓ Ready' : '○ Not Ready'}
+        </Text>
+      </View>
+
+      {/* Right-side ready pill */}
+      <View
+        style={[
+          styles.readyPill,
+          {
+            backgroundColor: player.isReady
+              ? colors.isDark ? 'rgba(16,185,129,0.2)' : 'rgba(16,185,129,0.12)'
+              : colors.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+            borderColor: player.isReady ? '#10B98140' : colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.readyPillText, { color: player.isReady ? '#10B981' : '#9CA3AF' }]}>
+          {player.isReady ? 'Ready' : 'Waiting'}
+        </Text>
       </View>
     </View>
   );
@@ -141,13 +156,15 @@ export default function RoomLobbyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [copied, setCopied] = useState(false);
+  const [readyToggling, setReadyToggling] = useState(false);
 
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
-  const readyAnim = useRef(new Animated.Value(0)).current;
-  const isReady = room ? Object.keys(room.players).length >= room.gameMode : false;
+  const readyBannerAnim = useRef(new Animated.Value(0)).current;
+  const prevGameReady = useRef(false);
 
   useEffect(() => {
     if (!roomId) return;
@@ -159,11 +176,20 @@ export default function RoomLobbyScreen() {
     return unsub;
   }, [roomId]);
 
+  // Animate ready banner in/out
   useEffect(() => {
-    if (isReady) {
-      Animated.spring(readyAnim, { toValue: 1, useNativeDriver: true, damping: 12 }).start();
+    if (!room) return;
+    const players = Object.values(room.players);
+    const allJoined = players.length >= room.gameMode;
+    const allReady = players.length > 0 && players.every((p) => p.isReady);
+    const gameReady = allJoined && allReady;
+    if (gameReady && !prevGameReady.current) {
+      Animated.spring(readyBannerAnim, { toValue: 1, useNativeDriver: true, damping: 10 }).start();
+    } else if (!gameReady && prevGameReady.current) {
+      Animated.timing(readyBannerAnim, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     }
-  }, [isReady]);
+    prevGameReady.current = gameReady;
+  }, [room]);
 
   async function handleCopy() {
     if (!roomId) return;
@@ -172,7 +198,22 @@ export default function RoomLobbyScreen() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function handleToggleReady() {
+    if (!room || !user || !roomId || readyToggling) return;
+    const myPlayer = room.players[user.uid];
+    if (!myPlayer) return;
+    setReadyToggling(true);
+    try {
+      await togglePlayerReady(roomId, user.uid, !myPlayer.isReady);
+    } catch (e) {
+      console.error('togglePlayerReady error', e);
+    } finally {
+      setReadyToggling(false);
+    }
+  }
+
   const topPad = insets.top + (Platform.OS === 'web' ? 0 : 4);
+  const bottomPad = insets.bottom + 16;
 
   if (!room) {
     return (
@@ -185,6 +226,7 @@ export default function RoomLobbyScreen() {
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.center}>
+          <ActivityIndicator color={colors.primary} size="large" />
           <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>Loading room…</Text>
         </View>
       </View>
@@ -194,8 +236,28 @@ export default function RoomLobbyScreen() {
   const players = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
   const playerCount = players.length;
   const neededCount = room.gameMode;
+  const readyCount = players.filter((p) => p.isReady).length;
+  const allJoined = playerCount >= neededCount;
+  const allReady = allJoined && readyCount === playerCount && playerCount > 0;
   const emptySlots = Array.from({ length: Math.max(0, neededCount - playerCount) }, (_, i) => i + playerCount + 1);
-  const statusColor = MODE_COLOR[room.status] ?? '#F59E0B';
+
+  const myPlayer = user ? room.players[user.uid] : null;
+  const amIReady = myPlayer?.isReady ?? false;
+
+  // Status config
+  let statusColor = '#F59E0B'; // amber — waiting
+  let statusMsg = `Waiting for players… ${playerCount}/${neededCount}`;
+  let progressValue = playerCount / neededCount;
+
+  if (allJoined && !allReady) {
+    statusColor = '#3B82F6'; // blue — all joined, waiting for ready
+    statusMsg = `Waiting for everyone to ready up… ${readyCount}/${playerCount} ready`;
+    progressValue = readyCount / playerCount;
+  } else if (allReady) {
+    statusColor = '#10B981'; // green — all ready
+    statusMsg = 'All Players Ready! Starting Game…';
+    progressValue = 1;
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
@@ -209,7 +271,7 @@ export default function RoomLobbyScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 40 }}
+        contentContainerStyle={{ padding: 20, paddingBottom: bottomPad + 88 }}
         showsVerticalScrollIndicator={false}
       >
         {/* ── Room ID Card ───────────────────────────────────── */}
@@ -241,7 +303,6 @@ export default function RoomLobbyScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Game mode chip */}
           <View style={[styles.modeChip, { backgroundColor: colors.isDark ? 'rgba(124,58,237,0.2)' : 'rgba(124,58,237,0.1)' }]}>
             <Text style={styles.modeEmoji}>{MODE_EMOJI[room.gameMode] ?? '🎲'}</Text>
             <Text style={[styles.modeText, { color: colors.primary }]}>
@@ -251,13 +312,9 @@ export default function RoomLobbyScreen() {
         </Animated.View>
 
         {/* ── Status Banner ──────────────────────────────────── */}
-        <View style={[styles.statusBanner, { backgroundColor: colors.isDark ? `${statusColor}22` : `${statusColor}15`, borderColor: `${statusColor}55` }]}>
+        <View style={[styles.statusBanner, { backgroundColor: `${statusColor}18`, borderColor: `${statusColor}40` }]}>
           <PulsingDot color={statusColor} />
-          <Text style={[styles.statusText, { color: statusColor }]}>
-            {isReady
-              ? 'All players joined! Starting Game…'
-              : `Waiting for players… ${playerCount}/${neededCount}`}
-          </Text>
+          <Text style={[styles.statusText, { color: statusColor }]}>{statusMsg}</Text>
         </View>
 
         {/* ── Progress Bar ───────────────────────────────────── */}
@@ -265,15 +322,14 @@ export default function RoomLobbyScreen() {
           <Animated.View
             style={[
               styles.progressFill,
-              {
-                backgroundColor: statusColor,
-                width: `${Math.min(100, (playerCount / neededCount) * 100)}%`,
-              },
+              { backgroundColor: statusColor, width: `${Math.min(100, progressValue * 100)}%` },
             ]}
           />
         </View>
         <Text style={[styles.progressLabel, { color: colors.mutedForeground }]}>
-          {playerCount} of {neededCount} players joined
+          {allJoined
+            ? `${readyCount} of ${playerCount} players ready`
+            : `${playerCount} of ${neededCount} players joined`}
         </Text>
 
         {/* ── Players ────────────────────────────────────────── */}
@@ -293,26 +349,80 @@ export default function RoomLobbyScreen() {
           <EmptySlot key={slot} slot={slot} colors={colors} />
         ))}
 
-        {/* ── Ready Banner ───────────────────────────────────── */}
-        {isReady && (
+        {/* ── Ready Legend ───────────────────────────────────── */}
+        <View style={[styles.legend, { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)', borderColor: colors.border }]}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>Ready</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: '#9CA3AF' }]} />
+            <Text style={[styles.legendText, { color: colors.mutedForeground }]}>Not Ready</Text>
+          </View>
+        </View>
+
+        {/* ── All Ready Banner ───────────────────────────────── */}
+        {allReady && (
           <Animated.View
             style={[
-              styles.readyBanner,
+              styles.allReadyBanner,
               {
                 backgroundColor: '#10B981',
-                transform: [{ scale: readyAnim }],
-                opacity: readyAnim,
+                transform: [{ scale: readyBannerAnim }],
+                opacity: readyBannerAnim,
               },
             ]}
           >
-            <Text style={styles.readyEmoji}>🎲</Text>
+            <Text style={styles.allReadyEmoji}>🎲</Text>
             <View>
-              <Text style={styles.readyTitle}>All Players Ready!</Text>
-              <Text style={styles.readySubtitle}>Starting Game…</Text>
+              <Text style={styles.allReadyTitle}>All Players Ready!</Text>
+              <Text style={styles.allReadySubtitle}>Starting Game…</Text>
             </View>
           </Animated.View>
         )}
       </ScrollView>
+
+      {/* ── Ready Toggle Button (sticky footer) ────────────── */}
+      {myPlayer && (
+        <View
+          style={[
+            styles.footer,
+            {
+              paddingBottom: bottomPad,
+              borderTopColor: colors.border,
+              backgroundColor: colors.background,
+            },
+          ]}
+        >
+          <TouchableOpacity
+            style={[
+              styles.readyBtn,
+              {
+                backgroundColor: amIReady
+                  ? colors.isDark ? 'rgba(16,185,129,0.15)' : 'rgba(16,185,129,0.1)'
+                  : colors.primary,
+                borderColor: amIReady ? '#10B981' : 'transparent',
+                borderWidth: amIReady ? 2 : 0,
+                opacity: readyToggling ? 0.7 : 1,
+              },
+            ]}
+            onPress={handleToggleReady}
+            disabled={readyToggling}
+            activeOpacity={0.8}
+          >
+            {readyToggling ? (
+              <ActivityIndicator color={amIReady ? '#10B981' : '#fff'} size="small" />
+            ) : (
+              <>
+                <Text style={styles.readyBtnIcon}>{amIReady ? '✓' : '○'}</Text>
+                <Text style={[styles.readyBtnText, { color: amIReady ? '#10B981' : '#fff' }]}>
+                  {amIReady ? "I'm Ready!" : 'Tap to Ready Up'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 }
@@ -327,12 +437,9 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  backBtn: {
-    width: 40, height: 40,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  backBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontFamily: 'Inter_600SemiBold' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingText: { fontSize: 15, fontFamily: 'Inter_400Regular' },
 
   roomCard: {
@@ -343,38 +450,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  roomLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 1,
-  },
-  roomCodeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  roomCode: {
-    fontSize: 38,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 8,
-  },
-  copyBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 12,
-  },
+  roomLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 1 },
+  roomCodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  roomCode: { fontSize: 38, fontFamily: 'Inter_700Bold', letterSpacing: 8 },
+  copyBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 12 },
   copyText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
-  modeChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
+  modeChip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20 },
   modeEmoji: { fontSize: 16 },
   modeText: { fontSize: 14, fontFamily: 'Inter_600SemiBold' },
 
@@ -387,34 +468,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
   },
-  pulsingDot: {
-    width: 10, height: 10, borderRadius: 5,
-  },
+  pulsingDot: { width: 10, height: 10, borderRadius: 5 },
   statusText: { fontSize: 14, fontFamily: 'Inter_500Medium', flex: 1 },
 
-  progressTrack: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 6,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressLabel: {
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'right',
-    marginBottom: 20,
-  },
+  progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 6 },
+  progressFill: { height: '100%', borderRadius: 3 },
+  progressLabel: { fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'right', marginBottom: 20 },
 
-  sectionLabel: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
+  sectionLabel: { fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 0.8, marginBottom: 10 },
+
   playerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -424,39 +486,70 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     marginBottom: 10,
   },
-  emptySlot: { opacity: 0.6 },
+  emptySlot: {},
   avatarWrap: { position: 'relative' },
   avatar: { width: 48, height: 48, borderRadius: 24 },
   avatarFallback: { alignItems: 'center', justifyContent: 'center' },
   avatarInitial: { fontSize: 20, color: '#fff', fontFamily: 'Inter_700Bold' },
-  readyDot: {
-    position: 'absolute', bottom: 0, right: 0,
-    width: 13, height: 13, borderRadius: 7, borderWidth: 2,
+  statusDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
   },
   playerName: { fontSize: 15, fontFamily: 'Inter_600SemiBold' },
-  readyText: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  hostBadge: {
-    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
+  readyLabel: { fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 2 },
+  badge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  badgeText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  readyPill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+    borderWidth: 1,
   },
-  hostBadgeText: { fontSize: 10, fontFamily: 'Inter_700Bold', color: '#F59E0B' },
-  meBadge: {
-    paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6,
-  },
-  meBadgeText: { fontSize: 10, fontFamily: 'Inter_700Bold' },
+  readyPillText: { fontSize: 12, fontFamily: 'Inter_600SemiBold' },
 
-  readyBanner: {
+  legend: {
+    flexDirection: 'row',
+    gap: 20,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: 16,
+    justifyContent: 'center',
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendText: { fontSize: 13, fontFamily: 'Inter_400Regular' },
+
+  allReadyBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     padding: 20,
     borderRadius: 18,
-    marginTop: 8,
+    marginTop: 4,
   },
-  readyEmoji: { fontSize: 36 },
-  readyTitle: {
-    fontSize: 18, fontFamily: 'Inter_700Bold', color: '#fff',
+  allReadyEmoji: { fontSize: 36 },
+  allReadyTitle: { fontSize: 18, fontFamily: 'Inter_700Bold', color: '#fff' },
+  allReadySubtitle: { fontSize: 14, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.8)', marginTop: 2 },
+
+  footer: {
+    paddingTop: 12,
+    paddingHorizontal: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
-  readySubtitle: {
-    fontSize: 14, fontFamily: 'Inter_400Regular', color: 'rgba(255,255,255,0.8)', marginTop: 2,
+  readyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingVertical: 18,
+    borderRadius: 16,
   },
+  readyBtnIcon: { fontSize: 20, color: '#fff' },
+  readyBtnText: { fontSize: 17, fontFamily: 'Inter_700Bold' },
 });
