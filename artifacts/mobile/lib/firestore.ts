@@ -1022,6 +1022,51 @@ export async function writeGameAction(
   });
 }
 
+// ─── Game Chat ────────────────────────────────────────────────────────────────
+
+export interface GameChatMessage {
+  messageId: string;
+  senderId: string;
+  senderName: string;
+  senderPhoto?: string;
+  text: string;
+  timestamp: number;
+}
+
+export async function sendGameMessage(
+  roomId: string,
+  senderId: string,
+  senderName: string,
+  senderPhoto: string | undefined,
+  text: string
+): Promise<void> {
+  const ref = doc(collection(db, "gameChats", roomId, "messages"));
+  await setDoc(ref, {
+    messageId: ref.id,
+    senderId,
+    senderName,
+    senderPhoto: senderPhoto ?? null,
+    text: text.trim(),
+    timestamp: Date.now(),
+  });
+}
+
+export function subscribeToGameMessages(
+  roomId: string,
+  callback: (messages: GameChatMessage[]) => void
+): () => void {
+  const q = query(
+    collection(db, "gameChats", roomId, "messages"),
+    orderBy("timestamp", "asc"),
+    limit(200)
+  );
+  return onSnapshot(
+    q,
+    (snap) => callback(snap.docs.map((d) => d.data() as GameChatMessage)),
+    () => callback([])
+  );
+}
+
 export async function cancelRoomStart(roomId: string): Promise<void> {
   await updateDoc(doc(db, "gameRooms", roomId), {
     status: "waiting",

@@ -13,9 +13,12 @@ import { useAuth } from '@/context/AuthContext';
 import {
   subscribeToGameInvites,
   subscribeToGameRoom,
+  subscribeToGameMessages,
   writeGameAction,
   GameAction,
 } from '@/lib/firestore';
+import { GameChatPanel } from '@/components/GameChatPanel';
+import { FriendsChatPanel } from '@/components/FriendsChatPanel';
 import { LUDO_GAME_HTML } from '@/lib/ludo/ludo-html';
 
 interface LudoContextValue {
@@ -117,10 +120,19 @@ function LudoNativeOverlay({
   const lastSeenSeqRef = useRef(0);
   const lastWrittenSeqRef = useRef(0);
 
+  // Chat panel state
+  const [showGameChat, setShowGameChat] = useState(false);
+  const [showFriendsChat, setShowFriendsChat] = useState(false);
+  const [gameChatUnread, setGameChatUnread] = useState(0);
+  const gameChatMsgCountRef = useRef(0);
+
   // Helper: activate a new multiplayer session
   function activateMpConfig(cfg: MpConfig) {
     lastSeenSeqRef.current = 0;
     lastWrittenSeqRef.current = 0;
+    gameChatMsgCountRef.current = 0;
+    setGameChatUnread(0);
+    setShowGameChat(false);
     mpConfigRef.current = cfg;
     setMpConfig(cfg);
     setDebugTurn(-1);
@@ -131,6 +143,27 @@ function LudoNativeOverlay({
   }, []);
 
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
+
+  // Track unread game chat messages while the panel is closed.
+  useEffect(() => {
+    if (!mpConfig) return;
+    return subscribeToGameMessages(mpConfig.roomId, (msgs) => {
+      if (showGameChat) {
+        gameChatMsgCountRef.current = msgs.length;
+        setGameChatUnread(0);
+      } else {
+        const newCount = msgs.length;
+        const diff = newCount - gameChatMsgCountRef.current;
+        // Only count messages from others, not from ourselves
+        if (diff > 0) {
+          const newMsgs = msgs.slice(gameChatMsgCountRef.current);
+          const othersCount = newMsgs.filter((m) => m.senderId !== mpConfig.userId).length;
+          if (othersCount > 0) setGameChatUnread((n) => n + othersCount);
+        }
+        gameChatMsgCountRef.current = newCount;
+      }
+    });
+  }, [mpConfig, showGameChat]);
 
   // Subscribe to remote game actions via Firebase when a multiplayer session is active.
   useEffect(() => {
@@ -346,6 +379,57 @@ function LudoNativeOverlay({
           </Text>
         </View>
       )}
+
+      {/* ── Floating chat buttons — right side ── */}
+      {isVisible && (
+        <View style={[styles.chatBtns, { top: '42%' }]}>
+          {/* Game Chat — only during a multiplayer match */}
+          {mpConfig && (
+            <TouchableOpacity
+              style={styles.chatBtn}
+              onPress={() => {
+                setGameChatUnread(0);
+                gameChatMsgCountRef.current = 0;
+                setShowGameChat(true);
+              }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="chatbubbles" size={18} color="#FFFFFF" />
+              {gameChatUnread > 0 && (
+                <View style={styles.chatBadge}>
+                  <Text style={styles.chatBadgeText}>
+                    {gameChatUnread > 9 ? '9+' : gameChatUnread}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          )}
+
+          {/* Friends Chat — always available */}
+          <TouchableOpacity
+            style={styles.chatBtn}
+            onPress={() => setShowFriendsChat(true)}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="people" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* ── Chat Panels ── */}
+      {mpConfig && (
+        <GameChatPanel
+          roomId={mpConfig.roomId}
+          userId={mpConfig.userId}
+          isVisible={showGameChat}
+          onClose={() => setShowGameChat(false)}
+        />
+      )}
+      <FriendsChatPanel
+        userId={user?.uid ?? ''}
+        isVisible={showFriendsChat}
+        onClose={() => setShowFriendsChat(false)}
+      />
     </View>
   );
 }
@@ -475,5 +559,38 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.2,
+  },
+  chatBtns: {
+    position: 'absolute',
+    right: 0,
+    flexDirection: 'column',
+    gap: 8,
+    zIndex: 150,
+  },
+  chatBtn: {
+    width: 42,
+    height: 42,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
+    backgroundColor: 'rgba(139,92,246,0.85)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#EF4444',
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  chatBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontFamily: 'Inter_700Bold',
   },
 });
