@@ -68,6 +68,32 @@ else
   EXPO_CMD="$EXPO_BIN"
 fi
 
+# Refresh the Expo native-modules cache expiration to 1 year from now.
+# On Replit, api.expo.dev returns an empty response which causes JSON.parse()
+# to crash inside validateDependenciesVersionsAsync. Extending the cached
+# expiration timestamp means Expo always uses the local copy and never
+# makes the network request.
+CACHE_DIR="$HOME/.expo/native-modules-cache"
+if [ -d "$CACHE_DIR" ]; then
+  node - <<'EOF'
+const fs = require('fs');
+const dir = process.env.HOME + '/.expo/native-modules-cache';
+const oneYear = Date.now() + 365 * 24 * 60 * 60 * 1000;
+try {
+  fs.readdirSync(dir).forEach(f => {
+    if (!f.endsWith('-info.json')) return;
+    const p = dir + '/' + f;
+    try {
+      const obj = JSON.parse(fs.readFileSync(p, 'utf8'));
+      obj.expiration = oneYear;
+      fs.writeFileSync(p, JSON.stringify(obj));
+    } catch {}
+  });
+  console.log('✅ Expo cache expiration refreshed (+1 year)');
+} catch {}
+EOF
+fi
+
 # Start Expo from mobile root
 # Do NOT use --localhost — it binds to 127.0.0.1 only and breaks Replit's proxy.
 # Without it, Metro binds to 0.0.0.0 so Replit can reach it.
