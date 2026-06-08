@@ -1,0 +1,173 @@
+STOP.
+
+You are misunderstanding the task.
+
+Read carefully.
+
+The game already exists.
+
+The UI already exists.
+
+The board already exists.
+
+The dice already exists.
+
+The token movement already exists.
+
+The animations already exist.
+
+The winner system already exists.
+
+I DO NOT want a new Ludo game.
+
+I DO NOT want a new board.
+
+I DO NOT want a new screen.
+
+I DO NOT want a new UI.
+
+I DO NOT want placeholder components.
+
+Your job is ONLY to connect the new "Offline Friend" button to the existing game.
+
+Current Home Screen already contains:
+
+- New Game
+- Online Friend
+- Offline Friend
+
+The Offline Friend button already exists.
+
+Now implement its functionality.
+
+STEP 1
+
+When user taps Offline Friend:
+
+Open a player selection popup.
+
+Options:
+
+- 2 Players
+- 3 Players
+- 4 Players
+
+Do not open a new game screen.
+
+Use existing UI style.
+
+STEP 2
+
+After selecting player count:
+
+Launch the EXISTING Ludo game screen.
+
+Not a new screen.
+
+Not a duplicate board.
+
+Use the same board already used elsewhere in the project.
+
+STEP 3
+
+Create local players.
+
+Example:
+
+2 Player Mode
+
+Player 1 = Red
+Player 2 = Green
+
+Mark:
+
+Yellow = Not Playing
+Blue = Not Playing
+
+Show disabled/cross state for unused colors.
+
+STEP 4
+
+For 3 Players:
+
+Red = Playing
+Green = Playing
+Yellow = Playing
+
+Blue = Not Playing
+
+STEP 5
+
+For 4 Players:
+
+All colors active.
+
+STEP 6
+
+Use existing:
+
+- Dice system
+- Turn system
+- Token movement
+- Safe zones
+- Kill logic
+- Home path
+- Winner detection
+- Animations
+- Sounds
+
+Reuse everything.
+
+Do not rewrite them.
+
+STEP 7
+
+Offline mode must NOT connect to:
+
+- Firebase
+- Realtime Database
+- Firestore
+- Online Rooms
+- Invites
+- Multiplayer Sync
+
+Everything runs locally on one device.
+
+STEP 8
+
+Players take turns on the same phone.
+
+Example:
+
+Red turn
+→ Roll dice
+→ Move token
+
+Green turn
+→ Roll dice
+→ Move token
+
+Yellow turn
+→ Roll dice
+→ Move token
+
+Continue using the existing turn system.
+
+STEP 9
+
+Before writing any code:
+
+Find the existing game screen.
+
+Tell me:
+
+1. File name of the existing board screen.
+2. File name of the existing dice logic.
+3. File name of the existing turn manager.
+4. File name opened when an online match starts.
+
+Then connect Offline Friend mode to those same files.
+
+DO NOT build another Ludo game.
+
+ONLY reuse the existing one.

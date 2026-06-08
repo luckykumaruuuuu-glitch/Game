@@ -432,6 +432,46 @@ wc-settings { display: none !important; }
 .cta-red:hover { opacity: 0.92; }
 .cta-red:active { opacity: 0.85; }
 
+/* ── Offline Friend Pass-and-Play Popup ───────────────── */
+.ofp-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.72);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999; padding: 24px;
+}
+.ofp-card {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 24px; padding: 28px 20px 20px;
+    width: 100%; max-width: 320px;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.ofp-title { font-size: 22px; font-weight: 700; color: var(--color-fg); text-align: center; margin: 0; }
+.ofp-sub   { font-size: 12px; color: var(--color-fg); opacity: 0.5; text-align: center; margin: 0 0 4px; }
+.ofp-row   { display: flex; gap: 8px; }
+.ofp-btn {
+    flex: 1; height: 88px; border-radius: 16px;
+    border: 2px solid var(--color-border);
+    background: var(--color-surface); color: var(--color-fg);
+    cursor: pointer; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    transition: all 150ms ease;
+}
+.ofp-btn:hover  { border-color: #dc2626; background: rgba(220,38,38,0.12); transform: translateY(-2px); }
+.ofp-btn:active { transform: translateY(0); }
+.ofp-num  { font-size: 30px; font-weight: 800; color: #dc2626; line-height: 1; display: block; }
+.ofp-lbl  { font-size: 10px; font-weight: 600; opacity: 0.6; letter-spacing: 0.6px; display: block; }
+.ofp-dots { display: flex; gap: 4px; margin-top: 3px; }
+.ofp-dot  { width: 7px; height: 7px; border-radius: 50%; }
+.ofp-cancel {
+    width: 100%; height: 46px; border-radius: 23px;
+    border: 1.5px solid var(--color-border); background: transparent;
+    color: var(--color-fg); font-size: 14px; font-weight: 600;
+    cursor: pointer; opacity: 0.55; transition: opacity 150ms ease; margin-top: 4px;
+}
+.ofp-cancel:hover { opacity: 1; }
+
 .cta-secondary {
     width: 100%;
     height: 54px;
@@ -6818,9 +6858,42 @@ var QuickStart = class extends HTMLElement {
     });
     el3.querySelector(".offline-friend-btn").addEventListener("click", () => {
       playClickSound();
-      var _msg = JSON.stringify({ type: 'action', action: 'offlineFriend' });
-      if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(_msg); }
-      else { window.parent.postMessage(_msg, '*'); }
+      (function showOfflineFriendPopup() {
+        var existing = document.getElementById('offline-friend-popup');
+        if (existing) existing.remove();
+        var configs = {
+          2: { qid: 'qs,2,0,2,0',   names: ['Player 2', '', 'Player 1', ''],               dots: ['hsl(10 63% 55%)','hsl(43 75% 55%)'] },
+          3: { qid: 'qs,3,0,2,0,1', names: ['Player 2', 'Player 3', 'Player 1', ''],        dots: ['hsl(10 63% 55%)','hsl(43 75% 55%)','hsl(152 38% 45%)'] },
+          4: { qid: 'qs,4,0',       names: ['Player 1', 'Player 2', 'Player 3', 'Player 4'], dots: ['hsl(10 63% 55%)','hsl(152 38% 45%)','hsl(43 75% 55%)','hsl(223 54% 55%)'] }
+        };
+        function makeBtn(n) {
+          var cfg = configs[n];
+          var dots = cfg.dots.map(function(c){ return '<div class="ofp-dot" style="background:'+c+'"></div>'; }).join('');
+          return '<button class="ofp-btn" data-n="'+n+'"><span class="ofp-num">'+n+'</span><span class="ofp-lbl">PLAYERS</span><div class="ofp-dots">'+dots+'</div></button>';
+        }
+        var bd = document.createElement('div');
+        bd.id = 'offline-friend-popup';
+        bd.className = 'ofp-backdrop';
+        bd.innerHTML =
+          '<div class="ofp-card">' +
+            '<p class="ofp-title">Pass &amp; Play</p>' +
+            '<p class="ofp-sub">Players take turns on this device</p>' +
+            '<div class="ofp-row">'+makeBtn(2)+makeBtn(3)+makeBtn(4)+'</div>' +
+            '<button class="ofp-cancel">Cancel</button>' +
+          '</div>';
+        document.body.appendChild(bd);
+        bd.querySelectorAll('.ofp-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var n = parseInt(btn.getAttribute('data-n'), 10);
+            var cfg = configs[n];
+            playClickSound();
+            bd.remove();
+            dispatch({ type: 'START_GAME', quickStartId: cfg.qid, namesByPlayerIndex: cfg.names });
+          });
+        });
+        bd.querySelector('.ofp-cancel').addEventListener('click', function() { playClickSound(); bd.remove(); });
+        bd.addEventListener('click', function(e) { if (e.target === bd) bd.remove(); });
+      })();
     });
     const resumeEl = el3.querySelector(".resume-card");
     if (resumeEl) {
