@@ -31,6 +31,22 @@ export function useLudo() {
   return useContext(LudoContext);
 }
 
+// Build the JS string that calls _ludoDispatch (window-pinned alias for dispatch).
+function buildStartGameJS(quickStartId: string, namesByPlayerIndex: string[]): string {
+  return (
+    `(function(){` +
+      `try{` +
+        `var fn=window._ludoDispatch||window.dispatch;` +
+        `if(typeof fn==='function'){` +
+          `fn({type:'START_GAME',quickStartId:${JSON.stringify(quickStartId)},namesByPlayerIndex:${JSON.stringify(namesByPlayerIndex)}});` +
+        `}else{` +
+          `console.warn('[LeLudo] _ludoDispatch not ready');` +
+        `}` +
+      `}catch(e){console.warn('[LeLudo] startGame failed',String(e));}` +
+    `})();true;`
+  );
+}
+
 function LudoNativeOverlay({
   isVisible,
   onHide,
@@ -68,7 +84,7 @@ function LudoNativeOverlay({
     if (!pendingOnlineGame.current) return;
     const { quickStartId, namesByPlayerIndex } = pendingOnlineGame.current;
     pendingOnlineGame.current = null;
-    const js = `(function(){try{dispatch({type:'START_GAME',quickStartId:${JSON.stringify(quickStartId)},namesByPlayerIndex:${JSON.stringify(namesByPlayerIndex)}});}catch(e){console.warn('LeLudo startGame failed',String(e));}})();true;`;
+    const js = buildStartGameJS(quickStartId, namesByPlayerIndex);
     setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 400);
   }, [gameStartTrigger]);
 
@@ -156,7 +172,7 @@ function LudoNativeOverlay({
           if (pendingOnlineGame.current) {
             const { quickStartId, namesByPlayerIndex } = pendingOnlineGame.current;
             pendingOnlineGame.current = null;
-            const js = `(function(){try{dispatch({type:'START_GAME',quickStartId:${JSON.stringify(quickStartId)},namesByPlayerIndex:${JSON.stringify(namesByPlayerIndex)}});}catch(e){console.warn('LeLudo startGame failed',String(e));}})();true;`;
+            const js = buildStartGameJS(quickStartId, namesByPlayerIndex);
             setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 400);
           }
         }}

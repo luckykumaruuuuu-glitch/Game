@@ -236,15 +236,17 @@ export default function RoomLobbyScreen() {
     if (isHost && roomId) setRoomInGame(roomId).catch(console.error);
     if (Platform.OS !== 'web') {
       if (room) {
-        // Build game params from room data and start the existing Ludo game
+        // Build game params from room data and start the existing Ludo game.
+        // The LudoNativeOverlay is a full-screen overlay — no navigation needed.
         const sortedPlayers = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
         const quickStartId = buildQuickStartId(room.gameMode);
         const namesByPlayerIndex = buildNamesByPlayerIndex(sortedPlayers, room.gameMode);
         startOnlineGame(quickStartId, namesByPlayerIndex);
       } else {
+        // Fallback: just open the game home screen
         showLudo();
+        router.replace('/(tabs)/ludo' as any);
       }
-      router.replace('/(tabs)/ludo' as any);
     } else {
       router.replace('/ludo' as any);
     }

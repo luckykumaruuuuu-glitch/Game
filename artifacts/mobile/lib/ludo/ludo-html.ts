@@ -7744,6 +7744,8 @@ function updateTheme(theme) {
   }
   localStorage.setItem("theme", theme);
 }
+// Expose dispatch on window so React Native injectJavaScript can call it reliably.
+window._ludoDispatch = dispatch;
 window.addEventListener("message", function(event) {
   try {
     var data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
