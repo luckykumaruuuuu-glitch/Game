@@ -411,6 +411,27 @@ wc-settings { display: none !important; }
 .cta-green:hover { opacity: 0.92; }
 .cta-green:active { opacity: 0.85; }
 
+.cta-red {
+    width: 100%;
+    height: 56px;
+    border-radius: 28px;
+    background: #dc2626;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    box-shadow: 0 8px 22px -8px rgba(220, 38, 38, 0.5);
+    transition: opacity 150ms ease;
+}
+.cta-red:hover { opacity: 0.92; }
+.cta-red:active { opacity: 0.85; }
+
 .cta-secondary {
     width: 100%;
     height: 54px;
@@ -2612,6 +2633,13 @@ wc-quick-start .home-version {
     background: rgba(22, 163, 74, 0.85);
     border: 1px solid rgba(74, 222, 128, 0.25);
     box-shadow: 0 8px 28px rgba(22, 163, 74, 0.38), 0 1px 0 rgba(255, 255, 255, 0.10) inset;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+.dark .cta-red {
+    background: rgba(220, 38, 38, 0.85);
+    border: 1px solid rgba(252, 165, 165, 0.25);
+    box-shadow: 0 8px 28px rgba(220, 38, 38, 0.38), 0 1px 0 rgba(255, 255, 255, 0.10) inset;
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
 }
@@ -6771,6 +6799,7 @@ var QuickStart = class extends HTMLElement {
                 <div class="frame-footer">
                     \${saved ? \`<button class="new-game-btn cta-primary">Start a new game</button>\` : \`<button class="new-game-btn cta-primary">New game</button>\`}
                     <button class="online-friend-btn cta-green">Online friend</button>
+                    <button class="offline-friend-btn cta-red">Offline friend</button>
                 </div>
             </div>
         \`
@@ -6784,6 +6813,12 @@ var QuickStart = class extends HTMLElement {
     el3.querySelector(".online-friend-btn").addEventListener("click", () => {
       playClickSound();
       var _msg = JSON.stringify({ type: 'action', action: 'onlineFriend' });
+      if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(_msg); }
+      else { window.parent.postMessage(_msg, '*'); }
+    });
+    el3.querySelector(".offline-friend-btn").addEventListener("click", () => {
+      playClickSound();
+      var _msg = JSON.stringify({ type: 'action', action: 'offlineFriend' });
       if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(_msg); }
       else { window.parent.postMessage(_msg, '*'); }
     });

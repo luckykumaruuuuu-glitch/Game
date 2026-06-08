@@ -44,6 +44,8 @@ export default function LudoGameScreen() {
           setLudoScreen(data.screen ?? 'home');
         } else if (data?.type === 'action' && data?.action === 'onlineFriend') {
           router.push('/ludo/online-friend' as any);
+        } else if (data?.type === 'action' && data?.action === 'offlineFriend') {
+          router.push('/ludo/offline-friend' as any);
         }
       } catch {}
     }
