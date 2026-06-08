@@ -1,0 +1,205 @@
+UI UPGRADE TASK
+
+Current screen works correctly.
+
+Do NOT change functionality.
+
+Do NOT change navigation.
+
+Do NOT change Firebase.
+
+Do NOT change game logic.
+
+Only redesign the visual appearance.
+
+Current issue:
+
+The screen looks too basic and flat.
+
+Buttons look old and boring.
+
+Need a premium modern gaming UI.
+
+DESIGN DIRECTION:
+
+Keep the existing Ludo theme.
+
+Keep the dark purple background.
+
+Keep the same screen structure.
+
+But make everything look premium.
+
+================================
+
+BUTTON REDESIGN
+
+================================
+
+Replace solid color buttons with:
+
+- Glassmorphism style
+- Semi-transparent buttons
+- Neon glowing edges
+- Soft inner highlights
+- Depth and shadow effects
+
+Button style should feel:
+
+Premium
+Modern
+Gaming
+Futuristic
+
+Example feel:
+
+- Transparent purple glass
+- Green neon glass
+- Red neon glass
+
+NOT flat colors.
+
+================================
+
+BUTTON ANIMATIONS
+
+================================
+
+Add:
+
+- Smooth press animation
+- Glow pulse animation
+- Scale effect on touch
+- Soft lighting effect
+
+================================
+
+ICONS
+
+================================
+
+Upgrade all icons.
+
+Use premium gaming style icons.
+
+Back button:
+Glass circular button
+
+Invite button:
+Premium glowing invite icon
+
+Top action buttons:
+Use translucent circular containers
+
+================================
+
+LOGO SECTION
+
+================================
+
+Keep existing Ludo logo.
+
+Add:
+
+- Soft glow behind logo
+- Floating effect
+- Light reflection effect
+
+================================
+
+BACKGROUND
+
+================================
+
+Keep current dark theme.
+
+Add:
+
+- Soft animated particles
+- Floating light spots
+- Subtle purple glow
+- Premium gaming atmosphere
+
+Do NOT make background bright.
+
+================================
+
+NEW GAME BUTTON
+
+================================
+
+Make it:
+
+Transparent Purple Glass
+
+Neon Purple Border
+
+Glow Effect
+
+Premium Look
+
+================================
+
+ONLINE FRIEND BUTTON
+
+================================
+
+Make it:
+
+Transparent Green Glass
+
+Neon Green Border
+
+Glow Effect
+
+Premium Multiplayer Feel
+
+================================
+
+OFFLINE FRIEND BUTTON
+
+================================
+
+Make it:
+
+Transparent Red Glass
+
+Neon Red Border
+
+Glow Effect
+
+Premium Local Play Feel
+
+================================
+
+TYPOGRAPHY
+
+================================
+
+Improve text styling.
+
+Use:
+
+- Better font weight
+- Smooth glow
+- Better spacing
+
+Text should feel like a modern mobile game.
+
+================================
+
+IMPORTANT
+
+================================
+
+Do NOT redesign the layout.
+
+Do NOT move buttons.
+
+Do NOT change functionality.
+
+Do NOT create new screens.
+
+Do NOT remove existing components.
+
+Only transform the current screen into a premium glassmorphism gaming UI with neon glow effects while preserving all existing functionality.
