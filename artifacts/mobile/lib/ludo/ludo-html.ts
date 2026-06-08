@@ -7817,6 +7817,32 @@ window._initMultiplayer = function(myPlayerIndex) {
     _origDispatch({ type: 'SET_ASSIST_FLAG', flag: 'autoMoveSingleOption', value: false });
     _origDispatch({ type: 'SET_ASSIST_FLAG', flag: 'autoMoveOutOfHome', value: false });
   } catch(e) {}
+
+  // ── Board orientation fix ─────────────────────────────────────────────────
+  // Each player sees their own home quadrant at the bottom by rotating only the
+  // visual board grid (CSS transform). Game state, token positions, dice results
+  // and Firebase sync are completely unaffected.
+  //
+  // Board quadrant layout (fixed in HTML):
+  //   Player 0 (Yellow) → Top-Left     → rotate 180°
+  //   Player 1 (Green)  → Top-Right    → rotate  90° CW
+  //   Player 2 (Red)    → Bottom-Right → rotate   0° (no rotation)
+  //   Player 3 (Blue)   → Bottom-Left  → rotate -90° CW
+  var BOARD_ROTATION_DEG = [180, 90, 0, -90];
+  var deg = BOARD_ROTATION_DEG[myPlayerIndex];
+  if (typeof deg === 'number' && deg !== 0) {
+    function applyBoardRotation() {
+      var grid = document.querySelector('.board-grid');
+      if (!grid) return;
+      grid.style.transform = 'rotate(' + deg + 'deg)';
+      grid.style.transition = 'transform 0.45s cubic-bezier(0.4,0,0.2,1)';
+    }
+    applyBoardRotation();
+    setTimeout(applyBoardRotation, 200);
+    setTimeout(applyBoardRotation, 800);
+  }
+  // ── End board orientation fix ─────────────────────────────────────────────
+
   var readyMsg = JSON.stringify({ type: 'mpReady', myPlayerIndex: myPlayerIndex, currentPlayerIndex: state.currentPlayerIndex });
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(readyMsg);
 };
