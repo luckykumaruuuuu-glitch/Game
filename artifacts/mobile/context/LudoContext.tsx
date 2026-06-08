@@ -396,13 +396,17 @@ function LudoNativeOverlay({
       {isVisible && mpConfig && (
         <View style={[styles.mpDebug, { bottom: insets.bottom + 6 }]}>
           <Text style={styles.mpDebugText}>
-            {(MP_COLORS[mpConfig.myPlayerIndex]?.emoji ?? '⬜') + ' You: ' +
+            {'UID:' + mpConfig.userId.slice(-8) +
+             '  ·  ' +
+             (MP_COLORS[mpConfig.myPlayerIndex]?.emoji ?? '⬜') + ' Me:' +
              (MP_COLORS[mpConfig.myPlayerIndex]?.name ?? '?') +
-             '  ·  Turn: ' +
+             '(P' + mpConfig.myPlayerIndex + ')' +
+             '  ·  Turn:' +
              (debugTurn >= 0
-               ? ((MP_COLORS[debugTurn]?.emoji ?? '⬜') + ' ' + (MP_COLORS[debugTurn]?.name ?? '?'))
+               ? ((MP_COLORS[debugTurn]?.emoji ?? '⬜') + (MP_COLORS[debugTurn]?.name ?? '?') + '(P' + debugTurn + ')')
                : '…') +
-             '  ·  ' + mpConfig.roomId.slice(-6)}
+             '  ·  ' +
+             (debugTurn === mpConfig.myPlayerIndex ? '✓ MY TURN' : '⏳ waiting')}
           </Text>
         </View>
       )}

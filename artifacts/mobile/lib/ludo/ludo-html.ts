@@ -7755,21 +7755,42 @@ var _externalDiceValue = null;
 var _mp = { enabled: false, myPlayerIndex: -1, applyingRemote: false, lastSentSeq: 0 };
 var _restoringState = false;
 
-// Wrap dispatch: block actions when not my turn, emit actions to React Native.
+// Wrap dispatch: block actions when not my turn / not my token, emit actions to React Native.
 var _origDispatch = dispatch;
 function _mpDispatch(command) {
   if (!_mp.enabled || _mp.applyingRemote) return _origDispatch(command);
+
   if (command.type === 'ROLL_DICE') {
-    if (state.currentPlayerIndex !== _mp.myPlayerIndex) return; // Not my turn — blocked
+    // ── Turn ownership: only the player whose turn it is can roll ──
+    if (state.currentPlayerIndex !== _mp.myPlayerIndex) return;
     return _origDispatch(command);
   }
+
   if (command.type === 'SELECT_TOKEN') {
-    if (command.playerIndex !== _mp.myPlayerIndex) return; // Not my token — blocked
+    // ── Dual ownership check ──────────────────────────────────────────────
+    // IMPORTANT: the game engine processes SELECT_TOKEN using
+    // state.currentPlayerIndex (not command.playerIndex). So even if a player
+    // clicks their own correctly-coloured token, the engine will move the
+    // CURRENT TURN player's token. We must therefore gate on BOTH:
+    //   1. It is my turn  (state.currentPlayerIndex === myPlayerIndex)
+    //   2. The token I clicked belongs to me  (command.playerIndex === myPlayerIndex)
+    // Checking only #2 (as before) causes cross-color token control.
+    // ─────────────────────────────────────────────────────────────────────
+    if (state.currentPlayerIndex !== _mp.myPlayerIndex) return; // Not my turn
+    if (command.playerIndex !== _mp.myPlayerIndex) return;       // Not my token
+
     _mp.lastSentSeq++;
-    var selMsg = JSON.stringify({ type: 'mpAction', action: 'SELECT_TOKEN', playerIndex: command.playerIndex, tokenIndex: command.tokenIndex, seq: _mp.lastSentSeq });
+    var selMsg = JSON.stringify({
+      type: 'mpAction',
+      action: 'SELECT_TOKEN',
+      playerIndex: command.playerIndex,
+      tokenIndex: command.tokenIndex,
+      seq: _mp.lastSentSeq,
+    });
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(selMsg);
     return _origDispatch(command);
   }
+
   return _origDispatch(command);
 }
 dispatch = _mpDispatch;
@@ -7798,9 +7819,26 @@ window._applyRemoteAction = function(action) {
   _mp.applyingRemote = true;
   try {
     if (action.action === 'ROLL_DICE') {
+      // ── Remote turn validation ────────────────────────────────────────────
+      // Only the current turn player should be rolling. If there is a seq
+      // mismatch or duplicate delivery, ignore the stale action.
+      if (typeof action.playerIndex === 'number' && action.playerIndex !== state.currentPlayerIndex) {
+        console.warn('[MP] Remote ROLL_DICE rejected: actorPlayerIndex=' + action.playerIndex + ' currentPlayerIndex=' + state.currentPlayerIndex);
+        _mp.applyingRemote = false;
+        return;
+      }
       _externalDiceValue = (action.diceValue !== undefined && action.diceValue !== null) ? action.diceValue : null;
       _origDispatch({ type: 'ROLL_DICE' });
     } else if (action.action === 'SELECT_TOKEN') {
+      // ── Remote token ownership validation ───────────────────────────────
+      // Reject if the remote actor's assigned playerIndex does not match the
+      // current turn. This prevents a desync from letting a remote message
+      // move the wrong player's token.
+      if (action.playerIndex !== state.currentPlayerIndex) {
+        console.warn('[MP] Remote SELECT_TOKEN rejected: playerIndex=' + action.playerIndex + ' != currentPlayerIndex=' + state.currentPlayerIndex);
+        _mp.applyingRemote = false;
+        return;
+      }
       _origDispatch({ type: 'SELECT_TOKEN', playerIndex: action.playerIndex, tokenIndex: action.tokenIndex });
     }
   } catch(e) { console.warn('[MP] applyRemoteAction error', String(e)); }
@@ -7844,6 +7882,59 @@ window._initMultiplayer = function(myPlayerIndex) {
   setTimeout(_applyBoardRotation, 600);
   setTimeout(_applyBoardRotation, 1200);
   // ── End board orientation fix ─────────────────────────────────────────────
+
+  // ── Debug overlay (temporary) ─────────────────────────────────────────────
+  // Shows ownership info for identifying incorrect mapping during testing.
+  // Displays: My color · Current turn · My turn? · Selected token owner
+  var _DBG_COLOR_NAMES = ['Yellow', 'Green', 'Red', 'Blue'];
+  var _DBG_COLOR_HEX   = ['#f5c518', '#22c55e', '#ef4444', '#3b82f6'];
+  var _dbgEl = document.getElementById('_mp_dbg_overlay');
+  if (!_dbgEl) {
+    _dbgEl = document.createElement('div');
+    _dbgEl.id = '_mp_dbg_overlay';
+    _dbgEl.style.cssText = [
+      'position:fixed', 'bottom:0', 'left:0', 'right:0',
+      'background:rgba(0,0,0,0.82)', 'color:#fff',
+      'font:bold 11px/1.7 monospace', 'padding:4px 10px',
+      'z-index:99999', 'pointer-events:none', 'text-align:center',
+      'border-top:1px solid rgba(255,255,255,0.15)',
+    ].join(';');
+    document.body.appendChild(_dbgEl);
+  }
+  var _dbgLastTokenOwner = '—';
+  // Intercept token clicks to track selected token owner for debug display.
+  var _dbgOrigClick = document.body.onclick || null;
+  document.body.addEventListener('click', function(e) {
+    var el = e.target;
+    for (var depth = 0; depth < 6 && el && el !== document.body; depth++, el = el.parentElement) {
+      var m = el.id && el.id.match(/^p-(\d+)-(\d+)$/);
+      if (m) {
+        var tpi = parseInt(m[1], 10);
+        _dbgLastTokenOwner = (_DBG_COLOR_NAMES[tpi] || 'P' + tpi) + ' (P' + tpi + ')';
+        break;
+      }
+    }
+  }, true);
+  setInterval(function() {
+    var el = document.getElementById('_mp_dbg_overlay');
+    if (!el || !_mp.enabled) return;
+    var myPI  = _mp.myPlayerIndex;
+    var curPI = (typeof state !== 'undefined' && state) ? state.currentPlayerIndex : -1;
+    var myTurn = (myPI === curPI);
+    var myColor  = _DBG_COLOR_HEX[myPI]  || '#fff';
+    var curColor = _DBG_COLOR_HEX[curPI] || '#aaa';
+    el.innerHTML =
+      'Me: <span style="color:' + myColor + '">' + (_DBG_COLOR_NAMES[myPI] || 'P' + myPI) + '</span>' +
+      '&nbsp;|&nbsp;' +
+      'Turn: <span style="color:' + curColor + '">' + (_DBG_COLOR_NAMES[curPI] || 'P' + curPI) + '</span>' +
+      '&nbsp;|&nbsp;' +
+      'Clicked: <span style="color:#e2e8f0">' + _dbgLastTokenOwner + '</span>' +
+      '&nbsp;|&nbsp;' +
+      (myTurn
+        ? '<span style="color:#4ade80;font-weight:bold">YOUR TURN</span>'
+        : '<span style="color:#facc15">waiting…</span>');
+  }, 350);
+  // ── End debug overlay ──────────────────────────────────────────────────────
 
   var readyMsg = JSON.stringify({ type: 'mpReady', myPlayerIndex: myPlayerIndex, currentPlayerIndex: state.currentPlayerIndex });
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(readyMsg);
