@@ -8,7 +8,7 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { router, Stack, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
@@ -75,15 +75,25 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
+  // Safety timeout: if fonts neither load nor error within 4 seconds
+  // (can happen on Android Expo Go when TTF cache is corrupt), unblock the app.
+  const [fontTimeout, setFontTimeout] = useState(false);
   useEffect(() => {
-    if (fontsLoaded || fontError) {
+    const t = setTimeout(() => setFontTimeout(true), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  const fontsDone = fontsLoaded || !!fontError || fontTimeout;
+
+  useEffect(() => {
+    if (fontsDone) {
       if (Platform.OS !== "web") {
         SplashScreen.hideAsync();
       }
     }
-  }, [fontsLoaded, fontError]);
+  }, [fontsDone]);
 
-  if (!fontsLoaded && !fontError) {
+  if (!fontsDone) {
     return (
       <View style={{ flex: 1, backgroundColor: "#09090B", alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size="large" color="#7C3AED" />
@@ -98,7 +108,9 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
-                <RootLayoutNav />
+                <LudoProvider>
+                  <RootLayoutNav />
+                </LudoProvider>
               </KeyboardProvider>
             </GestureHandlerRootView>
           </QueryClientProvider>
