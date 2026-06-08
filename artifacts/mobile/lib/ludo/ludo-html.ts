@@ -7827,6 +7827,21 @@ function _mpDispatch(command) {
   if (command.type === 'ROLL_DICE') {
     // ── Turn ownership: only the player whose turn it is can roll ──
     if (state.currentPlayerIndex !== _mp.myPlayerIndex) return;
+    // Pre-generate the dice value and broadcast it to Firebase BEFORE the
+    // animation starts. This guarantees all devices get the same value and
+    // eliminates the race where SELECT_TOKEN could arrive at Firebase before
+    // ROLL_DICE (since animation takes ~1-2s but token click is immediate).
+    var preRoll = generateDiceRoll();
+    _externalDiceValue = preRoll;
+    _mp.lastSentSeq++;
+    var rollMsg = JSON.stringify({
+      type: 'mpAction',
+      action: 'ROLL_DICE',
+      diceValue: preRoll,
+      playerIndex: state.currentPlayerIndex,
+      seq: _mp.lastSentSeq,
+    });
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(rollMsg);
     return _origDispatch(command);
   }
 
@@ -7859,14 +7874,12 @@ function _mpDispatch(command) {
 }
 dispatch = _mpDispatch;
 
-// Subscribe to events: report dice result and turn changes to React Native.
+// Subscribe to events: report turn changes to React Native.
+// NOTE: DICE_ROLLED is no longer broadcast here — the value is pre-generated
+// and sent in _mpDispatch(ROLL_DICE) before the animation starts, so all
+// devices always receive the dice value before any SELECT_TOKEN can arrive.
 subscribe(function(event) {
   if (!_mp.enabled || _mp.applyingRemote || _restoringState) return;
-  if (event.type === 'DICE_ROLLED' && state.currentPlayerIndex === _mp.myPlayerIndex) {
-    _mp.lastSentSeq++;
-    var diceMsg = JSON.stringify({ type: 'mpAction', action: 'ROLL_DICE', diceValue: event.value, playerIndex: state.currentPlayerIndex, seq: _mp.lastSentSeq });
-    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(diceMsg);
-  }
   if (event.type === 'TURN_ADVANCED' || event.type === 'TURN_REPEATS' || event.type === 'GAME_STARTED') {
     var turnMsg = JSON.stringify({ type: 'mpTurn', currentPlayerIndex: state.currentPlayerIndex });
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(turnMsg);
