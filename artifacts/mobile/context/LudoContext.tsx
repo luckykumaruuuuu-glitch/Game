@@ -4,7 +4,7 @@ import React, {
 import {
   View, Pressable, StyleSheet, Platform,
   StatusBar, ActivityIndicator, Text, TouchableOpacity,
-  AppState,
+  AppState, Modal,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
@@ -169,6 +169,9 @@ function LudoNativeOverlay({
 
   // Debounce timer for game state saves
   const saveStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Offline pass-and-play player count modal (fallback for postMessage path)
+  const [showOfflineModal, setShowOfflineModal] = useState(false);
 
   // Helper to compute next non-kicked player index
   function nextActiveIndex(from: number, total: number): number {
@@ -378,6 +381,8 @@ function LudoNativeOverlay({
       } else if (data?.type === 'action' && data?.action === 'onlineFriend') {
         onHide();
         router.push('/ludo/online-friend' as any);
+      } else if (data?.type === 'action' && data?.action === 'offlineFriend') {
+        setShowOfflineModal(true);
       } else if (data?.type === 'mpAction') {
         const cfg = mpConfigRef.current;
         if (!cfg) return;
@@ -610,6 +615,53 @@ function LudoNativeOverlay({
           ))}
         </View>
       )}
+
+      {/* Offline Pass-and-Play modal — fallback when postMessage path fires */}
+      <Modal
+        visible={showOfflineModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowOfflineModal(false)}
+      >
+        <View style={styles.ofModalBackdrop}>
+          <View style={styles.ofModalCard}>
+            <Text style={styles.ofModalTitle}>Pass & Play</Text>
+            <Text style={styles.ofModalSub}>Players take turns on this device</Text>
+            <View style={styles.ofModalRow}>
+              {([2, 3, 4] as const).map((n) => {
+                const configs: Record<number, { qid: string; names: string[] }> = {
+                  2: { qid: 'qs,2,0,2,0',   names: ['Player 2', '', 'Player 1', ''] },
+                  3: { qid: 'qs,3,0,2,0,1', names: ['Player 2', 'Player 3', 'Player 1', ''] },
+                  4: { qid: 'qs,4,0',       names: ['Player 1', 'Player 2', 'Player 3', 'Player 4'] },
+                };
+                return (
+                  <TouchableOpacity
+                    key={n}
+                    style={styles.ofModalBtn}
+                    activeOpacity={0.75}
+                    onPress={() => {
+                      setShowOfflineModal(false);
+                      const cfg = configs[n];
+                      const js = buildStartGameJS(cfg.qid, cfg.names);
+                      setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 200);
+                    }}
+                  >
+                    <Text style={styles.ofModalBtnNum}>{n}</Text>
+                    <Text style={styles.ofModalBtnLbl}>PLAYERS</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={styles.ofModalCancel}
+              onPress={() => setShowOfflineModal(false)}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.ofModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Winner overlay — shown when last player wins by kick-out */}
       {isVisible && winnerInfo && (
@@ -870,6 +922,77 @@ const styles = StyleSheet.create({
   winnerCloseBtnText: {
     color: '#fff',
     fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  ofModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  ofModalCard: {
+    backgroundColor: '#111111',
+    borderRadius: 24,
+    padding: 28,
+    width: '100%',
+    maxWidth: 340,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
+    gap: 10,
+  },
+  ofModalTitle: {
+    color: '#FFFFFF',
+    fontSize: 22,
+    fontFamily: 'Inter_700Bold',
+    textAlign: 'center',
+  },
+  ofModalSub: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  ofModalRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  ofModalBtn: {
+    flex: 1,
+    height: 88,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  ofModalBtnNum: {
+    color: '#dc2626',
+    fontSize: 30,
+    fontFamily: 'Inter_700Bold',
+    lineHeight: 32,
+  },
+  ofModalBtnLbl: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 10,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.6,
+  },
+  ofModalCancel: {
+    height: 46,
+    borderRadius: 23,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  ofModalCancelText: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
   },
 });

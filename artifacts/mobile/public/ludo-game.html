@@ -6595,7 +6595,10 @@ var QuickStart = class extends HTMLElement {
             var cfg = configs[n];
             playClickSound();
             bd.remove();
-            dispatch({ type: 'START_GAME', quickStartId: cfg.qid, namesByPlayerIndex: cfg.names });
+            try {
+              var fn = window._ludoDispatch || dispatch;
+              fn({ type: 'START_GAME', quickStartId: cfg.qid, namesByPlayerIndex: cfg.names });
+            } catch(e) { console.warn('[OFP] dispatch failed', String(e)); }
           });
         });
         bd.querySelector('.ofp-cancel').addEventListener('click', function() { playClickSound(); bd.remove(); });
