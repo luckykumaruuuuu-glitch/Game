@@ -72,4 +72,5 @@ fi
 # Do NOT use --localhost — it binds to 127.0.0.1 only and breaks Replit's proxy.
 # Without it, Metro binds to 0.0.0.0 so Replit can reach it.
 cd "$MOBILE_ROOT"
+export EXPO_NO_DOCTOR=1
 exec $EXPO_CMD start --port "${PORT:-8081}"
