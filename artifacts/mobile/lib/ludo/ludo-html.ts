@@ -7829,18 +7829,20 @@ window._initMultiplayer = function(myPlayerIndex) {
   //   Player 2 (Red)    → Bottom-Right → rotate   0° (no rotation)
   //   Player 3 (Blue)   → Bottom-Left  → rotate -90° CW
   var BOARD_ROTATION_DEG = [180, 90, 0, -90];
-  var deg = BOARD_ROTATION_DEG[myPlayerIndex];
-  if (typeof deg === 'number' && deg !== 0) {
-    function applyBoardRotation() {
-      var grid = document.querySelector('.board-grid');
-      if (!grid) return;
-      grid.style.transform = 'rotate(' + deg + 'deg)';
-      grid.style.transition = 'transform 0.45s cubic-bezier(0.4,0,0.2,1)';
-    }
-    applyBoardRotation();
-    setTimeout(applyBoardRotation, 200);
-    setTimeout(applyBoardRotation, 800);
-  }
+  var _boardDeg = (typeof BOARD_ROTATION_DEG[myPlayerIndex] === 'number') ? BOARD_ROTATION_DEG[myPlayerIndex] : 0;
+  var _applyBoardRotation = function() {
+    var grid = document.querySelector('#game .board-grid');
+    if (!grid) grid = document.querySelector('.board-grid');
+    if (!grid) return;
+    grid.style.webkitTransform = 'rotate(' + _boardDeg + 'deg)';
+    grid.style.transform = 'rotate(' + _boardDeg + 'deg)';
+    grid.style.webkitTransition = 'transform 0.45s cubic-bezier(0.4,0,0.2,1)';
+    grid.style.transition = 'transform 0.45s cubic-bezier(0.4,0,0.2,1)';
+  };
+  _applyBoardRotation();
+  setTimeout(_applyBoardRotation, 200);
+  setTimeout(_applyBoardRotation, 600);
+  setTimeout(_applyBoardRotation, 1200);
   // ── End board orientation fix ─────────────────────────────────────────────
 
   var readyMsg = JSON.stringify({ type: 'mpReady', myPlayerIndex: myPlayerIndex, currentPlayerIndex: state.currentPlayerIndex });
