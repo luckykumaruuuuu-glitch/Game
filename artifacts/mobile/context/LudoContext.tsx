@@ -48,6 +48,10 @@ function LudoNativeOverlay({
   const resolvedThemeRef = useRef(resolvedTheme);
   const hasEverLoaded = useRef(false);
 
+  useEffect(() => {
+    console.log('[GAME_SCREEN_MOUNTED] native WebView overlay mounted, isVisible=' + isVisible);
+  }, []);
+
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
 
   useEffect(() => {

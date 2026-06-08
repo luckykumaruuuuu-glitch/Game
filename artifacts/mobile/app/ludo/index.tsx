@@ -17,6 +17,10 @@ export default function LudoGameScreen() {
   const [ludoScreen, setLudoScreen] = useState('home');
   const [pendingInvites, setPendingInvites] = useState(0);
 
+  useEffect(() => {
+    console.log('[GAME_SCREEN_MOUNTED] web iframe screen mounted');
+  }, []);
+
   const gameUrl = typeof window !== 'undefined'
     ? `${window.location.origin}/ludo-game.html`
     : '/ludo-game.html';

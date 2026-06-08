@@ -211,29 +211,37 @@ export default function RoomLobbyScreen() {
     }
   }, [room?.status, isHost, roomId, user]);
 
+  // ── Launch game — single function used by countdown AND debug button ──
+  function launchGame() {
+    if (hasNavigated.current) {
+      console.log('[GAME_LAUNCH_CALLED] already navigated — skipping');
+      return;
+    }
+    hasNavigated.current = true;
+    console.log('[GAME_LAUNCH_CALLED] Platform=' + Platform.OS + ' roomId=' + roomId);
+    if (isHost && roomId) setRoomInGame(roomId).catch(console.error);
+    console.log('[GAME_NAVIGATION_STARTED]');
+    if (Platform.OS !== 'web') {
+      console.log('[GAME_NAVIGATION_STARTED] native path → showLudo() + replace(/(tabs))');
+      showLudo();
+      router.replace('/(tabs)' as any);
+    } else {
+      console.log('[GAME_NAVIGATION_STARTED] web path → replace(/ludo)');
+      router.replace('/ludo' as any);
+    }
+    console.log('[GAME_SCREEN_OPENED] navigation call completed');
+  }
+
   // ── Countdown tick ──────────────────────────────────────────────
   useEffect(() => {
     if (countdown === null) return;
 
+    if (countdown === 2) console.log('[COUNTDOWN_2]');
+    if (countdown === 1) console.log('[COUNTDOWN_1]');
+
     if (countdown === 0) {
-      if (hasNavigated.current) return;
-      hasNavigated.current = true;
       console.log('[COUNTDOWN_FINISHED]');
-      // HOST marks room as in_game (best-effort, others just navigate)
-      if (isHost && roomId) setRoomInGame(roomId).catch(console.error);
-      console.log('[GAME_LAUNCH_CALLED]');
-      if (Platform.OS !== 'web') {
-        // Native (Expo Go / standalone): the game lives inside the LudoContext
-        // WebView overlay — show() makes it visible. router.replace('/ludo')
-        // would render an <iframe> which does not exist in React Native and
-        // causes expo-router to fall back to the home screen.
-        showLudo();
-        router.replace('/(tabs)' as any);
-      } else {
-        // Web: navigate to the /ludo iframe screen
-        router.replace('/ludo' as any);
-      }
-      console.log('[GAME_SCREEN_OPENED]');
+      launchGame();
       return;
     }
 
@@ -457,6 +465,28 @@ export default function RoomLobbyScreen() {
             </View>
           </Animated.View>
         )}
+
+        {/* ── DEBUG: Open Game Directly ──────────────────────── */}
+        {/* TEMPORARY DEBUG BUTTON — remove after diagnosis */}
+        <TouchableOpacity
+          style={{
+            marginTop: 24,
+            backgroundColor: '#DC2626',
+            borderRadius: 12,
+            padding: 14,
+            alignItems: 'center',
+          }}
+          onPress={() => {
+            console.log('[DEBUG_BUTTON_PRESSED] Platform=' + Platform.OS);
+            hasNavigated.current = false; // reset so launchGame() can run
+            launchGame();
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#fff', fontFamily: 'Inter_700Bold', fontSize: 14 }}>
+            🔴 OPEN GAME DIRECTLY (DEBUG)
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
 
       {/* ── Ready Toggle Button (sticky footer) ────────────── */}
