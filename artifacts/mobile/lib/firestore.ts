@@ -908,10 +908,13 @@ export interface GameRoom {
   hostId: string;
   hostName: string;
   gameMode: 2 | 3 | 4;
-  status: "waiting" | "ready" | "starting" | "in_game";
+  status: "waiting" | "ready" | "starting" | "in_game" | "finished";
   players: Record<string, GameRoomPlayer>;
+  playerIds: string[];        // flat array for array-contains queries
   createdAt: number;
   startingAt?: number;
+  matchStartedAt?: number;    // set when status transitions to in_game
+  lastActivityAt?: number;    // updated on any write
 }
 
 export async function createGameRoom(
@@ -920,6 +923,7 @@ export async function createGameRoom(
   hostProfile: UserProfile,
   gameMode: 2 | 3 | 4
 ): Promise<void> {
+  const now = Date.now();
   await setDoc(doc(db, "gameRooms", roomId), {
     roomId,
     hostId,
@@ -932,10 +936,12 @@ export async function createGameRoom(
         name: hostProfile.name,
         photo: hostProfile.photo || "",
         isReady: false,
-        joinedAt: Date.now(),
+        joinedAt: now,
       },
     },
-    createdAt: Date.now(),
+    playerIds: [hostId],
+    createdAt: now,
+    lastActivityAt: now,
   });
 }
 
@@ -953,6 +959,8 @@ export async function joinGameRoom(
       isReady: false,
       joinedAt: Date.now(),
     },
+    playerIds: arrayUnion(userId),
+    lastActivityAt: Date.now(),
   });
 }
 
@@ -985,7 +993,12 @@ export async function setRoomStarting(roomId: string): Promise<void> {
 }
 
 export async function setRoomInGame(roomId: string): Promise<void> {
-  await updateDoc(doc(db, "gameRooms", roomId), { status: "in_game" });
+  const now = Date.now();
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    status: "in_game",
+    matchStartedAt: now,
+    lastActivityAt: now,
+  });
 }
 
 export async function cancelRoomStart(roomId: string): Promise<void> {
@@ -1005,5 +1018,29 @@ export function subscribeToGameRoom(
       callback(snap.exists() ? ({ roomId: snap.id, ...snap.data() } as GameRoom) : null);
     },
     () => callback(null)
+  );
+}
+
+// Returns all rooms where the user is a player and status is not finished.
+// Uses only array-contains (no compound index needed); sorts client-side.
+export function subscribeToUserActiveRooms(
+  userId: string,
+  callback: (rooms: GameRoom[]) => void
+): () => void {
+  const q = query(
+    collection(db, "gameRooms"),
+    where("playerIds", "array-contains", userId),
+    limit(30)
+  );
+  return onSnapshot(
+    q,
+    (snap) => {
+      const rooms = snap.docs
+        .map((d) => ({ roomId: d.id, ...d.data() } as GameRoom))
+        .filter((r) => r.status !== "finished")
+        .sort((a, b) => (b.lastActivityAt ?? b.createdAt) - (a.lastActivityAt ?? a.createdAt));
+      callback(rooms);
+    },
+    () => callback([])
   );
 }

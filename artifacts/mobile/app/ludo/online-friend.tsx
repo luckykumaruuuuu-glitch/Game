@@ -124,7 +124,15 @@ export default function OnlineFriendScreen() {
           <Ionicons name="chevron-back" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.foreground }]}>Online Friend</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          style={[styles.activeGamesBtn, { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)' }]}
+          onPress={() => router.push('/ludo/active-games' as any)}
+          hitSlop={8}
+          activeOpacity={0.7}
+        >
+          <Feather name="activity" size={16} color={colors.primary} />
+          <Text style={[styles.activeGamesBtnText, { color: colors.primary }]}>Active</Text>
+        </TouchableOpacity>
       </View>
 
       {/* ── Game Mode ──────────────────────────────────────── */}
@@ -335,6 +343,18 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  activeGamesBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  activeGamesBtnText: {
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
   },
   title: {
     fontSize: 18,
