@@ -47,23 +47,17 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
 function RootLayoutNav() {
   return (
-    <AuthProvider>
-      <NotificationProvider>
-        <AuthGate>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: "slide_from_right",
-              animationDuration: 250,
-            }}
-          >
-            <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
-            <Stack.Screen name="(auth)" options={{ animation: "fade" }} />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-        </AuthGate>
-      </NotificationProvider>
-    </AuthProvider>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: "slide_from_right",
+        animationDuration: 250,
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
+      <Stack.Screen name="(auth)" options={{ animation: "fade" }} />
+      <Stack.Screen name="+not-found" />
+    </Stack>
   );
 }
 
@@ -108,9 +102,15 @@ export default function RootLayout() {
           <QueryClientProvider client={queryClient}>
             <GestureHandlerRootView style={{ flex: 1 }}>
               <KeyboardProvider>
-                <LudoProvider>
-                  <RootLayoutNav />
-                </LudoProvider>
+                <AuthProvider>
+                  <LudoProvider>
+                    <NotificationProvider>
+                      <AuthGate>
+                        <RootLayoutNav />
+                      </AuthGate>
+                    </NotificationProvider>
+                  </LudoProvider>
+                </AuthProvider>
               </KeyboardProvider>
             </GestureHandlerRootView>
           </QueryClientProvider>
