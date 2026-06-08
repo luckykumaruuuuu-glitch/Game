@@ -484,6 +484,26 @@ export default function RoomLobbyScreen() {
           </Animated.View>
         )}
 
+        {/* ── TEST BUTTON — remove after diagnosis ───────────── */}
+        <TouchableOpacity
+          style={{
+            marginTop: 24,
+            backgroundColor: '#2563EB',
+            borderRadius: 12,
+            padding: 14,
+            alignItems: 'center',
+          }}
+          onPress={() => {
+            hasNavigated.current = false;
+            launchGame();
+          }}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#fff', fontSize: 14, fontWeight: 'bold' }}>
+            🎮 Launch Existing Game (TEST)
+          </Text>
+        </TouchableOpacity>
+
       </ScrollView>
 
       {/* ── Ready Toggle Button (sticky footer) ────────────── */}
