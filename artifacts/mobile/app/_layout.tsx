@@ -69,11 +69,11 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  // Safety timeout: if fonts neither load nor error within 4 seconds
-  // (can happen on Android Expo Go when TTF cache is corrupt), unblock the app.
+  // Safety timeout: if fonts neither load nor error within 1.5 seconds
+  // (can happen on slow networks/web preview), unblock the app immediately.
   const [fontTimeout, setFontTimeout] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setFontTimeout(true), 4000);
+    const t = setTimeout(() => setFontTimeout(true), 1500);
     return () => clearTimeout(t);
   }, []);
 
