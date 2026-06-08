@@ -8113,21 +8113,24 @@ window._initMultiplayer = function(myPlayerIndex) {
     brEl.style.justifyContent = 'flex-' + br[1];
     botRow.appendChild(brEl);
 
-    // Allow overflow so counter-rotated content is not clipped by the row.
+    // Allow overflow so corner widgets aren't clipped by the row bounds.
     topRow.style.overflow = 'visible';
     botRow.style.overflow = 'visible';
 
-    // Counter-rotate each anchor's content so text/dice remain readable.
-    var ctrDeg = -_boardDeg;
-    var TR = 'transform 0.45s cubic-bezier(0.4,0,0.2,1)';
+    // ── NO rotation applied to #b0-#b3 ──────────────────────────────────────
+    // The corner anchor divs live OUTSIDE .board-grid, so they do NOT inherit
+    // the board's CSS transform. Applying rotate(-_boardDeg) to them would
+    // INTRODUCE a spurious rotation that makes player names and dice appear
+    // upside-down or sideways. We explicitly reset any stale transform so
+    // re-runs of this function never leave a dangling rotate() on the elements.
     ['b0','b1','b2','b3'].forEach(function(id) {
       var el = document.getElementById(id);
       if (!el) return;
-      el.style.transformOrigin = 'center center';
-      el.style.webkitTransform = 'rotate(' + ctrDeg + 'deg)';
-      el.style.transform       = 'rotate(' + ctrDeg + 'deg)';
-      el.style.webkitTransition = TR;
-      el.style.transition       = TR;
+      el.style.webkitTransform = 'none';
+      el.style.transform       = 'none';
+      el.style.webkitTransition = '';
+      el.style.transition       = '';
+      el.style.transformOrigin  = '';
     });
   };
 
