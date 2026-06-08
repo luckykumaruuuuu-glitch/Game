@@ -10,14 +10,25 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
-import { subscribeToGameInvites } from '@/lib/firestore';
+import {
+  subscribeToGameInvites,
+  subscribeToGameRoom,
+  writeGameAction,
+  GameAction,
+} from '@/lib/firestore';
 import { LUDO_GAME_HTML } from '@/lib/ludo/ludo-html';
 
 interface LudoContextValue {
   show: () => void;
   hide: () => void;
   isVisible: boolean;
-  startOnlineGame: (quickStartId: string, namesByPlayerIndex: string[]) => void;
+  startOnlineGame: (
+    quickStartId: string,
+    namesByPlayerIndex: string[],
+    roomId?: string,
+    myPlayerIndex?: number,
+    userId?: string
+  ) => void;
 }
 
 const LudoContext = createContext<LudoContextValue>({
@@ -31,14 +42,22 @@ export function useLudo() {
   return useContext(LudoContext);
 }
 
-// Build the JS string that calls _ludoDispatch (window-pinned alias for dispatch).
-function buildStartGameJS(quickStartId: string, namesByPlayerIndex: string[]): string {
+// Build the JS string that starts the game and, optionally, activates multiplayer mode.
+function buildStartGameJS(
+  quickStartId: string,
+  namesByPlayerIndex: string[],
+  myPlayerIndex?: number
+): string {
+  const mpInit = typeof myPlayerIndex === 'number'
+    ? `setTimeout(function(){if(typeof window._initMultiplayer==='function'){window._initMultiplayer(${myPlayerIndex});}},${ 800});`
+    : '';
   return (
     `(function(){` +
       `try{` +
         `var fn=window._ludoDispatch||window.dispatch;` +
         `if(typeof fn==='function'){` +
           `fn({type:'START_GAME',quickStartId:${JSON.stringify(quickStartId)},namesByPlayerIndex:${JSON.stringify(namesByPlayerIndex)}});` +
+          mpInit +
         `}else{` +
           `console.warn('[LeLudo] _ludoDispatch not ready');` +
         `}` +
@@ -46,6 +65,27 @@ function buildStartGameJS(quickStartId: string, namesByPlayerIndex: string[]): s
     `})();true;`
   );
 }
+
+type PendingGame = {
+  quickStartId: string;
+  namesByPlayerIndex: string[];
+  roomId?: string;
+  myPlayerIndex?: number;
+  userId?: string;
+};
+
+type MpConfig = {
+  roomId: string;
+  myPlayerIndex: number;
+  userId: string;
+};
+
+const MP_COLORS = [
+  { name: 'Yellow', emoji: '🟡' },
+  { name: 'Green',  emoji: '🟢' },
+  { name: 'Red',    emoji: '🔴' },
+  { name: 'Blue',   emoji: '🔵' },
+];
 
 function LudoNativeOverlay({
   isVisible,
@@ -55,7 +95,7 @@ function LudoNativeOverlay({
 }: {
   isVisible: boolean;
   onHide: () => void;
-  pendingOnlineGame: React.MutableRefObject<{ quickStartId: string; namesByPlayerIndex: string[] } | null>;
+  pendingOnlineGame: React.MutableRefObject<PendingGame | null>;
   gameStartTrigger: number;
 }) {
   const WebView = require('react-native-webview').WebView;
@@ -70,11 +110,48 @@ function LudoNativeOverlay({
   const resolvedThemeRef = useRef(resolvedTheme);
   const hasEverLoaded = useRef(false);
 
+  // Multiplayer session state
+  const [mpConfig, setMpConfig] = useState<MpConfig | null>(null);
+  const mpConfigRef = useRef<MpConfig | null>(null);
+  const [debugTurn, setDebugTurn] = useState(-1);
+  const lastSeenSeqRef = useRef(0);
+  const lastWrittenSeqRef = useRef(0);
+
+  // Helper: activate a new multiplayer session
+  function activateMpConfig(cfg: MpConfig) {
+    lastSeenSeqRef.current = 0;
+    lastWrittenSeqRef.current = 0;
+    mpConfigRef.current = cfg;
+    setMpConfig(cfg);
+    setDebugTurn(-1);
+  }
+
   useEffect(() => {
     console.log('[GAME_SCREEN_MOUNTED] native WebView overlay mounted, isVisible=' + isVisible);
   }, []);
 
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
+
+  // Subscribe to remote game actions via Firebase when a multiplayer session is active.
+  useEffect(() => {
+    if (!mpConfig) return;
+    const unsub = subscribeToGameRoom(mpConfig.roomId, (room) => {
+      if (!room?.lastAction) return;
+      const action = room.lastAction;
+      if (action.seq <= lastSeenSeqRef.current) return; // already processed
+      lastSeenSeqRef.current = action.seq;
+      if (action.actorId === mpConfig.userId) return; // own action — already applied
+      const js =
+        `(function(){try{` +
+          `if(typeof window._applyRemoteAction==='function'){` +
+            `window._applyRemoteAction(${JSON.stringify(action)});` +
+          `}` +
+        `}catch(e){console.warn('[MP]',String(e));}` +
+        `})();true;`;
+      setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 50);
+    });
+    return unsub;
+  }, [mpConfig]);
 
   // When startOnlineGame is called and the WebView is already loaded, inject
   // the START_GAME command immediately (onLoadEnd won't fire a second time).
@@ -82,9 +159,12 @@ function LudoNativeOverlay({
     if (gameStartTrigger === 0) return;
     if (!hasEverLoaded.current) return; // onLoadEnd will handle it
     if (!pendingOnlineGame.current) return;
-    const { quickStartId, namesByPlayerIndex } = pendingOnlineGame.current;
+    const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId } = pendingOnlineGame.current;
     pendingOnlineGame.current = null;
-    const js = buildStartGameJS(quickStartId, namesByPlayerIndex);
+    const js = buildStartGameJS(quickStartId, namesByPlayerIndex, myPlayerIndex);
+    if (roomId && typeof myPlayerIndex === 'number' && userId) {
+      activateMpConfig({ roomId, myPlayerIndex, userId });
+    }
     setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 400);
   }, [gameStartTrigger]);
 
@@ -127,6 +207,26 @@ function LudoNativeOverlay({
       } else if (data?.type === 'action' && data?.action === 'onlineFriend') {
         onHide();
         router.push('/ludo/online-friend' as any);
+      } else if (data?.type === 'mpAction') {
+        const cfg = mpConfigRef.current;
+        if (!cfg) return;
+        lastWrittenSeqRef.current += 1;
+        const action: GameAction = {
+          action: data.action,
+          playerIndex: data.playerIndex,
+          diceValue: data.diceValue,
+          tokenIndex: data.tokenIndex,
+          seq: lastWrittenSeqRef.current,
+          actorId: cfg.userId,
+          ts: Date.now(),
+        };
+        writeGameAction(cfg.roomId, action).catch((e) =>
+          console.warn('[MP] writeGameAction failed', e)
+        );
+      } else if (data?.type === 'mpTurn' || data?.type === 'mpReady') {
+        if (typeof data.currentPlayerIndex === 'number') {
+          setDebugTurn(data.currentPlayerIndex);
+        }
       }
     } catch {}
   }, [onHide]);
@@ -170,9 +270,12 @@ function LudoNativeOverlay({
           injectTheme(resolvedThemeRef.current);
           // If a room-based online game is waiting to start, inject it now
           if (pendingOnlineGame.current) {
-            const { quickStartId, namesByPlayerIndex } = pendingOnlineGame.current;
+            const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId } = pendingOnlineGame.current;
             pendingOnlineGame.current = null;
-            const js = buildStartGameJS(quickStartId, namesByPlayerIndex);
+            const js = buildStartGameJS(quickStartId, namesByPlayerIndex, myPlayerIndex);
+            if (roomId && typeof myPlayerIndex === 'number' && userId) {
+              activateMpConfig({ roomId, myPlayerIndex, userId });
+            }
             setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 400);
           }
         }}
@@ -228,6 +331,21 @@ function LudoNativeOverlay({
           )}
         </TouchableOpacity>
       )}
+
+      {/* Multiplayer debug bar — shown during online games */}
+      {isVisible && mpConfig && (
+        <View style={[styles.mpDebug, { bottom: insets.bottom + 6 }]}>
+          <Text style={styles.mpDebugText}>
+            {(MP_COLORS[mpConfig.myPlayerIndex]?.emoji ?? '⬜') + ' You: ' +
+             (MP_COLORS[mpConfig.myPlayerIndex]?.name ?? '?') +
+             '  ·  Turn: ' +
+             (debugTurn >= 0
+               ? ((MP_COLORS[debugTurn]?.emoji ?? '⬜') + ' ' + (MP_COLORS[debugTurn]?.name ?? '?'))
+               : '…') +
+             '  ·  ' + mpConfig.roomId.slice(-6)}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -235,7 +353,7 @@ function LudoNativeOverlay({
 export function LudoProvider({ children }: { children: React.ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
-  const pendingOnlineGame = useRef<{ quickStartId: string; namesByPlayerIndex: string[] } | null>(null);
+  const pendingOnlineGame = useRef<PendingGame | null>(null);
   // Incremented each time startOnlineGame is called so LudoNativeOverlay's
   // useEffect fires even when the WebView is already loaded.
   const [gameStartTrigger, setGameStartTrigger] = useState(0);
@@ -249,8 +367,14 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
     setIsVisible(false);
   }, []);
 
-  const startOnlineGame = useCallback((quickStartId: string, namesByPlayerIndex: string[]) => {
-    pendingOnlineGame.current = { quickStartId, namesByPlayerIndex };
+  const startOnlineGame = useCallback((
+    quickStartId: string,
+    namesByPlayerIndex: string[],
+    roomId?: string,
+    myPlayerIndex?: number,
+    userId?: string
+  ) => {
+    pendingOnlineGame.current = { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId };
     setHasLoaded(true);
     setIsVisible(true);
     setGameStartTrigger(n => n + 1);
@@ -334,5 +458,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 9,
     fontFamily: 'Inter_700Bold',
+  },
+  mpDebug: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    borderRadius: 10,
+    paddingVertical: 5,
+    paddingHorizontal: 12,
+    zIndex: 200,
+    alignItems: 'center',
+  },
+  mpDebugText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    letterSpacing: 0.2,
   },
 });

@@ -248,7 +248,10 @@ export default function RoomLobbyScreen() {
         const sortedPlayers = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
         const quickStartId = buildQuickStartId(room.gameMode);
         const namesByPlayerIndex = buildNamesByPlayerIndex(sortedPlayers, room.gameMode);
-        startOnlineGame(quickStartId, namesByPlayerIndex);
+        // Compute this user's board color index: join order → HUMAN_PREFERRED_POSITIONS mapping.
+        const myJoinIndex = sortedPlayers.findIndex((p) => p.userId === user?.uid);
+        const myPlayerIndex = myJoinIndex >= 0 ? HUMAN_PREFERRED_POSITIONS[myJoinIndex] : 0;
+        startOnlineGame(quickStartId, namesByPlayerIndex, roomId ?? undefined, myPlayerIndex, user?.uid);
       } else {
         // Fallback: just open the game home screen
         showLudo();

@@ -903,6 +903,16 @@ export interface GameRoomPlayer {
   joinedAt: number;
 }
 
+export interface GameAction {
+  action: "ROLL_DICE" | "SELECT_TOKEN";
+  playerIndex: number;
+  diceValue?: number;
+  tokenIndex?: number;
+  seq: number;
+  actorId: string;
+  ts: number;
+}
+
 export interface GameRoom {
   roomId: string;
   hostId: string;
@@ -915,6 +925,7 @@ export interface GameRoom {
   startingAt?: number;
   matchStartedAt?: number;    // set when status transitions to in_game
   lastActivityAt?: number;    // updated on any write
+  lastAction?: GameAction;    // last game action for sync relay
 }
 
 export async function createGameRoom(
@@ -998,6 +1009,16 @@ export async function setRoomInGame(roomId: string): Promise<void> {
     status: "in_game",
     matchStartedAt: now,
     lastActivityAt: now,
+  });
+}
+
+export async function writeGameAction(
+  roomId: string,
+  action: GameAction
+): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    lastAction: action,
+    lastActivityAt: Date.now(),
   });
 }
 

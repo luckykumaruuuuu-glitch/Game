@@ -5505,7 +5505,11 @@ function rollDice(emit2) {
   emit2({ type: EVENTS.DICE_ROLL_STARTED });
   return animateDiceRoll(state.currentDiceRoll).then(() => {
     const lastDiceRoll = state.currentDiceRoll;
-    const newRoll = generateDiceRoll();
+    // _externalDiceValue is set by the multiplayer bridge for remote-player dice results.
+    const newRoll = (_externalDiceValue !== null && _externalDiceValue !== undefined)
+      ? +_externalDiceValue
+      : generateDiceRoll();
+    _externalDiceValue = null;
     emit2({ type: EVENTS.DICE_ROLLED, value: newRoll });
     updateDiceFace(lastDiceRoll, state.currentDiceRoll);
     setLastRoll(state.currentPlayerIndex, state.currentDiceRoll);
@@ -7744,8 +7748,80 @@ function updateTheme(theme) {
   }
   localStorage.setItem("theme", theme);
 }
+// ── Multiplayer Bridge ────────────────────────────────────────────────────────
+// Lets React Native assign player ownership and relay actions via Firebase.
+
+var _externalDiceValue = null;
+var _mp = { enabled: false, myPlayerIndex: -1, applyingRemote: false, lastSentSeq: 0 };
+
+// Wrap dispatch: block actions when not my turn, emit actions to React Native.
+var _origDispatch = dispatch;
+function _mpDispatch(command) {
+  if (!_mp.enabled || _mp.applyingRemote) return _origDispatch(command);
+  if (command.type === 'ROLL_DICE') {
+    if (state.currentPlayerIndex !== _mp.myPlayerIndex) return; // Not my turn — blocked
+    return _origDispatch(command);
+  }
+  if (command.type === 'SELECT_TOKEN') {
+    if (command.playerIndex !== _mp.myPlayerIndex) return; // Not my token — blocked
+    _mp.lastSentSeq++;
+    var selMsg = JSON.stringify({ type: 'mpAction', action: 'SELECT_TOKEN', playerIndex: command.playerIndex, tokenIndex: command.tokenIndex, seq: _mp.lastSentSeq });
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(selMsg);
+    return _origDispatch(command);
+  }
+  return _origDispatch(command);
+}
+dispatch = _mpDispatch;
+
+// Subscribe to events: report dice result and turn changes to React Native.
+subscribe(function(event) {
+  if (!_mp.enabled || _mp.applyingRemote) return;
+  if (event.type === 'DICE_ROLLED' && state.currentPlayerIndex === _mp.myPlayerIndex) {
+    _mp.lastSentSeq++;
+    var diceMsg = JSON.stringify({ type: 'mpAction', action: 'ROLL_DICE', diceValue: event.value, playerIndex: state.currentPlayerIndex, seq: _mp.lastSentSeq });
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(diceMsg);
+  }
+  if (event.type === 'TURN_ADVANCED' || event.type === 'TURN_REPEATS' || event.type === 'GAME_STARTED') {
+    var turnMsg = JSON.stringify({ type: 'mpTurn', currentPlayerIndex: state.currentPlayerIndex });
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(turnMsg);
+  }
+});
+
+// Called by React Native to apply a remote player's action without re-broadcasting.
+window._applyRemoteAction = function(action) {
+  _mp.applyingRemote = true;
+  try {
+    if (action.action === 'ROLL_DICE') {
+      _externalDiceValue = (action.diceValue !== undefined && action.diceValue !== null) ? action.diceValue : null;
+      _origDispatch({ type: 'ROLL_DICE' });
+    } else if (action.action === 'SELECT_TOKEN') {
+      _origDispatch({ type: 'SELECT_TOKEN', playerIndex: action.playerIndex, tokenIndex: action.tokenIndex });
+    }
+  } catch(e) { console.warn('[MP] applyRemoteAction error', String(e)); }
+  _mp.applyingRemote = false;
+};
+
+// Called by React Native after START_GAME to activate player-ownership enforcement.
+window._initMultiplayer = function(myPlayerIndex) {
+  _mp.enabled = true;
+  _mp.myPlayerIndex = myPlayerIndex;
+  // Disable assist auto-moves — in online play humans control everything manually.
+  try {
+    _origDispatch({ type: 'SET_ASSIST_FLAG', flag: 'autoRollDice', value: false });
+    _origDispatch({ type: 'SET_ASSIST_FLAG', flag: 'autoMoveSingleOption', value: false });
+    _origDispatch({ type: 'SET_ASSIST_FLAG', flag: 'autoMoveOutOfHome', value: false });
+  } catch(e) {}
+  var readyMsg = JSON.stringify({ type: 'mpReady', myPlayerIndex: myPlayerIndex, currentPlayerIndex: state.currentPlayerIndex });
+  if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(readyMsg);
+};
+
+window._getGameState = function() {
+  return { currentPlayerIndex: state.currentPlayerIndex, phase: state.phase };
+};
+// ── End Multiplayer Bridge ────────────────────────────────────────────────────
+
 // Expose dispatch on window so React Native injectJavaScript can call it reliably.
-window._ludoDispatch = dispatch;
+window._ludoDispatch = _mpDispatch;
 window.addEventListener("message", function(event) {
   try {
     var data = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
