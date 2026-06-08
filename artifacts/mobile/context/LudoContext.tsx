@@ -17,12 +17,14 @@ interface LudoContextValue {
   show: () => void;
   hide: () => void;
   isVisible: boolean;
+  startOnlineGame: (quickStartId: string, namesByPlayerIndex: string[]) => void;
 }
 
 const LudoContext = createContext<LudoContextValue>({
   show: () => {},
   hide: () => {},
   isVisible: false,
+  startOnlineGame: () => {},
 });
 
 export function useLudo() {
@@ -32,9 +34,13 @@ export function useLudo() {
 function LudoNativeOverlay({
   isVisible,
   onHide,
+  pendingOnlineGame,
+  gameStartTrigger,
 }: {
   isVisible: boolean;
   onHide: () => void;
+  pendingOnlineGame: React.MutableRefObject<{ quickStartId: string; namesByPlayerIndex: string[] } | null>;
+  gameStartTrigger: number;
 }) {
   const WebView = require('react-native-webview').WebView;
   const { resolvedTheme } = useTheme();
@@ -53,6 +59,18 @@ function LudoNativeOverlay({
   }, []);
 
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
+
+  // When startOnlineGame is called and the WebView is already loaded, inject
+  // the START_GAME command immediately (onLoadEnd won't fire a second time).
+  useEffect(() => {
+    if (gameStartTrigger === 0) return;
+    if (!hasEverLoaded.current) return; // onLoadEnd will handle it
+    if (!pendingOnlineGame.current) return;
+    const { quickStartId, namesByPlayerIndex } = pendingOnlineGame.current;
+    pendingOnlineGame.current = null;
+    const js = `(function(){try{dispatch({type:'START_GAME',quickStartId:${JSON.stringify(quickStartId)},namesByPlayerIndex:${JSON.stringify(namesByPlayerIndex)}});}catch(e){console.warn('LeLudo startGame failed',String(e));}})();true;`;
+    setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 400);
+  }, [gameStartTrigger]);
 
   useEffect(() => {
     if (!user) return;
@@ -134,6 +152,13 @@ function LudoNativeOverlay({
           setInitialLoading(false);
           hasEverLoaded.current = true;
           injectTheme(resolvedThemeRef.current);
+          // If a room-based online game is waiting to start, inject it now
+          if (pendingOnlineGame.current) {
+            const { quickStartId, namesByPlayerIndex } = pendingOnlineGame.current;
+            pendingOnlineGame.current = null;
+            const js = `(function(){try{dispatch({type:'START_GAME',quickStartId:${JSON.stringify(quickStartId)},namesByPlayerIndex:${JSON.stringify(namesByPlayerIndex)}});}catch(e){console.warn('LeLudo startGame failed',String(e));}})();true;`;
+            setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 400);
+          }
         }}
         onError={() => setInitialLoading(false)}
         onMessage={onMessage}
@@ -194,6 +219,10 @@ function LudoNativeOverlay({
 export function LudoProvider({ children }: { children: React.ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  const pendingOnlineGame = useRef<{ quickStartId: string; namesByPlayerIndex: string[] } | null>(null);
+  // Incremented each time startOnlineGame is called so LudoNativeOverlay's
+  // useEffect fires even when the WebView is already loaded.
+  const [gameStartTrigger, setGameStartTrigger] = useState(0);
 
   const show = useCallback(() => {
     setHasLoaded(true);
@@ -204,12 +233,24 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
     setIsVisible(false);
   }, []);
 
+  const startOnlineGame = useCallback((quickStartId: string, namesByPlayerIndex: string[]) => {
+    pendingOnlineGame.current = { quickStartId, namesByPlayerIndex };
+    setHasLoaded(true);
+    setIsVisible(true);
+    setGameStartTrigger(n => n + 1);
+  }, []);
+
   return (
-    <LudoContext.Provider value={{ show, hide, isVisible }}>
+    <LudoContext.Provider value={{ show, hide, isVisible, startOnlineGame }}>
       <View style={styles.root}>
         {children}
         {Platform.OS !== 'web' && hasLoaded && (
-          <LudoNativeOverlay isVisible={isVisible} onHide={hide} />
+          <LudoNativeOverlay
+            isVisible={isVisible}
+            onHide={hide}
+            pendingOnlineGame={pendingOnlineGame}
+            gameStartTrigger={gameStartTrigger}
+          />
         )}
       </View>
     </LudoContext.Provider>

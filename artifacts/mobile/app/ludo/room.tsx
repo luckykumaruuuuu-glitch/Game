@@ -160,7 +160,25 @@ export default function RoomLobbyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { show: showLudo } = useLudo();
+  const { show: showLudo, startOnlineGame } = useLudo();
+
+  // Board positions assigned to human players in order of joining.
+  // Matches HUMAN_PREFERRED_POSITIONS inside the Ludo game HTML bundle.
+  const HUMAN_PREFERRED_POSITIONS = [2, 0, 1, 3];
+
+  function buildQuickStartId(gameMode: 2 | 3 | 4): string {
+    if (gameMode === 4) return 'qs,4,0';
+    const colors = Array.from({ length: gameMode }, (_, i) => i).join(',');
+    return `qs,${gameMode},0,${colors}`;
+  }
+
+  function buildNamesByPlayerIndex(sortedPlayers: GameRoomPlayer[], gameMode: 2 | 3 | 4): string[] {
+    const names = ['', '', '', ''];
+    sortedPlayers.slice(0, gameMode).forEach((player, i) => {
+      names[HUMAN_PREFERRED_POSITIONS[i]] = player.name || '';
+    });
+    return names;
+  }
 
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [copied, setCopied] = useState(false);
@@ -217,9 +235,15 @@ export default function RoomLobbyScreen() {
     hasNavigated.current = true;
     if (isHost && roomId) setRoomInGame(roomId).catch(console.error);
     if (Platform.OS !== 'web') {
-      // Navigate to the Ludo tab — its useFocusEffect calls show() automatically.
-      // This is the same route used when the user manually taps the Ludo tab.
-      showLudo();
+      if (room) {
+        // Build game params from room data and start the existing Ludo game
+        const sortedPlayers = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
+        const quickStartId = buildQuickStartId(room.gameMode);
+        const namesByPlayerIndex = buildNamesByPlayerIndex(sortedPlayers, room.gameMode);
+        startOnlineGame(quickStartId, namesByPlayerIndex);
+      } else {
+        showLudo();
+      }
       router.replace('/(tabs)/ludo' as any);
     } else {
       router.replace('/ludo' as any);

@@ -7752,6 +7752,9 @@ window.addEventListener("message", function(event) {
       var radio = document.querySelector('input[name="s-theme"][value="' + data.theme + '"]');
       if (radio) radio.checked = true;
     }
+    if (data && data.type === "START_GAME" && data.quickStartId) {
+      dispatch({ type: "START_GAME", quickStartId: data.quickStartId, namesByPlayerIndex: data.namesByPlayerIndex || [] });
+    }
   } catch (e) {}
 });
 var _overlayInitialized = false;
