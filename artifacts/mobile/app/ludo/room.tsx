@@ -226,14 +226,21 @@ export default function RoomLobbyScreen() {
       // Countdown was cancelled (a player left)
       hasStartedCountdown.current = false;
       setCountdown(null);
+      return;
+    }
+
+    if (room.status === 'in_game' && !hasNavigated.current) {
+      // ALL players: Firebase confirmed in_game — launch the match
+      console.log('[STATUS_IN_GAME] launching game for all players');
+      setCountdown(null);
+      launchGame();
     }
   }, [room?.status, isHost, roomId, user]);
 
-  // ── Launch game — single function used by countdown ──────────────
+  // ── Launch game — called by status machine when Firebase status = in_game ──
   function launchGame() {
     if (hasNavigated.current) return;
     hasNavigated.current = true;
-    if (isHost && roomId) setRoomInGame(roomId).catch(console.error);
     if (Platform.OS !== 'web') {
       if (room) {
         // Build game params from room data and start the existing Ludo game.
@@ -261,7 +268,12 @@ export default function RoomLobbyScreen() {
 
     if (countdown === 0) {
       console.log('[COUNTDOWN_FINISHED]');
-      launchGame();
+      if (isHost && roomId) {
+        // HOST: write in_game to Firebase — all clients (including host) react via status machine
+        setRoomInGame(roomId).catch(console.error);
+      }
+      // All clients: hide the countdown UI and wait for Firebase in_game event
+      setCountdown(null);
       return;
     }
 
