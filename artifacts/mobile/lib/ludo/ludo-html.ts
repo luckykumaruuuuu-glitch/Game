@@ -7883,6 +7883,77 @@ window._initMultiplayer = function(myPlayerIndex) {
   setTimeout(_applyBoardRotation, 1200);
   // ── End board orientation fix ─────────────────────────────────────────────
 
+  // ── Corner panel layout synchronization ───────────────────────────────────
+  // The board-grid rotation only moves board cells. The corner anchor divs
+  // (#b0-#b3) live in #corner-row-top / #corner-row-bottom and do NOT move
+  // with the board. We fix this by physically reordering the anchor divs into
+  // the correct corner rows to match the rotated board layout, then
+  // counter-rotating each anchor's rendered content so text stays readable.
+  //
+  // The game engine always renders: P0→#b0, P1→#b1, P2→#b2, P3→#b3.
+  // Original DOM: #corner-row-top=[#b0(L), #b1(R)], #corner-row-bottom=[#b3(L), #b2(R)]
+  //
+  // After CW rotation by _boardDeg, quadrant positions shift as follows:
+  //   deg=  0 → top:[b0(L) b1(R)]  bot:[b3(L) b2(R)]  (no change — Red already BR)
+  //   deg= 90 → top:[b3(L) b0(R)]  bot:[b2(L) b1(R)]  (Green/b1 → bottom-right)
+  //   deg=180 → top:[b2(L) b3(R)]  bot:[b1(L) b0(R)]  (Yellow/b0 → bottom-right)
+  //   deg=-90 → top:[b1(L) b2(R)]  bot:[b0(L) b3(R)]  (Blue/b3 → bottom-right)
+  //
+  // Each sub-array: [anchorId, 'start'|'end'] — justifyContent within the half-row.
+  var _CORNER_LAYOUTS = {};
+  _CORNER_LAYOUTS[0]   = [['b0','start'],['b1','end'],['b3','start'],['b2','end']];
+  _CORNER_LAYOUTS[90]  = [['b3','start'],['b0','end'],['b2','start'],['b1','end']];
+  _CORNER_LAYOUTS[180] = [['b2','start'],['b3','end'],['b1','start'],['b0','end']];
+  _CORNER_LAYOUTS[-90] = [['b1','start'],['b2','end'],['b0','start'],['b3','end']];
+
+  var _applyCornerLayout = function() {
+    var topRow = document.getElementById('corner-row-top');
+    var botRow = document.getElementById('corner-row-bottom');
+    if (!topRow || !botRow) return;
+    var layout = _CORNER_LAYOUTS[_boardDeg];
+    if (!layout) return;
+    var tl = layout[0], tr = layout[1], bl = layout[2], br = layout[3];
+    var tlEl = document.getElementById(tl[0]);
+    var trEl = document.getElementById(tr[0]);
+    var blEl = document.getElementById(bl[0]);
+    var brEl = document.getElementById(br[0]);
+    if (!tlEl || !trEl || !blEl || !brEl) return;
+
+    // Reorder anchors into correct rows.
+    // appendChild / insertBefore auto-detach from the old parent first.
+    tlEl.style.justifyContent = 'flex-' + tl[1];
+    topRow.insertBefore(tlEl, topRow.firstChild);
+    trEl.style.justifyContent = 'flex-' + tr[1];
+    topRow.appendChild(trEl);
+    blEl.style.justifyContent = 'flex-' + bl[1];
+    botRow.insertBefore(blEl, botRow.firstChild);
+    brEl.style.justifyContent = 'flex-' + br[1];
+    botRow.appendChild(brEl);
+
+    // Allow overflow so counter-rotated content is not clipped by the row.
+    topRow.style.overflow = 'visible';
+    botRow.style.overflow = 'visible';
+
+    // Counter-rotate each anchor's content so text/dice remain readable.
+    var ctrDeg = -_boardDeg;
+    var TR = 'transform 0.45s cubic-bezier(0.4,0,0.2,1)';
+    ['b0','b1','b2','b3'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.style.transformOrigin = 'center center';
+      el.style.webkitTransform = 'rotate(' + ctrDeg + 'deg)';
+      el.style.transform       = 'rotate(' + ctrDeg + 'deg)';
+      el.style.webkitTransition = TR;
+      el.style.transition       = TR;
+    });
+  };
+
+  _applyCornerLayout();
+  setTimeout(_applyCornerLayout, 250);
+  setTimeout(_applyCornerLayout, 700);
+  setTimeout(_applyCornerLayout, 1500);
+  // ── End corner panel layout synchronization ────────────────────────────────
+
   // ── Debug overlay (temporary) ─────────────────────────────────────────────
   // Shows ownership info for identifying incorrect mapping during testing.
   // Displays: My color · Current turn · My turn? · Selected token owner
