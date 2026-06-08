@@ -368,6 +368,27 @@ wc-settings { display: none !important; }
 .cta-green:hover { opacity: 0.92; }
 .cta-green:active { opacity: 0.85; }
 
+.cta-red {
+    width: 100%;
+    height: 56px;
+    border-radius: 28px;
+    background: #dc2626;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: none;
+    box-shadow: 0 8px 22px -8px rgba(220, 38, 38, 0.5);
+    transition: opacity 150ms ease;
+}
+.cta-red:hover { opacity: 0.92; }
+.cta-red:active { opacity: 0.85; }
+
 .cta-secondary {
     width: 100%;
     height: 54px;
@@ -6349,6 +6370,7 @@ var QuickStart = class extends HTMLElement {
                 <div class="frame-footer">
                     ${saved ? `<button class="new-game-btn cta-primary">Start a new game</button>` : `<button class="new-game-btn cta-primary">New game</button>`}
                     <button class="online-friend-btn cta-green">Online friend</button>
+                    <button class="offline-friend-btn cta-red">Offline friend</button>
                 </div>
             </div>
         `
@@ -6361,7 +6383,15 @@ var QuickStart = class extends HTMLElement {
     });
     el3.querySelector(".online-friend-btn").addEventListener("click", () => {
       playClickSound();
-      alert("Online friend mode coming soon!");
+      var _msg = JSON.stringify({ type: 'action', action: 'onlineFriend' });
+      if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(_msg); }
+      else { window.parent.postMessage(_msg, '*'); }
+    });
+    el3.querySelector(".offline-friend-btn").addEventListener("click", () => {
+      playClickSound();
+      var _msg = JSON.stringify({ type: 'action', action: 'offlineFriend' });
+      if (window.ReactNativeWebView) { window.ReactNativeWebView.postMessage(_msg); }
+      else { window.parent.postMessage(_msg, '*'); }
     });
     const resumeEl = el3.querySelector(".resume-card");
     if (resumeEl) {
