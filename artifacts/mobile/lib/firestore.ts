@@ -862,6 +862,10 @@ export function subscribeToGameInvites(
   userId: string,
   callback: (invites: GameInvite[]) => void
 ): () => void {
+  if (!userId) {
+    callback([]);
+    return () => {};
+  }
   const q = query(
     collection(db, "gameInvites"),
     where("receiverId", "==", userId),
@@ -872,6 +876,7 @@ export function subscribeToGameInvites(
     (snap) => {
       const invites = snap.docs
         .map((d) => ({ inviteId: d.id, ...d.data() } as GameInvite))
+        .filter((inv) => inv.receiverId === userId && inv.senderId !== userId)
         .sort((a, b) => b.createdAt - a.createdAt);
       callback(invites);
     },

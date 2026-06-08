@@ -16,6 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import {
   GameInvite,
+  UserProfile,
   joinGameRoom,
   respondToGameInvite,
   subscribeToGameInvites,
@@ -44,7 +45,7 @@ function GameModeTag({ mode, colors }: { mode: number; colors: any }) {
 export default function InvitesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const [invites, setInvites] = useState<GameInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,24 +61,47 @@ export default function InvitesScreen() {
   }, [user]);
 
   async function handleRespond(invite: GameInvite, accept: boolean) {
+    if (!user) return;
     setResponding((prev) => ({
       ...prev,
       [invite.inviteId]: accept ? 'accepting' : 'declining',
     }));
+
+    if (!accept) {
+      try { await respondToGameInvite(invite.inviteId, false); } catch { /* ignore */ }
+      setResponding((prev) => { const next = { ...prev }; delete next[invite.inviteId]; return next; });
+      return;
+    }
+
+    // ── Accept flow: each step independent ──────────────────
+    // Step 1: Mark invite as accepted (best-effort, don't block navigation)
+    try { await respondToGameInvite(invite.inviteId, true); } catch (e) {
+      console.warn('invite status update failed (non-fatal):', (e as any)?.code || e);
+    }
+
+    // Step 2: Join the room (required)
     try {
-      await respondToGameInvite(invite.inviteId, accept);
-      if (accept && profile) {
-        await joinGameRoom(invite.roomId, user!.uid, profile);
-        router.replace({ pathname: '/ludo/room', params: { id: invite.roomId } } as any);
-      }
+      if (!invite.roomId) throw new Error('invite has no roomId');
+
+      const playerProfile: UserProfile = profile ?? ({
+        userId: user.uid,
+        name: user.displayName || 'Player',
+        username: (user.email ?? '').split('@')[0] || 'player',
+        photo: (user as any).photoURL || '',
+        bio: '',
+        qrCode: '',
+        email: user.email || '',
+        createdAt: Date.now(),
+      } as UserProfile);
+
+      await joinGameRoom(invite.roomId, user.uid, playerProfile);
+
+      // Step 3: Navigate directly to lobby
+      router.replace({ pathname: '/ludo/room', params: { id: invite.roomId } } as any);
     } catch (e) {
-      console.error('respondToGameInvite error', e);
+      console.error('join room error:', (e as any)?.message || e);
     } finally {
-      setResponding((prev) => {
-        const next = { ...prev };
-        delete next[invite.inviteId];
-        return next;
-      });
+      setResponding((prev) => { const next = { ...prev }; delete next[invite.inviteId]; return next; });
     }
   }
 
