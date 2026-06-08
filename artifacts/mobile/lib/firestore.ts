@@ -908,6 +908,8 @@ export interface GameAction {
   playerIndex: number;
   diceValue?: number;
   tokenIndex?: number;
+  fromPosition?: number;
+  toPosition?: number;
   seq: number;
   actorId: string;
   ts: number;

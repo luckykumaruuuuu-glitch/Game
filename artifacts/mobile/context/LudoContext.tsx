@@ -90,6 +90,15 @@ type MpConfig = {
   userId: string;
 };
 
+type MoveLogEntry = {
+  id: number;
+  playerIndex: number;
+  tokenIndex: number;
+  diceValue?: number;
+  fromPosition?: number;
+  toPosition?: number;
+};
+
 const MP_COLORS = [
   { name: 'Yellow', emoji: '🟡' },
   { name: 'Green',  emoji: '🟢' },
@@ -124,6 +133,7 @@ function LudoNativeOverlay({
   const [mpConfig, setMpConfig] = useState<MpConfig | null>(null);
   const mpConfigRef = useRef<MpConfig | null>(null);
   const [debugTurn, setDebugTurn] = useState(-1);
+  const [moveLog, setMoveLog] = useState<MoveLogEntry[]>([]);
   const lastSeenSeqRef = useRef(0);
   const lastWrittenSeqRef = useRef(0);
   const lastKnownTurnRef = useRef(-1);
@@ -139,6 +149,7 @@ function LudoNativeOverlay({
     mpConfigRef.current = cfg;
     setMpConfig(cfg);
     setDebugTurn(-1);
+    setMoveLog([]);
   }
 
   useEffect(() => {
@@ -256,6 +267,8 @@ function LudoNativeOverlay({
           playerIndex: data.playerIndex,
           diceValue: data.diceValue,
           tokenIndex: data.tokenIndex,
+          fromPosition: data.fromPosition,
+          toPosition: data.toPosition,
           seq: lastWrittenSeqRef.current,
           actorId: cfg.userId,
           ts: Date.now(),
@@ -277,6 +290,16 @@ function LudoNativeOverlay({
             );
           }
         }
+      } else if (data?.type === 'mpMoveLog') {
+        const entry: MoveLogEntry = {
+          id: Date.now(),
+          playerIndex: data.playerIndex ?? 0,
+          tokenIndex: data.tokenIndex ?? 0,
+          diceValue: data.diceValue,
+          fromPosition: data.fromPosition,
+          toPosition: data.toPosition,
+        };
+        setMoveLog(prev => [entry, ...prev].slice(0, 5));
       } else if (data?.type === 'mpGameState') {
         const cfg = mpConfigRef.current;
         if (!cfg) return;
@@ -395,6 +418,25 @@ function LudoNativeOverlay({
             </View>
           )}
         </TouchableOpacity>
+      )}
+
+      {/* Move history log — shown during online games, floats above debug bar */}
+      {isVisible && mpConfig && moveLog.length > 0 && (
+        <View style={[styles.moveLogContainer, { bottom: insets.bottom + 52 }]}>
+          {moveLog.map((entry) => {
+            const color = MP_COLORS[entry.playerIndex];
+            const tokenLabel = `Token ${entry.tokenIndex + 1}`;
+            const fromStr = entry.fromPosition !== undefined ? String(entry.fromPosition) : '?';
+            const toStr = entry.toPosition !== undefined ? String(entry.toPosition) : '?';
+            const diceStr = entry.diceValue !== undefined ? ` (🎲${entry.diceValue})` : '';
+            return (
+              <Text key={entry.id} style={styles.moveLogEntry}>
+                {(color?.emoji ?? '⬜') + ' ' + (color?.name ?? 'P' + entry.playerIndex) +
+                 ' moved ' + tokenLabel + ' ' + fromStr + '→' + toStr + diceStr}
+              </Text>
+            );
+          })}
+        </View>
       )}
 
       {/* Multiplayer debug bar — shown during online games */}
@@ -546,5 +588,22 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.2,
+  },
+  moveLogContainer: {
+    position: 'absolute',
+    left: 10,
+    right: 10,
+    backgroundColor: 'rgba(0,0,0,0.72)',
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    zIndex: 200,
+    gap: 3,
+  },
+  moveLogEntry: {
+    color: '#E5E7EB',
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    letterSpacing: 0.1,
   },
 });

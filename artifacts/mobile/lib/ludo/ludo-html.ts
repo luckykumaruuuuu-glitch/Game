@@ -7885,12 +7885,20 @@ function _mpDispatch(command) {
     if (state.currentPlayerIndex !== _mp.myPlayerIndex) return; // Not my turn
     if (command.playerIndex !== _mp.myPlayerIndex) return;       // Not my token
 
+    // Include dice value + positions so remote devices can apply the move
+    // correctly even if their ROLL_DICE animation hasn't resolved yet.
+    var _selTokenPos = (state.playerTokenPositions[command.playerIndex] || [])[command.tokenIndex];
+    var _selNewPos;
+    try { _selNewPos = getTokenNewPosition(_selTokenPos, state.currentDiceRoll); } catch(e) { _selNewPos = undefined; }
     _mp.lastSentSeq++;
     var selMsg = JSON.stringify({
       type: 'mpAction',
       action: 'SELECT_TOKEN',
       playerIndex: command.playerIndex,
       tokenIndex: command.tokenIndex,
+      diceValue: state.currentDiceRoll,
+      fromPosition: _selTokenPos,
+      toPosition: _selNewPos,
       seq: _mp.lastSentSeq,
     });
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(selMsg);
@@ -7915,6 +7923,18 @@ subscribe(function(event) {
     var posSnap = state.playerTokenPositions.map(function(p) { return p ? p.slice() : null; });
     var gsMsg = JSON.stringify({ type: 'mpGameState', tokenPositions: posSnap, currentPlayerIndex: state.currentPlayerIndex, phase: state.phase });
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(gsMsg);
+  }
+  // Emit move log for the LOCAL player's token moves so React Native shows history.
+  if (event.type === 'TOKEN_MOVED') {
+    var localMoveLog = JSON.stringify({
+      type: 'mpMoveLog',
+      playerIndex: event.playerIndex,
+      tokenIndex: event.tokenIndex,
+      diceValue: state.currentDiceRoll,
+      fromPosition: event.fromPosition,
+      toPosition: event.toPosition,
+    });
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(localMoveLog);
   }
 });
 
@@ -7955,7 +7975,35 @@ window._applyRemoteAction = function(action) {
         console.warn('[MP] Remote SELECT_TOKEN: correcting currentPlayerIndex from ' + state.currentPlayerIndex + ' to ' + action.playerIndex);
         state.currentPlayerIndex = action.playerIndex;
       }
+      // ── Fix race condition: sync dice value before token selection ─────────
+      // If the ROLL_DICE animation hasn't resolved yet on this device, the
+      // state.currentDiceRoll will be stale. Overwrite it from the action so
+      // the token moves the correct distance on ALL devices.
+      if (typeof action.diceValue === 'number') {
+        if (state.currentDiceRoll !== action.diceValue) {
+          console.warn('[MP] Remote SELECT_TOKEN: correcting currentDiceRoll from ' + state.currentDiceRoll + ' to ' + action.diceValue);
+          state.currentDiceRoll = action.diceValue;
+        }
+        _externalDiceValue = null; // cancel any pending ROLL_DICE in-flight
+      }
+      // ── Ensure correct phase so canSelectToken() passes ─────────────────
+      if (state.phase !== 'AWAITING_SELECTION') {
+        state.phase = 'AWAITING_SELECTION';
+        if (typeof action.tokenIndex === 'number') {
+          try { state.movableTokenIndexes = [action.tokenIndex]; } catch(e) {}
+        }
+      }
       _origDispatch({ type: 'SELECT_TOKEN', playerIndex: action.playerIndex, tokenIndex: action.tokenIndex });
+      // Emit move log so React Native can display the history entry.
+      var moveLogMsg = JSON.stringify({
+        type: 'mpMoveLog',
+        playerIndex: action.playerIndex,
+        tokenIndex: action.tokenIndex,
+        diceValue: action.diceValue,
+        fromPosition: action.fromPosition,
+        toPosition: action.toPosition,
+      });
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(moveLogMsg);
     }
   } catch(e) { console.warn('[MP] applyRemoteAction error', String(e)); }
   _mp.applyingRemote = false;
