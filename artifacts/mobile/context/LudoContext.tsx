@@ -14,6 +14,7 @@ import {
   subscribeToGameInvites,
   subscribeToGameRoom,
   writeGameAction,
+  writeCurrentTurn,
   saveGameState,
   GameAction,
   SavedGameState,
@@ -125,6 +126,7 @@ function LudoNativeOverlay({
   const [debugTurn, setDebugTurn] = useState(-1);
   const lastSeenSeqRef = useRef(0);
   const lastWrittenSeqRef = useRef(0);
+  const lastKnownTurnRef = useRef(-1);
 
   // Debounce timer for game state saves
   const saveStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -133,6 +135,7 @@ function LudoNativeOverlay({
   function activateMpConfig(cfg: MpConfig) {
     lastSeenSeqRef.current = 0;
     lastWrittenSeqRef.current = 0;
+    lastKnownTurnRef.current = -1;
     mpConfigRef.current = cfg;
     setMpConfig(cfg);
     setDebugTurn(-1);
@@ -148,7 +151,32 @@ function LudoNativeOverlay({
   useEffect(() => {
     if (!mpConfig) return;
     const unsub = subscribeToGameRoom(mpConfig.roomId, (room) => {
-      if (!room?.lastAction) return;
+      if (!room) return;
+
+      // ── currentTurnPlayerIndex sync ───────────────────────────────────────
+      // If Firebase reports a different current turn than what we last knew,
+      // inject _setTurnPlayer so the local WebView self-heals without needing
+      // to replay a full action (handles reconnect and state drift).
+      if (typeof room.currentTurnPlayerIndex === 'number') {
+        const fbTurn = room.currentTurnPlayerIndex;
+        if (fbTurn !== lastKnownTurnRef.current && fbTurn !== mpConfig.myPlayerIndex) {
+          // Only force-correct for non-local-player turns (local player manages own state)
+          lastKnownTurnRef.current = fbTurn;
+          const syncJs =
+            `(function(){try{` +
+              `if(typeof window._setTurnPlayer==='function'){` +
+                `window._setTurnPlayer(${fbTurn});` +
+              `}` +
+            `}catch(e){console.warn('[MP turn sync]',String(e));}` +
+            `})();true;`;
+          setTimeout(() => { webViewRef.current?.injectJavaScript(syncJs); }, 80);
+        } else if (fbTurn !== lastKnownTurnRef.current) {
+          lastKnownTurnRef.current = fbTurn;
+        }
+      }
+
+      // ── lastAction relay ──────────────────────────────────────────────────
+      if (!room.lastAction) return;
       const action = room.lastAction;
       if (action.seq <= lastSeenSeqRef.current) return; // already processed
       lastSeenSeqRef.current = action.seq;
@@ -232,12 +260,22 @@ function LudoNativeOverlay({
           actorId: cfg.userId,
           ts: Date.now(),
         };
-        writeGameAction(cfg.roomId, action).catch((e) =>
+        // For ROLL_DICE: currentTurnPlayerIndex = the rolling player (it's still their turn while selecting token)
+        const turnForAction = data.action === 'ROLL_DICE' ? data.playerIndex : undefined;
+        writeGameAction(cfg.roomId, action, turnForAction).catch((e) =>
           console.warn('[MP] writeGameAction failed', e)
         );
       } else if (data?.type === 'mpTurn' || data?.type === 'mpReady' || data?.type === 'mpRestored') {
         if (typeof data.currentPlayerIndex === 'number') {
           setDebugTurn(data.currentPlayerIndex);
+          lastKnownTurnRef.current = data.currentPlayerIndex;
+          // Write the new current turn to Firebase so all players can sync.
+          const cfg = mpConfigRef.current;
+          if (cfg) {
+            writeCurrentTurn(cfg.roomId, data.currentPlayerIndex).catch((e) =>
+              console.warn('[MP] writeCurrentTurn failed', e)
+            );
+          }
         }
       } else if (data?.type === 'mpGameState') {
         const cfg = mpConfigRef.current;

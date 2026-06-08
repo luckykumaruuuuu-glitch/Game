@@ -933,6 +933,7 @@ export interface GameRoom {
   matchStartedAt?: number;    // set when status transitions to in_game
   lastActivityAt?: number;    // updated on any write
   lastAction?: GameAction;    // last game action for sync relay
+  currentTurnPlayerIndex?: number; // whose turn it is right now (Firebase source of truth)
   gameState?: SavedGameState; // continuously saved board state for match resume
 }
 
@@ -1022,10 +1023,25 @@ export async function setRoomInGame(roomId: string): Promise<void> {
 
 export async function writeGameAction(
   roomId: string,
-  action: GameAction
+  action: GameAction,
+  currentTurnPlayerIndex?: number
+): Promise<void> {
+  const update: Record<string, unknown> = {
+    lastAction: action,
+    lastActivityAt: Date.now(),
+  };
+  if (typeof currentTurnPlayerIndex === 'number') {
+    update.currentTurnPlayerIndex = currentTurnPlayerIndex;
+  }
+  await updateDoc(doc(db, "gameRooms", roomId), update);
+}
+
+export async function writeCurrentTurn(
+  roomId: string,
+  currentTurnPlayerIndex: number
 ): Promise<void> {
   await updateDoc(doc(db, "gameRooms", roomId), {
-    lastAction: action,
+    currentTurnPlayerIndex,
     lastActivityAt: Date.now(),
   });
 }

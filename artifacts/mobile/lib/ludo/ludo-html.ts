@@ -4212,16 +4212,28 @@ function updateDiceFace(lastDiceRoll, diceRoll) {
 function animateDiceRoll(currentDiceRoll) {
   playDiceSound();
   const diceContainer = document.getElementById("dice");
+  if (!diceContainer) {
+    return Promise.resolve();
+  }
   diceContainer.classList.add("dice-rolling");
   diceContainer.addEventListener("animationend", () => {
     diceContainer.classList.remove("dice-rolling");
   }, { once: true });
   return new Promise((resolve) => {
+    var _resolved = false;
+    function _done(lastRoll) {
+      if (_resolved) return;
+      _resolved = true;
+      try { updateDiceFace(lastRoll, currentDiceRoll); } catch(e) {}
+      resolve();
+    }
+    var _timeoutId = setTimeout(function() { _done(currentDiceRoll); }, 1500);
     let diceRoll = currentDiceRoll;
     let counter = 0;
     const delays = [40, 40, 40, 50, 60, 80, 100, 140];
     let lastTime = 0;
     function tick(timestamp) {
+      if (_resolved) return;
       if (!lastTime) lastTime = timestamp;
       if (timestamp - lastTime < delays[counter]) {
         requestAnimationFrame(tick);
@@ -4230,8 +4242,8 @@ function animateDiceRoll(currentDiceRoll) {
       lastTime = timestamp;
       const lastDiceRoll = diceRoll;
       if (counter === 8) {
-        updateDiceFace(lastDiceRoll, currentDiceRoll);
-        resolve();
+        clearTimeout(_timeoutId);
+        _done(lastDiceRoll);
         return;
       }
       diceRoll = diceRoll % 6 + 1;
@@ -4832,12 +4844,27 @@ function updateCornerWidgets() {
     const pillEl = pill.firstElementChild;
     const diceBtn = document.createElement("div");
     if (isActive) {
-      diceBtn.className = \`corner-dice corner-dice--active player-bg-\${idx} active-dice-pulse\`;
-      diceBtn.style.setProperty("--pulse-color", \`hsl(var(--player-\${idx}) / 0.55)\`);
-      if (dice) {
-        dice.style.cssText = "width:100%;height:100%;";
-        dice.className = "";
-        diceBtn.appendChild(dice);
+      var _mpWaiting = _mp.enabled && idx !== _mp.myPlayerIndex;
+      if (_mpWaiting) {
+        diceBtn.className = \`corner-dice corner-dice--active player-bg-\${idx} active-dice-pulse\`;
+        diceBtn.style.setProperty("--pulse-color", \`hsl(var(--player-\${idx}) / 0.55)\`);
+        diceBtn.style.opacity = "0.72";
+        diceBtn.title = "Opponent rolling…";
+        if (dice) {
+          dice.style.cssText = "width:100%;height:100%;pointer-events:none;";
+          dice.className = "";
+          dice.dataset.active = "false";
+          diceBtn.appendChild(dice);
+        }
+      } else {
+        diceBtn.className = \`corner-dice corner-dice--active player-bg-\${idx} active-dice-pulse\`;
+        diceBtn.style.setProperty("--pulse-color", \`hsl(var(--player-\${idx}) / 0.55)\`);
+        if (dice) {
+          dice.style.cssText = "width:100%;height:100%;";
+          dice.className = "";
+          dice.dataset.active = "true";
+          diceBtn.appendChild(dice);
+        }
       }
     } else {
       const lastRoll = _lastRollByPlayer[idx];
@@ -7896,30 +7923,61 @@ window._applyRemoteAction = function(action) {
   _mp.applyingRemote = true;
   try {
     if (action.action === 'ROLL_DICE') {
-      // ── Remote turn validation ────────────────────────────────────────────
-      // Only the current turn player should be rolling. If there is a seq
-      // mismatch or duplicate delivery, ignore the stale action.
-      if (typeof action.playerIndex === 'number' && action.playerIndex !== state.currentPlayerIndex) {
-        console.warn('[MP] Remote ROLL_DICE rejected: actorPlayerIndex=' + action.playerIndex + ' currentPlayerIndex=' + state.currentPlayerIndex);
-        _mp.applyingRemote = false;
-        return;
+      // ── Auto-heal state drift ─────────────────────────────────────────────
+      // If currentPlayerIndex is out of sync (e.g. missed TURN_ADVANCED, reconnect),
+      // force-correct it so canRoll() passes. This makes Firebase the source of truth.
+      if (typeof action.playerIndex === 'number') {
+        if (state.currentPlayerIndex !== action.playerIndex) {
+          console.warn('[MP] Remote ROLL_DICE: correcting currentPlayerIndex from ' + state.currentPlayerIndex + ' to ' + action.playerIndex);
+          state.currentPlayerIndex = action.playerIndex;
+        }
+        if (state.phase !== 'AWAITING_ROLL') {
+          console.warn('[MP] Remote ROLL_DICE: correcting phase from ' + state.phase + ' to AWAITING_ROLL');
+          state.phase = 'AWAITING_ROLL';
+        }
       }
-      _externalDiceValue = (action.diceValue !== undefined && action.diceValue !== null) ? action.diceValue : null;
-      _origDispatch({ type: 'ROLL_DICE' });
+      _externalDiceValue = (action.diceValue !== undefined && action.diceValue !== null) ? +action.diceValue : null;
+      var rollResult = _origDispatch({ type: 'ROLL_DICE' });
+      // If rollDice returned undefined (canRoll still failed), apply value directly.
+      if (rollResult === undefined && _externalDiceValue !== null) {
+        var forcedValue = _externalDiceValue;
+        _externalDiceValue = null;
+        try {
+          state.currentDiceRoll = forcedValue;
+          state.phase = 'AWAITING_SELECTION';
+          updateDiceFace(state.currentDiceRoll, forcedValue);
+          handleAfterDiceRoll(emit);
+        } catch(e2) { console.warn('[MP] forced dice apply error', String(e2)); }
+      }
     } else if (action.action === 'SELECT_TOKEN') {
-      // ── Remote token ownership validation ───────────────────────────────
-      // Reject if the remote actor's assigned playerIndex does not match the
-      // current turn. This prevents a desync from letting a remote message
-      // move the wrong player's token.
-      if (action.playerIndex !== state.currentPlayerIndex) {
-        console.warn('[MP] Remote SELECT_TOKEN rejected: playerIndex=' + action.playerIndex + ' != currentPlayerIndex=' + state.currentPlayerIndex);
-        _mp.applyingRemote = false;
-        return;
+      // ── Auto-heal for token move ──────────────────────────────────────────
+      if (typeof action.playerIndex === 'number' && action.playerIndex !== state.currentPlayerIndex) {
+        console.warn('[MP] Remote SELECT_TOKEN: correcting currentPlayerIndex from ' + state.currentPlayerIndex + ' to ' + action.playerIndex);
+        state.currentPlayerIndex = action.playerIndex;
       }
       _origDispatch({ type: 'SELECT_TOKEN', playerIndex: action.playerIndex, tokenIndex: action.tokenIndex });
     }
   } catch(e) { console.warn('[MP] applyRemoteAction error', String(e)); }
   _mp.applyingRemote = false;
+};
+
+// Called by React Native to force-sync the current turn player when Firebase
+// reports a different currentTurnPlayerIndex than what the local engine has.
+window._setTurnPlayer = function(playerIndex) {
+  if (typeof playerIndex !== 'number') return;
+  try {
+    if (state.currentPlayerIndex !== playerIndex) {
+      console.warn('[MP] _setTurnPlayer: correcting currentPlayerIndex from ' + state.currentPlayerIndex + ' to ' + playerIndex);
+      state.currentPlayerIndex = playerIndex;
+      state.phase = 'AWAITING_ROLL';
+      try { moveDice(playerIndex); } catch(e) {}
+      if (typeof emit === 'function') {
+        emit({ type: 'TURN_ADVANCED', currentPlayerIndex: playerIndex, phase: 'AWAITING_ROLL', movableTokenIndexes: [] });
+      }
+    }
+    var msg = JSON.stringify({ type: 'mpTurn', currentPlayerIndex: playerIndex });
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
+  } catch(e) { console.warn('[MP] _setTurnPlayer error', String(e)); }
 };
 
 // Called by React Native after START_GAME to activate player-ownership enforcement.
