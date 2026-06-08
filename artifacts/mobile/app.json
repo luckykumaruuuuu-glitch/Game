@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "QR Profile Share",
-    "slug": "mobile",
+    "name": "LeLudo",
+    "slug": "leludo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "mobile",
+    "scheme": "leludo",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.replit.qrprofileshare"
+      "bundleIdentifier": "com.leludo.app"
     },
     "android": {
-      "package": "com.replit.qrprofileshare"
+      "package": "com.leludo.app"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -30,13 +30,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow QR Profile Share to access your camera to scan QR codes."
+          "cameraPermission": "Allow LeLudo to access your camera to scan QR codes."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow QR Profile Share to access your photos to upload profile pictures and content."
+          "photosPermission": "Allow LeLudo to access your photos to upload profile pictures."
         }
       ]
     ],
