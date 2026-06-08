@@ -913,6 +913,13 @@ export interface GameAction {
   ts: number;
 }
 
+export interface SavedGameState {
+  tokenPositions: Array<Array<number> | null>;
+  currentPlayerIndex: number;
+  phase: string;
+  savedAt: number;
+}
+
 export interface GameRoom {
   roomId: string;
   hostId: string;
@@ -926,6 +933,7 @@ export interface GameRoom {
   matchStartedAt?: number;    // set when status transitions to in_game
   lastActivityAt?: number;    // updated on any write
   lastAction?: GameAction;    // last game action for sync relay
+  gameState?: SavedGameState; // continuously saved board state for match resume
 }
 
 export async function createGameRoom(
@@ -1089,6 +1097,8 @@ export function subscribeToGameRoom(
 
 // Returns all rooms where the user is a player and status is not finished.
 // Uses only array-contains (no compound index needed); sorts client-side.
+const ROOM_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
 export function subscribeToUserActiveRooms(
   userId: string,
   callback: (rooms: GameRoom[]) => void
@@ -1101,12 +1111,48 @@ export function subscribeToUserActiveRooms(
   return onSnapshot(
     q,
     (snap) => {
+      const now = Date.now();
       const rooms = snap.docs
         .map((d) => ({ roomId: d.id, ...d.data() } as GameRoom))
-        .filter((r) => r.status !== "finished")
+        .filter((r) => r.status !== "finished" && (now - r.createdAt) < ROOM_EXPIRY_MS)
         .sort((a, b) => (b.lastActivityAt ?? b.createdAt) - (a.lastActivityAt ?? a.createdAt));
       callback(rooms);
     },
     () => callback([])
+  );
+}
+
+export async function getGameRoom(roomId: string): Promise<GameRoom | null> {
+  const snap = await getDoc(doc(db, "gameRooms", roomId));
+  if (!snap.exists()) return null;
+  return { roomId: snap.id, ...snap.data() } as GameRoom;
+}
+
+export async function saveGameState(
+  roomId: string,
+  gameState: SavedGameState
+): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    gameState,
+    lastActivityAt: Date.now(),
+  });
+}
+
+export async function cleanupExpiredRooms(userId: string): Promise<void> {
+  const q = query(
+    collection(db, "gameRooms"),
+    where("playerIds", "array-contains", userId),
+    limit(20)
+  );
+  const snap = await getDocs(q);
+  const now = Date.now();
+  const expired = snap.docs.filter((d) => {
+    const data = d.data();
+    return data.status !== "finished" && (now - data.createdAt) > ROOM_EXPIRY_MS;
+  });
+  await Promise.all(
+    expired.map((d) =>
+      updateDoc(d.ref, { status: "finished", expiredAt: now })
+    )
   );
 }

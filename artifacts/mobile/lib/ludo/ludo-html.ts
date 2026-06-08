@@ -7753,6 +7753,7 @@ function updateTheme(theme) {
 
 var _externalDiceValue = null;
 var _mp = { enabled: false, myPlayerIndex: -1, applyingRemote: false, lastSentSeq: 0 };
+var _restoringState = false;
 
 // Wrap dispatch: block actions when not my turn, emit actions to React Native.
 var _origDispatch = dispatch;
@@ -7775,7 +7776,7 @@ dispatch = _mpDispatch;
 
 // Subscribe to events: report dice result and turn changes to React Native.
 subscribe(function(event) {
-  if (!_mp.enabled || _mp.applyingRemote) return;
+  if (!_mp.enabled || _mp.applyingRemote || _restoringState) return;
   if (event.type === 'DICE_ROLLED' && state.currentPlayerIndex === _mp.myPlayerIndex) {
     _mp.lastSentSeq++;
     var diceMsg = JSON.stringify({ type: 'mpAction', action: 'ROLL_DICE', diceValue: event.value, playerIndex: state.currentPlayerIndex, seq: _mp.lastSentSeq });
@@ -7784,6 +7785,11 @@ subscribe(function(event) {
   if (event.type === 'TURN_ADVANCED' || event.type === 'TURN_REPEATS' || event.type === 'GAME_STARTED') {
     var turnMsg = JSON.stringify({ type: 'mpTurn', currentPlayerIndex: state.currentPlayerIndex });
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(turnMsg);
+  }
+  if (event.type === 'TURN_ADVANCED') {
+    var posSnap = state.playerTokenPositions.map(function(p) { return p ? p.slice() : null; });
+    var gsMsg = JSON.stringify({ type: 'mpGameState', tokenPositions: posSnap, currentPlayerIndex: state.currentPlayerIndex, phase: state.phase });
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(gsMsg);
   }
 });
 
@@ -7816,7 +7822,48 @@ window._initMultiplayer = function(myPlayerIndex) {
 };
 
 window._getGameState = function() {
-  return { currentPlayerIndex: state.currentPlayerIndex, phase: state.phase };
+  return {
+    currentPlayerIndex: state.currentPlayerIndex,
+    phase: state.phase,
+    tokenPositions: state.playerTokenPositions.map(function(p) { return p ? p.slice() : null; }),
+  };
+};
+
+window._restoreGameState = function(savedState) {
+  try {
+    if (!savedState || !savedState.tokenPositions) return;
+    _restoringState = true;
+    var positions = savedState.tokenPositions;
+    var targetPlayerIndex = typeof savedState.currentPlayerIndex === 'number' ? savedState.currentPlayerIndex : 0;
+    var delay = 0;
+    for (var pi = 0; pi < 4; pi++) {
+      if (!positions[pi] || !state.playerTokenPositions[pi]) continue;
+      for (var ti = 0; ti < 4; ti++) {
+        var pos = positions[pi][ti];
+        if (typeof pos === 'number' && pos !== -1) {
+          (function(p, t, ppos) {
+            setTimeout(function() {
+              try { _origDispatch({ type: 'GOD_TELEPORT', playerIndex: p, tokenIndex: t, toPosition: ppos }); } catch(e3) {}
+            }, delay);
+          })(pi, ti, pos);
+          delay += 40;
+        }
+      }
+    }
+    setTimeout(function() {
+      try {
+        state.currentPlayerIndex = targetPlayerIndex;
+        state.phase = 'AWAITING_ROLL';
+        if (typeof emit === 'function') {
+          emit({ type: 'TURN_ADVANCED', currentPlayerIndex: targetPlayerIndex, phase: 'AWAITING_ROLL', movableTokenIndexes: [] });
+        }
+        if (window.ReactNativeWebView) {
+          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpRestored', currentPlayerIndex: targetPlayerIndex }));
+        }
+      } catch(e2) { console.warn('[MP] restoreCurrentPlayer error', String(e2)); }
+      _restoringState = false;
+    }, delay + 300);
+  } catch(e) { console.warn('[MP] restoreGameState error', String(e)); }
 };
 // ── End Multiplayer Bridge ────────────────────────────────────────────────────
 

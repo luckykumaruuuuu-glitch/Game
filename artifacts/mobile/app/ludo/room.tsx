@@ -251,7 +251,7 @@ export default function RoomLobbyScreen() {
         // Compute this user's board color index: join order → HUMAN_PREFERRED_POSITIONS mapping.
         const myJoinIndex = sortedPlayers.findIndex((p) => p.userId === user?.uid);
         const myPlayerIndex = myJoinIndex >= 0 ? HUMAN_PREFERRED_POSITIONS[myJoinIndex] : 0;
-        startOnlineGame(quickStartId, namesByPlayerIndex, roomId ?? undefined, myPlayerIndex, user?.uid);
+        startOnlineGame(quickStartId, namesByPlayerIndex, roomId ?? undefined, myPlayerIndex, user?.uid, room.gameState);
       } else {
         // Fallback: just open the game home screen
         showLudo();

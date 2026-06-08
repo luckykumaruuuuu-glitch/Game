@@ -13,7 +13,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
-import { GameRoom, subscribeToUserActiveRooms } from '@/lib/firestore';
+import { GameRoom, subscribeToUserActiveRooms, cleanupExpiredRooms } from '@/lib/firestore';
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
@@ -50,6 +50,7 @@ export default function ActiveGamesScreen() {
 
   useEffect(() => {
     if (!user) return;
+    cleanupExpiredRooms(user.uid).catch(() => {});
     const unsub = subscribeToUserActiveRooms(user.uid, (list) => {
       setRooms(list);
       setLoading(false);

@@ -15,7 +15,9 @@ import {
   subscribeToGameRoom,
   subscribeToGameMessages,
   writeGameAction,
+  saveGameState,
   GameAction,
+  SavedGameState,
 } from '@/lib/firestore';
 import { GameChatPanel } from '@/components/GameChatPanel';
 import { FriendsChatPanel } from '@/components/FriendsChatPanel';
@@ -30,7 +32,8 @@ interface LudoContextValue {
     namesByPlayerIndex: string[],
     roomId?: string,
     myPlayerIndex?: number,
-    userId?: string
+    userId?: string,
+    savedGameState?: SavedGameState
   ) => void;
 }
 
@@ -49,10 +52,14 @@ export function useLudo() {
 function buildStartGameJS(
   quickStartId: string,
   namesByPlayerIndex: string[],
-  myPlayerIndex?: number
+  myPlayerIndex?: number,
+  savedGameState?: SavedGameState
 ): string {
   const mpInit = typeof myPlayerIndex === 'number'
     ? `setTimeout(function(){if(typeof window._initMultiplayer==='function'){window._initMultiplayer(${myPlayerIndex});}},${ 800});`
+    : '';
+  const restoreCall = savedGameState && typeof myPlayerIndex === 'number'
+    ? `setTimeout(function(){if(typeof window._restoreGameState==='function'){window._restoreGameState(${JSON.stringify(savedGameState)});}},1600);`
     : '';
   return (
     `(function(){` +
@@ -61,6 +68,7 @@ function buildStartGameJS(
         `if(typeof fn==='function'){` +
           `fn({type:'START_GAME',quickStartId:${JSON.stringify(quickStartId)},namesByPlayerIndex:${JSON.stringify(namesByPlayerIndex)}});` +
           mpInit +
+          restoreCall +
         `}else{` +
           `console.warn('[LeLudo] _ludoDispatch not ready');` +
         `}` +
@@ -75,6 +83,7 @@ type PendingGame = {
   roomId?: string;
   myPlayerIndex?: number;
   userId?: string;
+  savedGameState?: SavedGameState;
 };
 
 type MpConfig = {
@@ -125,6 +134,9 @@ function LudoNativeOverlay({
   const [showFriendsChat, setShowFriendsChat] = useState(false);
   const [gameChatUnread, setGameChatUnread] = useState(0);
   const gameChatMsgCountRef = useRef(0);
+
+  // Debounce timer for game state saves
+  const saveStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Helper: activate a new multiplayer session
   function activateMpConfig(cfg: MpConfig) {
@@ -192,9 +204,9 @@ function LudoNativeOverlay({
     if (gameStartTrigger === 0) return;
     if (!hasEverLoaded.current) return; // onLoadEnd will handle it
     if (!pendingOnlineGame.current) return;
-    const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId } = pendingOnlineGame.current;
+    const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState } = pendingOnlineGame.current;
     pendingOnlineGame.current = null;
-    const js = buildStartGameJS(quickStartId, namesByPlayerIndex, myPlayerIndex);
+    const js = buildStartGameJS(quickStartId, namesByPlayerIndex, myPlayerIndex, savedGameState);
     if (roomId && typeof myPlayerIndex === 'number' && userId) {
       activateMpConfig({ roomId, myPlayerIndex, userId });
     }
@@ -256,10 +268,25 @@ function LudoNativeOverlay({
         writeGameAction(cfg.roomId, action).catch((e) =>
           console.warn('[MP] writeGameAction failed', e)
         );
-      } else if (data?.type === 'mpTurn' || data?.type === 'mpReady') {
+      } else if (data?.type === 'mpTurn' || data?.type === 'mpReady' || data?.type === 'mpRestored') {
         if (typeof data.currentPlayerIndex === 'number') {
           setDebugTurn(data.currentPlayerIndex);
         }
+      } else if (data?.type === 'mpGameState') {
+        const cfg = mpConfigRef.current;
+        if (!cfg) return;
+        if (saveStateTimerRef.current) clearTimeout(saveStateTimerRef.current);
+        const stateSnapshot = {
+          tokenPositions: data.tokenPositions,
+          currentPlayerIndex: data.currentPlayerIndex,
+          phase: data.phase,
+          savedAt: Date.now(),
+        };
+        saveStateTimerRef.current = setTimeout(() => {
+          saveGameState(cfg.roomId, stateSnapshot).catch((e) =>
+            console.warn('[MP] saveGameState failed', e)
+          );
+        }, 500);
       }
     } catch {}
   }, [onHide]);
@@ -303,9 +330,9 @@ function LudoNativeOverlay({
           injectTheme(resolvedThemeRef.current);
           // If a room-based online game is waiting to start, inject it now
           if (pendingOnlineGame.current) {
-            const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId } = pendingOnlineGame.current;
+            const { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState } = pendingOnlineGame.current;
             pendingOnlineGame.current = null;
-            const js = buildStartGameJS(quickStartId, namesByPlayerIndex, myPlayerIndex);
+            const js = buildStartGameJS(quickStartId, namesByPlayerIndex, myPlayerIndex, savedGameState);
             if (roomId && typeof myPlayerIndex === 'number' && userId) {
               activateMpConfig({ roomId, myPlayerIndex, userId });
             }
@@ -456,9 +483,10 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
     namesByPlayerIndex: string[],
     roomId?: string,
     myPlayerIndex?: number,
-    userId?: string
+    userId?: string,
+    savedGameState?: SavedGameState
   ) => {
-    pendingOnlineGame.current = { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId };
+    pendingOnlineGame.current = { quickStartId, namesByPlayerIndex, roomId, myPlayerIndex, userId, savedGameState };
     setHasLoaded(true);
     setIsVisible(true);
     setGameStartTrigger(n => n + 1);
