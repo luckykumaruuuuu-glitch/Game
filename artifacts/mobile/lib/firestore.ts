@@ -908,9 +908,10 @@ export interface GameRoom {
   hostId: string;
   hostName: string;
   gameMode: 2 | 3 | 4;
-  status: "waiting" | "ready" | "starting";
+  status: "waiting" | "ready" | "starting" | "in_game";
   players: Record<string, GameRoomPlayer>;
   createdAt: number;
+  startingAt?: number;
 }
 
 export async function createGameRoom(
@@ -974,6 +975,24 @@ export async function togglePlayerReady(
       await updateDoc(roomRef, { status: "waiting" });
     }
   }
+}
+
+export async function setRoomStarting(roomId: string): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    status: "starting",
+    startingAt: Date.now(),
+  });
+}
+
+export async function setRoomInGame(roomId: string): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), { status: "in_game" });
+}
+
+export async function cancelRoomStart(roomId: string): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    status: "waiting",
+    startingAt: null,
+  });
 }
 
 export function subscribeToGameRoom(

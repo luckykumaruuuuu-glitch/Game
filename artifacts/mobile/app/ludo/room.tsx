@@ -20,6 +20,9 @@ import { useColors } from '@/hooks/useColors';
 import {
   GameRoom,
   GameRoomPlayer,
+  cancelRoomStart,
+  setRoomInGame,
+  setRoomStarting,
   subscribeToGameRoom,
   togglePlayerReady,
 } from '@/lib/firestore';
@@ -160,11 +163,16 @@ export default function RoomLobbyScreen() {
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [copied, setCopied] = useState(false);
   const [readyToggling, setReadyToggling] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const readyBannerAnim = useRef(new Animated.Value(0)).current;
   const prevGameReady = useRef(false);
+  const hasNavigated = useRef(false);
+  const hasStartedCountdown = useRef(false);
+
+  const isHost = !!user && !!room && room.hostId === user.uid;
 
   useEffect(() => {
     if (!roomId) return;
@@ -175,6 +183,60 @@ export default function RoomLobbyScreen() {
     ]).start();
     return unsub;
   }, [roomId]);
+
+  // ── Status machine: ready → starting → in_game ──────────────────
+  useEffect(() => {
+    if (!room || !roomId || !user) return;
+
+    if (room.status === 'ready' && isHost) {
+      // HOST: transition room to "starting" immediately
+      setRoomStarting(roomId).catch(console.error);
+      return;
+    }
+
+    if (room.status === 'starting' && !hasStartedCountdown.current && !hasNavigated.current) {
+      // ALL players: begin local countdown
+      hasStartedCountdown.current = true;
+      setCountdown(3);
+      return;
+    }
+
+    if (room.status === 'waiting' && hasStartedCountdown.current) {
+      // Countdown was cancelled (a player left)
+      hasStartedCountdown.current = false;
+      setCountdown(null);
+    }
+  }, [room?.status, isHost, roomId, user]);
+
+  // ── Countdown tick ──────────────────────────────────────────────
+  useEffect(() => {
+    if (countdown === null) return;
+
+    if (countdown === 0) {
+      if (hasNavigated.current) return;
+      hasNavigated.current = true;
+      // HOST marks room as in_game (best-effort, others just navigate)
+      if (isHost && roomId) setRoomInGame(roomId).catch(console.error);
+      // All players navigate to the existing Ludo game
+      router.replace('/ludo' as any);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setCountdown((c) => (c !== null ? c - 1 : null));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [countdown, isHost, roomId]);
+
+  // ── HOST: cancel countdown if a player leaves during "starting" ──
+  useEffect(() => {
+    if (!room || !isHost || !roomId) return;
+    if (room.status !== 'starting') return;
+    const players = Object.values(room.players);
+    if (players.length < room.gameMode) {
+      cancelRoomStart(roomId).catch(console.error);
+    }
+  }, [room?.players, room?.status, isHost, roomId]);
 
   // Animate ready banner in/out
   useEffect(() => {
@@ -423,6 +485,18 @@ export default function RoomLobbyScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* ── Countdown Overlay ───────────────────────────────── */}
+      {countdown !== null && (
+        <View style={styles.countdownOverlay}>
+          <Text style={styles.countdownNumber}>
+            {countdown > 0 ? String(countdown) : '🎲'}
+          </Text>
+          <Text style={styles.countdownLabel}>
+            {countdown > 0 ? 'Game Starting…' : 'Get Ready!'}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -552,4 +626,25 @@ const styles = StyleSheet.create({
   },
   readyBtnIcon: { fontSize: 20, color: '#fff' },
   readyBtnText: { fontSize: 17, fontFamily: 'Inter_700Bold' },
+
+  countdownOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  countdownNumber: {
+    fontSize: 120,
+    fontFamily: 'Inter_700Bold',
+    color: '#fff',
+    lineHeight: 130,
+  },
+  countdownLabel: {
+    fontSize: 20,
+    fontFamily: 'Inter_500Medium',
+    color: 'rgba(255,255,255,0.65)',
+    marginTop: 8,
+    letterSpacing: 0.5,
+  },
 });
