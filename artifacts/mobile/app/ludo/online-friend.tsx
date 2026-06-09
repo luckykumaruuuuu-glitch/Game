@@ -402,6 +402,7 @@ export default function OnlineFriendScreen() {
     try {
       const room = await getGameRoom(id);
       if (!room) { setRoomError('Room not found'); setRoomLoading(false); return; }
+      if (room.roomStatus === 'INACTIVE') { setRoomError('This room is no longer active'); setRoomLoading(false); return; }
       if (room.status === 'finished') { setRoomError('Match has ended'); setRoomLoading(false); return; }
       if (room.status !== 'in_game') { setRoomError('Match has not started yet'); setRoomLoading(false); return; }
       if (user?.uid) {

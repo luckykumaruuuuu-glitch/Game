@@ -19,6 +19,7 @@ import {
   markPlayerExit,
   markPlayerRejoin,
   castExitVote,
+  checkAndExpireRoomIfInactive,
   GameAction,
   SavedGameState,
   GameRoomPlayer,
@@ -307,6 +308,21 @@ function LudoNativeOverlay({
     });
     return unsub;
   }, [mpConfig]);
+
+  // ── Periodic inactivity check — every 2 min while match is live ─────────
+  // If the room has been inactive for 10+ minutes (e.g. all players backgrounded),
+  // mark it INACTIVE so it disappears from Active Rooms and blocks spectator entry.
+  useEffect(() => {
+    if (!mpConfig) return;
+    const interval = setInterval(async () => {
+      const expired = await checkAndExpireRoomIfInactive(mpConfig.roomId);
+      if (expired) {
+        console.log('[MP] Room marked INACTIVE due to inactivity — closing overlay');
+        clearInterval(interval);
+      }
+    }, 2 * 60 * 1000); // check every 2 minutes
+    return () => clearInterval(interval);
+  }, [mpConfig?.roomId]);
 
   // ── AppState listener: mark EXIT_PENDING when app goes background ────────
   useEffect(() => {

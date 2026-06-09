@@ -974,18 +974,21 @@ export interface SavedGameState {
   savedAt: number;
 }
 
+export type GameRoomStatus = 'ACTIVE' | 'INACTIVE';
+
 export interface GameRoom {
   roomId: string;
   hostId: string;
   hostName: string;
   gameMode: 2 | 3 | 4;
   status: "waiting" | "ready" | "starting" | "in_game" | "finished";
+  roomStatus?: GameRoomStatus; // ACTIVE (default) | INACTIVE (expired by inactivity)
   players: Record<string, GameRoomPlayer>;
   playerIds: string[];        // flat array for array-contains queries
   createdAt: number;
   startingAt?: number;
   matchStartedAt?: number;    // set when status transitions to in_game
-  lastActivityAt?: number;    // updated on any write
+  lastActivityAt?: number;    // updated on any write; used for inactivity expiry
   lastAction?: GameAction;    // last game action for sync relay
   currentTurnPlayerIndex?: number; // whose turn it is right now (Firebase source of truth)
   gameState?: SavedGameState; // continuously saved board state for match resume
@@ -1004,6 +1007,7 @@ export async function createGameRoom(
     hostName: hostProfile.name,
     gameMode,
     status: "waiting",
+    roomStatus: "ACTIVE" as GameRoomStatus,
     players: {
       [hostId]: {
         userId: hostId,
@@ -1044,7 +1048,10 @@ export async function togglePlayerReady(
   ready: boolean
 ): Promise<void> {
   const roomRef = doc(db, "gameRooms", roomId);
-  await updateDoc(roomRef, { [`players.${userId}.isReady`]: ready });
+  await updateDoc(roomRef, {
+    [`players.${userId}.isReady`]: ready,
+    lastActivityAt: Date.now(),
+  });
   const snap = await getDoc(roomRef);
   if (snap.exists()) {
     const room = snap.data() as GameRoom;
@@ -1063,6 +1070,7 @@ export async function setRoomStarting(roomId: string): Promise<void> {
   await updateDoc(doc(db, "gameRooms", roomId), {
     status: "starting",
     startingAt: Date.now(),
+    lastActivityAt: Date.now(),
   });
 }
 
@@ -1118,15 +1126,20 @@ export async function sendGameMessage(
   senderPhoto: string | undefined,
   text: string
 ): Promise<void> {
+  const now = Date.now();
   const ref = doc(collection(db, "gameChats", roomId, "messages"));
-  await setDoc(ref, {
-    messageId: ref.id,
-    senderId,
-    senderName,
-    senderPhoto: senderPhoto ?? null,
-    text: text.trim(),
-    timestamp: Date.now(),
-  });
+  await Promise.all([
+    setDoc(ref, {
+      messageId: ref.id,
+      senderId,
+      senderName,
+      senderPhoto: senderPhoto ?? null,
+      text: text.trim(),
+      timestamp: now,
+    }),
+    // Chat counts as activity — resets the inactivity timer on the room
+    updateDoc(doc(db, "gameRooms", roomId), { lastActivityAt: now }).catch(() => {}),
+  ]);
 }
 
 export function subscribeToGameMessages(
@@ -1168,6 +1181,40 @@ export function subscribeToGameRoom(
 // Returns all rooms where the user is a player and status is not finished.
 // Uses only array-contains (no compound index needed); sorts client-side.
 const ROOM_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+const INACTIVITY_MS = 10 * 60 * 1000;        // 10 minutes
+
+// ─── Inactivity expiry ────────────────────────────────────────────────────────
+
+/** Mark a room INACTIVE immediately (permanent — not reversible). */
+export async function markRoomInactive(roomId: string): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    roomStatus: "INACTIVE" as GameRoomStatus,
+    lastActivityAt: Date.now(),
+  });
+}
+
+/**
+ * Read the room once and, if `lastActivityAt` is older than INACTIVITY_MS,
+ * mark it INACTIVE.  Safe to call from any client — the write is idempotent.
+ * Returns true if the room was (or already was) inactive.
+ */
+export async function checkAndExpireRoomIfInactive(roomId: string): Promise<boolean> {
+  try {
+    const snap = await getDoc(doc(db, "gameRooms", roomId));
+    if (!snap.exists()) return true; // treat missing as inactive
+    const room = { roomId: snap.id, ...snap.data() } as GameRoom;
+    if (room.roomStatus === "INACTIVE") return true;
+    if (room.status === "finished") return true;
+    const lastActivity = room.lastActivityAt ?? room.createdAt;
+    if (Date.now() - lastActivity > INACTIVITY_MS) {
+      await markRoomInactive(roomId);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
 
 export function subscribeToUserActiveRooms(
   userId: string,
@@ -1182,9 +1229,26 @@ export function subscribeToUserActiveRooms(
     q,
     (snap) => {
       const now = Date.now();
-      const rooms = snap.docs
-        .map((d) => ({ roomId: d.id, ...d.data() } as GameRoom))
-        .filter((r) => r.status !== "finished" && (now - r.createdAt) < ROOM_EXPIRY_MS)
+      const all = snap.docs.map((d) => ({ roomId: d.id, ...d.data() } as GameRoom));
+
+      // Lazily expire any room whose lastActivityAt is beyond INACTIVITY_MS.
+      // The first subscribing client to notice will write the status change,
+      // which propagates to all listeners via Firestore realtime.
+      all.forEach((r) => {
+        if (r.roomStatus === "INACTIVE" || r.status === "finished") return;
+        const lastActivity = r.lastActivityAt ?? r.createdAt;
+        if (now - lastActivity > INACTIVITY_MS) {
+          markRoomInactive(r.roomId).catch(console.warn);
+        }
+      });
+
+      const rooms = all
+        .filter(
+          (r) =>
+            r.status !== "finished" &&
+            r.roomStatus !== "INACTIVE" &&
+            now - r.createdAt < ROOM_EXPIRY_MS
+        )
         .sort((a, b) => (b.lastActivityAt ?? b.createdAt) - (a.lastActivityAt ?? a.createdAt));
       callback(rooms);
     },
@@ -1192,10 +1256,26 @@ export function subscribeToUserActiveRooms(
   );
 }
 
+/**
+ * Fetch a room once.  Performs a lazy inactivity check before returning —
+ * if the room hasn't had activity in INACTIVITY_MS it is marked INACTIVE and
+ * the updated snapshot is returned so callers see the correct status.
+ */
 export async function getGameRoom(roomId: string): Promise<GameRoom | null> {
   const snap = await getDoc(doc(db, "gameRooms", roomId));
   if (!snap.exists()) return null;
-  return { roomId: snap.id, ...snap.data() } as GameRoom;
+  const room = { roomId: snap.id, ...snap.data() } as GameRoom;
+
+  // Lazy expiry: if inactive, mark it and return the updated object
+  if (room.roomStatus !== "INACTIVE" && room.status !== "finished") {
+    const lastActivity = room.lastActivityAt ?? room.createdAt;
+    if (Date.now() - lastActivity > INACTIVITY_MS) {
+      await markRoomInactive(roomId).catch(console.warn);
+      return { ...room, roomStatus: "INACTIVE" };
+    }
+  }
+
+  return room;
 }
 
 export async function saveGameState(
