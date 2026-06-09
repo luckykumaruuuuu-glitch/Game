@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "_ex3EYZeowTbbmvJPe7kQ"
+uri = "file://expo-qr.png"
+type = "image"
+title = "Expo Go QR Code — LeLudo"
