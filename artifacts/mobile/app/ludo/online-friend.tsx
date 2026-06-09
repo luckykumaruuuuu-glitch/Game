@@ -291,19 +291,35 @@ export default function OnlineFriendScreen() {
             </View>
           </View>
 
-          <Pressable
-            style={styles.activeBtn}
-            onPress={() => router.push('/ludo/active-games' as any)}
-            hitSlop={8}
-          >
-            <LinearGradient
-              colors={['rgba(124,58,237,0.35)', 'rgba(91,33,182,0.2)']}
-              style={styles.activeBtnGrad}
+          <View style={styles.headerActions}>
+            <Pressable
+              style={styles.activeBtn}
+              onPress={() => router.push('/ludo/active-games' as any)}
+              hitSlop={8}
             >
-              <Feather name="activity" size={13} color={PURPLE_LIGHT} />
-              <Text style={styles.activeBtnText}>Active</Text>
-            </LinearGradient>
-          </Pressable>
+              <LinearGradient
+                colors={['rgba(124,58,237,0.35)', 'rgba(91,33,182,0.2)']}
+                style={styles.activeBtnGrad}
+              >
+                <Feather name="activity" size={13} color={PURPLE_LIGHT} />
+                <Text style={styles.activeBtnText}>Active Game</Text>
+              </LinearGradient>
+            </Pressable>
+
+            <Pressable
+              style={styles.inviteBtn}
+              onPress={() => router.push('/ludo/invites' as any)}
+              hitSlop={8}
+            >
+              <LinearGradient
+                colors={['rgba(16,185,129,0.25)', 'rgba(5,150,105,0.15)']}
+                style={styles.inviteBtnGrad}
+              >
+                <Feather name="mail" size={13} color="#34D399" />
+                <Text style={styles.inviteBtnText}>Invite</Text>
+              </LinearGradient>
+            </Pressable>
+          </View>
         </View>
 
         {/* ── Mode Selector ──────────────────────────────────── */}
@@ -493,6 +509,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     color: 'rgba(255,255,255,0.45)',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
   activeBtn: {
     borderRadius: 20,
     overflow: 'hidden',
@@ -503,13 +524,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
   },
   activeBtnText: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
     color: PURPLE_LIGHT,
+  },
+  inviteBtn: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.35)',
+  },
+  inviteBtnGrad: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  inviteBtnText: {
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    color: '#34D399',
   },
 
   modeSection: {
