@@ -1,0 +1,132 @@
+CRITICAL REALTIME SYNC BUG
+
+THIS BUG IS STILL NOT FIXED.
+
+CURRENT PROBLEM:
+
+Online game میں ہر player کو دوسرے player کی moves realtime میں نظر نہیں آ رہیں۔
+
+EXPECTED BEHAVIOR:
+
+Example:
+
+Player A dice roll کرتا ہے۔
+
+اگر Dice پر 6 آیا:
+
+✓ Player A کو 6 نظر آئے
+✓ Player B کو بھی 6 نظر آئے
+✓ Room کے تمام players کو 6 نظر آئے
+
+Everyone must see the SAME dice value.
+
+CURRENT ISSUE:
+
+✗ Dice value صرف local device پر update ہو رہی ہے
+✗ دوسرے players کو صحیح value نظر نہیں آ رہی
+✗ Realtime sync نہیں ہو رہا
+
+SECOND ISSUE:
+
+When Player A moves a token:
+
+✓ Player A move دیکھے
+✓ Player B بھی وہی move دیکھے
+✓ All players same board state دیکھیں
+
+CURRENT ISSUE:
+
+✗ Token movement realtime sync نہیں ہو رہی
+✗ Board states مختلف ہو جاتی ہیں
+✗ Players مختلف positions دیکھ رہے ہیں
+
+REQUIRED FIX:
+
+DO NOT use local-only game state.
+
+Everything must come from Firebase room state.
+
+SYNC THESE VALUES THROUGH FIREBASE:
+
+- diceValue
+- currentTurn
+- tokenPositions
+- playerMoves
+- activePlayer
+- gameState
+
+DICE SYSTEM:
+
+When any player rolls:
+
+1. Generate dice value
+2. Save dice value in Firebase
+3. Broadcast to room
+4. All clients update instantly
+
+Example:
+
+room/gameState/diceValue = 6
+
+Every connected device must read same value.
+
+TOKEN MOVEMENT:
+
+When token moves:
+
+1. Update token position in Firebase
+2. Broadcast position
+3. All devices redraw token
+4. Everyone sees same board
+
+NO LOCAL BOARD STATE.
+
+FIREBASE MUST BE SINGLE SOURCE OF TRUTH.
+
+REALTIME LISTENERS:
+
+All players must subscribe to:
+
+onSnapshot
+onValue
+room updates
+
+Whenever Firebase changes:
+
+✓ Dice UI updates
+✓ Token UI updates
+✓ Turn UI updates
+
+automatically.
+
+DEBUG CHECK:
+
+Compare on all devices:
+
+diceValue
+currentTurn
+tokenPosition
+lastMove
+
+These values must always match.
+
+FINAL RESULT:
+
+If Player A gets 6:
+
+Everyone sees 6.
+
+If Player B gets 3:
+
+Everyone sees 3.
+
+If any token moves:
+
+Everyone sees identical movement.
+
+All devices must display the exact same game state in realtime.
+
+No local-only updates.
+No separate board states.
+No desynchronization.
+Firebase must control the entire multiplayer game state.

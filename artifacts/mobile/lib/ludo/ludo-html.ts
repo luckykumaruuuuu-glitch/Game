@@ -8054,6 +8054,11 @@ function _mpDispatch(command) {
   if (command.type === 'ROLL_DICE') {
     // ── Turn ownership: only the player whose turn it is can roll ──
     if (state.currentPlayerIndex !== _mp.myPlayerIndex) return;
+    // ── Guard: only send mpAction when the engine will actually accept it ──
+    // Without this check, rapid tapping sends multiple ROLL_DICE events to
+    // Firebase while the local dice animation is still running (phase=ROLLING).
+    // The remote device then applies all of them, desynchronising state.
+    if (!canRoll()) return;
     // Pre-generate the dice value and broadcast it to Firebase BEFORE the
     // animation starts. This guarantees all devices get the same value and
     // eliminates the race where SELECT_TOKEN could arrive at Firebase before
@@ -8084,6 +8089,9 @@ function _mpDispatch(command) {
     // ─────────────────────────────────────────────────────────────────────
     if (state.currentPlayerIndex !== _mp.myPlayerIndex) return; // Not my turn
     if (command.playerIndex !== _mp.myPlayerIndex) return;       // Not my token
+    // ── Guard: only send when engine is in AWAITING_SELECTION and token is movable ──
+    // Prevents duplicate SELECT_TOKEN events from rapid tapping or stale clicks.
+    if (!canSelectToken(command.tokenIndex)) return;
 
     // Include dice value + positions so remote devices can apply the move
     // correctly even if their ROLL_DICE animation hasn't resolved yet.
@@ -8138,9 +8146,23 @@ subscribe(function(event) {
   }
 });
 
+// Safety: if applyingRemote ever gets stuck true, reset after 10 seconds.
+var _applyingRemoteSafetyTimer = null;
+function _setApplyingRemote(val) {
+  _mp.applyingRemote = val;
+  if (_applyingRemoteSafetyTimer) { clearTimeout(_applyingRemoteSafetyTimer); _applyingRemoteSafetyTimer = null; }
+  if (val) {
+    _applyingRemoteSafetyTimer = setTimeout(function() {
+      console.warn('[MP] applyingRemote safety reset fired — was stuck true');
+      _mp.applyingRemote = false;
+      _applyingRemoteSafetyTimer = null;
+    }, 10000);
+  }
+}
+
 // Called by React Native to apply a remote player's action without re-broadcasting.
 window._applyRemoteAction = function(action) {
-  _mp.applyingRemote = true;
+  _setApplyingRemote(true);
   try {
     if (action.action === 'ROLL_DICE') {
       // ── Auto-heal state drift ─────────────────────────────────────────────
@@ -8158,16 +8180,24 @@ window._applyRemoteAction = function(action) {
       }
       _externalDiceValue = (action.diceValue !== undefined && action.diceValue !== null) ? +action.diceValue : null;
       var rollResult = _origDispatch({ type: 'ROLL_DICE' });
-      // If rollDice returned undefined (canRoll still failed), apply value directly.
-      if (rollResult === undefined && _externalDiceValue !== null) {
-        var forcedValue = _externalDiceValue;
-        _externalDiceValue = null;
-        try {
-          state.currentDiceRoll = forcedValue;
-          state.phase = 'AWAITING_SELECTION';
-          updateDiceFace(state.currentDiceRoll, forcedValue);
-          handleAfterDiceRoll(emit);
-        } catch(e2) { console.warn('[MP] forced dice apply error', String(e2)); }
+      // rollDice returns a Promise (animation). Keep applyingRemote=true until it
+      // resolves so the local subscribe listener does NOT post mpTurn to React Native
+      // (the actor's device already wrote the turn to Firebase — we must not race it).
+      if (rollResult && typeof rollResult.then === 'function') {
+        rollResult.then(function() { _setApplyingRemote(false); }).catch(function() { _setApplyingRemote(false); });
+      } else {
+        // If rollDice returned undefined (canRoll still failed), apply value directly.
+        if (_externalDiceValue !== null) {
+          var forcedValue = _externalDiceValue;
+          _externalDiceValue = null;
+          try {
+            state.currentDiceRoll = forcedValue;
+            state.phase = 'AWAITING_SELECTION';
+            updateDiceFace(state.currentDiceRoll, forcedValue);
+            handleAfterDiceRoll(emit);
+          } catch(e2) { console.warn('[MP] forced dice apply error', String(e2)); }
+        }
+        _setApplyingRemote(false);
       }
     } else if (action.action === 'SELECT_TOKEN') {
       // ── Auto-heal for token move ──────────────────────────────────────────
@@ -8193,7 +8223,14 @@ window._applyRemoteAction = function(action) {
           try { state.movableTokenIndexes = [action.tokenIndex]; } catch(e) {}
         }
       }
-      _origDispatch({ type: 'SELECT_TOKEN', playerIndex: action.playerIndex, tokenIndex: action.tokenIndex });
+      var selResult = _origDispatch({ type: 'SELECT_TOKEN', playerIndex: action.playerIndex, tokenIndex: action.tokenIndex });
+      // selectToken is async (animation). Keep applyingRemote=true until it resolves
+      // so the subscribe listener does NOT post mpTurn from this (non-actor) device.
+      if (selResult && typeof selResult.then === 'function') {
+        selResult.then(function() { _setApplyingRemote(false); }).catch(function() { _setApplyingRemote(false); });
+      } else {
+        _setApplyingRemote(false);
+      }
       // Emit move log so React Native can display the history entry.
       var moveLogMsg = JSON.stringify({
         type: 'mpMoveLog',
@@ -8204,9 +8241,13 @@ window._applyRemoteAction = function(action) {
         toPosition: action.toPosition,
       });
       if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(moveLogMsg);
+    } else {
+      _setApplyingRemote(false);
     }
-  } catch(e) { console.warn('[MP] applyRemoteAction error', String(e)); }
-  _mp.applyingRemote = false;
+  } catch(e) {
+    console.warn('[MP] applyRemoteAction error', String(e));
+    _setApplyingRemote(false);
+  }
 };
 
 // Called by React Native to force-sync the current turn player when Firebase
@@ -8216,12 +8257,15 @@ window._setTurnPlayer = function(playerIndex) {
   try {
     if (state.currentPlayerIndex !== playerIndex) {
       console.warn('[MP] _setTurnPlayer: correcting currentPlayerIndex from ' + state.currentPlayerIndex + ' to ' + playerIndex);
+      // Direct state mutation — DO NOT emit TURN_ADVANCED here.
+      // The TURN_ADVANCED reducer uses event.nextPlayerIndex, not event.currentPlayerIndex.
+      // Emitting TURN_ADVANCED with currentPlayerIndex sets state.currentPlayerIndex = undefined,
+      // which permanently blocks all dice rolls (undefined !== any myPlayerIndex).
       state.currentPlayerIndex = playerIndex;
       state.phase = 'AWAITING_ROLL';
-      try { moveDice(playerIndex); } catch(e) {}
-      if (typeof emit === 'function') {
-        emit({ type: 'TURN_ADVANCED', currentPlayerIndex: playerIndex, phase: 'AWAITING_ROLL', movableTokenIndexes: [] });
-      }
+      state.movableTokenIndexes = [];
+      try { moveDice(); } catch(e) {}
+      try { updateCornerWidgets(); } catch(e2) {}
       // Only notify React Native when we actually corrected the engine state.
       // Emitting mpTurn unconditionally (even when state was already correct)
       // caused React Native to call writeCurrentTurn → Firebase → subscription
@@ -8432,11 +8476,15 @@ window._restoreGameState = function(savedState) {
     }
     setTimeout(function() {
       try {
+        // Direct state mutation — DO NOT emit TURN_ADVANCED here.
+        // The TURN_ADVANCED reducer uses event.nextPlayerIndex, not event.currentPlayerIndex.
+        // Emitting TURN_ADVANCED with the wrong field name sets state.currentPlayerIndex = undefined,
+        // permanently blocking all dice rolls.
         state.currentPlayerIndex = targetPlayerIndex;
         state.phase = 'AWAITING_ROLL';
-        if (typeof emit === 'function') {
-          emit({ type: 'TURN_ADVANCED', currentPlayerIndex: targetPlayerIndex, phase: 'AWAITING_ROLL', movableTokenIndexes: [] });
-        }
+        state.movableTokenIndexes = [];
+        try { moveDice(); } catch(emd) {}
+        try { updateCornerWidgets(); } catch(euc) {}
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpRestored', currentPlayerIndex: targetPlayerIndex }));
         }

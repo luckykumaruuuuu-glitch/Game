@@ -1,0 +1,177 @@
+CRITICAL ONLINE MULTIPLAYER CONTROL BUG
+
+THIS BUG IS STILL NOT FIXED.
+
+CURRENT PROBLEM:
+
+Online multiplayer game is not properly assigning controls to players.
+
+EXPECTED BEHAVIOR:
+
+Player A (Host)
+
+- Controls only Player A color
+- Rolls own dice
+- Moves own tokens
+
+Player B (Friend)
+
+- Controls only Player B color
+- Rolls own dice
+- Moves own tokens
+
+ACTUAL BEHAVIOR:
+
+- Player A cannot control own tokens properly
+- Player B cannot control own tokens properly
+- Sometimes dice rolls
+- Sometimes clicks stop responding
+- Sometimes token selection does nothing
+- Neither phone receives proper turn control
+- Gameplay becomes stuck
+
+ROOT CAUSE TO CHECK:
+
+The turn ownership system is broken.
+
+Most likely:
+
+currentTurnPlayerId
+
+playerId
+
+playerColor
+
+activePlayer
+
+roomPlayers
+
+are not synchronized correctly between devices.
+
+REQUIRED FIX:
+
+ONLY the player whose turn is active should have control.
+
+Example:
+
+currentTurn = PlayerA
+
+Player A:
+✓ Dice clickable
+✓ Tokens clickable
+
+Player B:
+✗ Dice disabled
+✗ Tokens disabled
+
+After turn ends:
+
+currentTurn = PlayerB
+
+Player B:
+✓ Dice clickable
+✓ Tokens clickable
+
+Player A:
+✗ Dice disabled
+✗ Tokens disabled
+
+REALTIME SYNC CHECK:
+
+When Player A rolls dice:
+
+1. Firebase updates
+2. Player B receives update instantly
+3. Both devices show same dice value
+
+When Player A moves token:
+
+1. Firebase updates token position
+2. Player B receives update instantly
+3. Both devices show same token position
+
+NO LOCAL-ONLY STATE.
+
+Everything gameplay related must sync through room state.
+
+SECOND BUG:
+
+After repeated tapping:
+
+- Dice stops responding
+- Tokens stop responding
+- Clicks stop working
+- No movement happens
+
+This suggests input lock is getting stuck.
+
+CHECK:
+
+isRolling
+isAnimating
+isMoving
+isTurnLocked
+isProcessingMove
+
+These flags may be set to TRUE and never reset.
+
+VERIFY:
+
+After animation completes:
+
+isRolling = false
+
+isMoving = false
+
+isAnimating = false
+
+Controls must become active again.
+
+DO NOT leave any lock flag active.
+
+THIRD BUG:
+
+Sometimes neither player can play.
+
+This indicates turn system entered invalid state.
+
+Add validation:
+
+If currentTurn player not found:
+
+Automatically recover.
+
+If active player disconnected:
+
+Move turn to next valid active player.
+
+Never leave game without a valid turn owner.
+
+DEBUG REQUIRED:
+
+Log these values in realtime:
+
+playerId
+currentTurnPlayerId
+assignedColor
+isMyTurn
+diceValue
+canRollDice
+canMoveToken
+isRolling
+isMoving
+
+Compare logs on both devices.
+
+FINAL RESULT:
+
+Player A must control only Player A pieces.
+
+Player B must control only Player B pieces.
+
+Dice, token movement, turn switching and Firebase synchronization must work identically on both phones in realtime.
+
+No frozen controls.
+No dead clicks.
+No stuck turns.
+No missing ownership.
