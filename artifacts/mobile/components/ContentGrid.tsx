@@ -1,10 +1,11 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
-import React from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, Dimensions, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { ContentItem } from "@/lib/firestore";
 import { useColors } from "@/hooks/useColors";
 import { GlassCard } from "./GlassCard";
+import { ImageViewerModal } from "./ImageViewerModal";
 
 const COLS = 2;
 const GAP = 10;
@@ -20,6 +21,7 @@ interface ContentGridProps {
 
 export function ContentGrid({ items, loading, onDelete, editable }: ContentGridProps) {
   const colors = useColors();
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -39,50 +41,63 @@ export function ContentGrid({ items, loading, onDelete, editable }: ContentGridP
   }
 
   return (
-    <View style={styles.grid}>
-      {items.map((item) => (
-        <View key={item.contentId} style={[styles.cell, { width: CELL }]}>
-          {item.type === "image" ? (
-            <View style={styles.imageCell}>
-              <Image
-                source={{ uri: item.url }}
-                style={[styles.image, { width: CELL, height: CELL }]}
-                contentFit="cover"
-                transition={200}
-              />
-              {editable && onDelete && (
-                <TouchableOpacity
-                  style={[styles.deleteBtn, { backgroundColor: colors.destructive }]}
-                  onPress={() => onDelete(item.contentId)}
-                >
-                  <Feather name="x" size={12} color="#fff" />
-                </TouchableOpacity>
-              )}
-            </View>
-          ) : (
-            <GlassCard style={[styles.textCell, { width: CELL, height: CELL }]} padding={12}>
-              <Feather name="file-text" size={18} color={colors.primary} style={styles.textIcon} />
-              <Text style={[styles.textContent, { color: colors.foreground }]} numberOfLines={6}>
-                {item.url}
+    <>
+      <View style={styles.grid}>
+        {items.map((item) => (
+          <View key={item.contentId} style={[styles.cell, { width: CELL }]}>
+            {item.type === "image" ? (
+              <TouchableOpacity
+                activeOpacity={0.88}
+                onPress={() => setViewerUri(item.url)}
+                style={styles.imageCell}
+              >
+                <Image
+                  source={{ uri: item.url }}
+                  style={[styles.image, { width: CELL, height: CELL }]}
+                  contentFit="cover"
+                  transition={200}
+                />
+                {editable && onDelete && (
+                  <TouchableOpacity
+                    style={[styles.deleteBtn, { backgroundColor: colors.destructive }]}
+                    onPress={() => onDelete(item.contentId)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Feather name="x" size={12} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <GlassCard style={[styles.textCell, { width: CELL, height: CELL }]} padding={12}>
+                <Feather name="file-text" size={18} color={colors.primary} style={styles.textIcon} />
+                <Text style={[styles.textContent, { color: colors.foreground }]} numberOfLines={6}>
+                  {item.url}
+                </Text>
+                {editable && onDelete && (
+                  <TouchableOpacity
+                    style={[styles.deleteBtn, { backgroundColor: colors.destructive }]}
+                    onPress={() => onDelete(item.contentId)}
+                  >
+                    <Feather name="x" size={12} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </GlassCard>
+            )}
+            {item.caption ? (
+              <Text style={[styles.caption, { color: colors.mutedForeground }]} numberOfLines={1}>
+                {item.caption}
               </Text>
-              {editable && onDelete && (
-                <TouchableOpacity
-                  style={[styles.deleteBtn, { backgroundColor: colors.destructive }]}
-                  onPress={() => onDelete(item.contentId)}
-                >
-                  <Feather name="x" size={12} color="#fff" />
-                </TouchableOpacity>
-              )}
-            </GlassCard>
-          )}
-          {item.caption ? (
-            <Text style={[styles.caption, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {item.caption}
-            </Text>
-          ) : null}
-        </View>
-      ))}
-    </View>
+            ) : null}
+          </View>
+        ))}
+      </View>
+
+      <ImageViewerModal
+        visible={viewerUri !== null}
+        uri={viewerUri}
+        onClose={() => setViewerUri(null)}
+      />
+    </>
   );
 }
 
