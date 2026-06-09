@@ -129,6 +129,7 @@ function Calendar({
           return (
             <div
               data-slot="calendar"
+              // @ts-expect-error React ref type version mismatch between workspace packages
               ref={rootRef}
               className={cn(className)}
               {...props}

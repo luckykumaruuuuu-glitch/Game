@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 
 function Spinner({ className, ...props }: React.ComponentProps<"svg">) {
   return (
+    // @ts-expect-error React ref type version mismatch between workspace packages
     <Loader2Icon
       role="status"
       aria-label="Loading"
