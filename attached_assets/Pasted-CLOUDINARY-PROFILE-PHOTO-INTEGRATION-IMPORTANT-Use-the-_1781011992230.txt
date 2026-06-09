@@ -1,0 +1,189 @@
+CLOUDINARY PROFILE PHOTO INTEGRATION
+
+IMPORTANT
+
+Use the exact Cloudinary configuration below.
+
+Do NOT invent new Cloudinary settings.
+
+Do NOT create another upload preset.
+
+Use the existing Cloudinary account configuration.
+
+================================
+
+CLOUDINARY DETAILS
+
+================================
+
+Cloud Name:
+
+ddmx5qvhn
+
+Upload Preset:
+
+upload_profile
+
+Preset Type:
+
+Unsigned
+
+================================
+
+PROFILE PHOTO ONLY
+
+================================
+
+Profile supports only profile images.
+
+Do NOT implement profile videos.
+
+Do NOT add video upload in profile.
+
+================================
+
+UPLOAD FLOW
+
+================================
+
+Profile Upload Button
+↓
+Open Gallery
+↓
+Select Image
+↓
+Check File Size
+
+Maximum Size:
+
+1 MB
+
+If image > 1 MB:
+
+Show Error:
+
+"Profile image must be less than 1 MB"
+
+↓
+Upload Image To Cloudinary
+
+URL:
+
+https://api.cloudinary.com/v1_1/ddmx5qvhn/image/upload
+
+Use Upload Preset:
+
+upload_profile
+
+↓
+Receive Cloudinary Response
+
+Use:
+
+secure_url
+
+and
+
+public_id
+
+↓
+Save To Firebase
+
+================================
+
+FIREBASE DATA
+
+================================
+
+Store:
+
+profilePhotoUrl
+
+profilePhotoPublicId
+
+Example:
+
+{
+"profilePhotoUrl": "secure_url",
+"profilePhotoPublicId": "public_id"
+}
+
+Do NOT store image files in Firebase.
+
+Store only Cloudinary data.
+
+================================
+
+REALTIME PROFILE SYSTEM
+
+================================
+
+If user changes profile photo:
+
+Update Firebase immediately.
+
+All users should see the new profile photo instantly.
+
+No refresh required.
+
+No restart required.
+
+Use existing Firebase realtime listeners.
+
+================================
+
+DELETE PHOTO
+
+================================
+
+Show Delete Photo button.
+
+When pressed:
+
+1. Remove photo from Cloudinary using public_id
+
+2. Remove profilePhotoUrl from Firebase
+
+3. Remove profilePhotoPublicId from Firebase
+
+4. Update UI immediately
+
+5. Realtime update all users
+
+================================
+
+DO NOT
+
+================================
+
+Do NOT create new Cloudinary account.
+
+Do NOT create new Upload Preset.
+
+Do NOT use Signed Uploads.
+
+Do NOT store image files in Firebase.
+
+Do NOT add profile video support.
+
+================================
+
+FINAL RESULT
+
+Cloud Name:
+ddmx5qvhn
+
+Upload Preset:
+upload_profile
+
+Unsigned Upload
+
+Profile Photo Only
+
+1 MB Limit
+
+Realtime Firebase Sync
+
+Cloudinary Stores Image
+
+Firebase Stores URL + Public ID

@@ -58,6 +58,7 @@ export interface UserProfile {
   email: string;
   authEmail?: string;
   photo: string;
+  photoPublicId?: string;
   bio: string;
   qrCode: string;
   createdAt: number;
@@ -77,6 +78,24 @@ export interface ContentItem {
   url: string;
   caption?: string;
   timestamp: number;
+}
+
+export async function updateProfilePhoto(
+  userId: string,
+  profilePhotoUrl: string,
+  profilePhotoPublicId: string
+): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    photo: profilePhotoUrl,
+    photoPublicId: profilePhotoPublicId,
+  });
+}
+
+export async function removeProfilePhoto(userId: string): Promise<void> {
+  await updateDoc(doc(db, "users", userId), {
+    photo: "",
+    photoPublicId: "",
+  });
 }
 
 export interface FriendRequest {
