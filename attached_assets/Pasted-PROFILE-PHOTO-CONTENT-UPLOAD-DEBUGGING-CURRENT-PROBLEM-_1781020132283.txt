@@ -1,0 +1,243 @@
+PROFILE PHOTO + CONTENT UPLOAD DEBUGGING
+
+CURRENT PROBLEM
+
+Nothing happens after selecting an image.
+
+Symptoms:
+
+1. Profile image does not update.
+
+2. No success message appears.
+
+3. No error message appears.
+
+4. No loading indicator appears.
+
+5. Content uploads do not appear.
+
+6. Previously uploaded content does not appear.
+
+7. User receives no feedback at all.
+
+This indicates upload flow is failing silently.
+
+================================
+
+STEP 1
+
+ADD COMPLETE LOGGING
+
+================================
+
+Add logs for every stage:
+
+Upload Button Pressed
+
+Gallery Opened
+
+File Selected
+
+File Size Checked
+
+Cloudinary Upload Started
+
+Cloudinary Upload Success
+
+Cloudinary Upload Failed
+
+Firebase Save Started
+
+Firebase Save Success
+
+Firebase Save Failed
+
+UI Refresh Triggered
+
+Realtime Listener Triggered
+
+================================
+
+STEP 2
+
+VERIFY IMAGE PICKER
+
+================================
+
+Confirm image picker returns:
+
+uri
+
+fileSize
+
+mimeType
+
+fileName
+
+If image picker returns null:
+
+Show error.
+
+================================
+
+STEP 3
+
+VERIFY FILE SIZE CHECK
+
+================================
+
+Log actual file size.
+
+Example:
+
+Selected Image Size: 450 KB
+
+Selected Image Size: 820 KB
+
+Selected Image Size: 1.8 MB
+
+Verify size validation is not rejecting valid images.
+
+================================
+
+STEP 4
+
+VERIFY CLOUDINARY REQUEST
+
+================================
+
+Cloud Name:
+
+ddmx5qvhn
+
+Upload Preset:
+
+upload_profile
+
+Verify request is sent.
+
+Verify HTTP response code.
+
+Log response body.
+
+================================
+
+STEP 5
+
+VERIFY CLOUDINARY RESPONSE
+
+================================
+
+Confirm response contains:
+
+secure_url
+
+public_id
+
+If missing:
+
+Show error.
+
+================================
+
+STEP 6
+
+VERIFY FIREBASE SAVE
+
+================================
+
+After Cloudinary upload succeeds:
+
+Save URL to Firebase.
+
+Log:
+
+Firebase write success
+
+or
+
+Firebase write failure
+
+================================
+
+STEP 7
+
+VERIFY REALTIME LISTENER
+
+================================
+
+Profile screen must listen to Firebase changes.
+
+If URL exists in Firebase:
+
+Display image immediately.
+
+If listener is not firing:
+
+Fix Firebase subscription.
+
+================================
+
+STEP 8
+
+VERIFY CONTENT GALLERY
+
+================================
+
+When profile opens:
+
+Load uploaded content from Firebase.
+
+If content exists:
+
+Display all uploaded photos/videos.
+
+Newest first.
+
+================================
+
+STEP 9
+
+USER FEEDBACK
+
+================================
+
+Show loading state:
+
+Uploading...
+
+Show success state:
+
+Upload successful
+
+Show failure state:
+
+Upload failed
+
+Never fail silently.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+Profile Photo:
+
+Select Image
+→ Upload
+→ Cloudinary
+→ Firebase
+→ Profile Updates
+
+Content Upload:
+
+Select Media
+→ Upload
+→ Cloudinary
+→ Firebase
+→ Content Appears
+
+Every step must provide visible feedback.
+
+No silent failures allowed.

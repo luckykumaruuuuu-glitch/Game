@@ -32,42 +32,7 @@ import { uploadImageToCloudinary, deleteImageFromCloudinary } from "@/lib/cloudi
 import { useColors } from "@/hooks/useColors";
 
 const MAX_IMAGE_BYTES = 1 * 1024 * 1024; // 1 MB
-
-async function pickAndValidateImage(): Promise<{ uri: string } | null> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) {
-    Alert.alert("Permission required", "Please allow access to your photo library.");
-    return null;
-  }
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ["images"],
-    quality: 0.9,
-  });
-
-  if (result.canceled || !result.assets?.[0]) return null;
-
-  const asset = result.assets[0];
-  const uri = asset.uri;
-
-  // Validate file size
-  let fileSizeBytes = asset.fileSize ?? 0;
-  if (!fileSizeBytes && Platform.OS !== "web") {
-    try {
-      const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
-      if (info.exists && "size" in info) fileSizeBytes = (info as any).size ?? 0;
-    } catch {
-      /* proceed optimistically */
-    }
-  }
-
-  if (fileSizeBytes > 0 && fileSizeBytes > MAX_IMAGE_BYTES) {
-    Alert.alert("Image too large", "Profile image must be less than 1 MB.");
-    return null;
-  }
-
-  return { uri };
-}
+const TAG = "[PROFILE]";
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -78,14 +43,25 @@ export default function ProfileScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingContent, setUploadingContent] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
 
+  // ── Show brief status banner ──────────────────────────────────────────────
+  function showStatus(msg: string, durationMs = 3000) {
+    console.log(`${TAG} STATUS: ${msg}`);
+    setStatusMsg(msg);
+    setTimeout(() => setStatusMsg(null), durationMs);
+  }
+
+  // ── Load content gallery ─────────────────────────────────────────────────
   const loadContent = useCallback(async () => {
     if (!user) return;
+    console.log(`${TAG} loadContent → userId=${user.uid}`);
     try {
       const items = await getUserContent(user.uid);
+      console.log(`${TAG} loadContent → got ${items.length} items`);
       setContent(items);
-    } catch {
-      /* ignore */
+    } catch (err) {
+      console.error(`${TAG} loadContent ERROR:`, err);
     } finally {
       setLoadingContent(false);
     }
@@ -99,60 +75,156 @@ export default function ProfileScreen() {
     setRefreshing(false);
   }, [refreshProfile, loadContent]);
 
-  // ── SYSTEM 1: Profile Photo ─────────────────────────────────────────────────
-  // Changes avatar only. Never touches content collection.
+  // ── Shared image picker helper ────────────────────────────────────────────
+  async function pickImage(squareCrop: boolean): Promise<ImagePicker.ImagePickerAsset | null> {
+    console.log(`${TAG} pickImage → requesting permissions...`);
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    console.log(`${TAG} pickImage → permission granted=${perm.granted}`);
+
+    if (!perm.granted) {
+      Alert.alert("Permission required", "Please allow access to your photo library.");
+      return null;
+    }
+
+    console.log(`${TAG} pickImage → launching gallery (squareCrop=${squareCrop})`);
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: squareCrop,
+      aspect: squareCrop ? [1, 1] : undefined,
+      quality: 0.9,
+    });
+
+    console.log(`${TAG} pickImage → canceled=${result.canceled} assetCount=${result.assets?.length ?? 0}`);
+
+    if (result.canceled || !result.assets?.[0]) {
+      console.log(`${TAG} pickImage → user canceled or no asset`);
+      return null;
+    }
+
+    const asset = result.assets[0];
+    console.log(`${TAG} pickImage → uri=${asset.uri} mimeType=${asset.mimeType} fileSize=${asset.fileSize} w=${asset.width} h=${asset.height}`);
+
+    // Validate size
+    let fileSizeBytes = asset.fileSize ?? 0;
+    if (!fileSizeBytes && Platform.OS !== "web") {
+      try {
+        const info = await FileSystem.getInfoAsync(asset.uri, { size: true } as any);
+        if (info.exists && "size" in info) fileSizeBytes = (info as any).size ?? 0;
+        console.log(`${TAG} pickImage → FileSystem size=${fileSizeBytes}`);
+      } catch (e) {
+        console.warn(`${TAG} pickImage → FileSystem.getInfoAsync failed:`, e);
+      }
+    }
+
+    const kb = fileSizeBytes > 0 ? (fileSizeBytes / 1024).toFixed(0) : "unknown";
+    console.log(`${TAG} pickImage → file size = ${kb} KB`);
+
+    if (fileSizeBytes > 0 && fileSizeBytes > MAX_IMAGE_BYTES) {
+      const sizeMB = (fileSizeBytes / (1024 * 1024)).toFixed(2);
+      Alert.alert("Image too large", `Selected image is ${sizeMB} MB. Maximum allowed size is 1 MB. Please choose a smaller image.`);
+      return null;
+    }
+
+    return asset;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // SYSTEM 1 — PROFILE PHOTO
+  // Avatar tap only. Never touches content collection.
+  // ══════════════════════════════════════════════════════════════════════════
   async function handleUploadAvatar() {
-    if (!user || uploadingAvatar) return;
-    const picked = await pickAndValidateImage();
-    if (!picked) return;
+    console.log(`${TAG} [AVATAR] handleUploadAvatar called user=${user?.uid}`);
+    if (!user) { console.warn(`${TAG} [AVATAR] no user, aborting`); return; }
+    if (uploadingAvatar) { console.warn(`${TAG} [AVATAR] already uploading, aborting`); return; }
+
+    const asset = await pickImage(true);
+    if (!asset) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setUploadingAvatar(true);
+    showStatus("Uploading profile photo…");
+
     try {
-      const { secure_url, public_id } = await uploadImageToCloudinary(picked.uri);
+      // ── Cloudinary upload ──────────────────────────────────────────────
+      console.log(`${TAG} [AVATAR] Cloudinary upload started → uri=${asset.uri}`);
+      const mimeType = asset.mimeType ?? "image/jpeg";
+      const { secure_url, public_id } = await uploadImageToCloudinary(asset.uri, mimeType);
+      console.log(`${TAG} [AVATAR] Cloudinary upload SUCCESS → secure_url=${secure_url} public_id=${public_id}`);
+
+      // ── Firebase write ─────────────────────────────────────────────────
+      console.log(`${TAG} [AVATAR] Firebase write started...`);
       await updateProfilePhoto(user.uid, secure_url, public_id);
+      console.log(`${TAG} [AVATAR] Firebase write SUCCESS`);
+
       await refreshProfile();
+      console.log(`${TAG} [AVATAR] refreshProfile done`);
+      showStatus("✓ Profile photo updated!");
     } catch (err: any) {
+      console.error(`${TAG} [AVATAR] UPLOAD FAILED:`, err);
       Alert.alert("Upload failed", err?.message ?? "Could not upload photo. Please try again.");
     } finally {
       setUploadingAvatar(false);
     }
   }
 
-  // ── SYSTEM 2: Content Gallery ───────────────────────────────────────────────
-  // Uploads to content collection ONLY. Never changes profile photo.
+  // ══════════════════════════════════════════════════════════════════════════
+  // SYSTEM 2 — CONTENT GALLERY
+  // Separate from profile photo. Saves to content collection ONLY.
+  // ══════════════════════════════════════════════════════════════════════════
   async function handleUploadContent() {
-    if (!user || uploadingContent) return;
-    const picked = await pickAndValidateImage();
-    if (!picked) return;
+    console.log(`${TAG} [CONTENT] handleUploadContent called user=${user?.uid}`);
+    if (!user) { console.warn(`${TAG} [CONTENT] no user, aborting`); return; }
+    if (uploadingContent) { console.warn(`${TAG} [CONTENT] already uploading, aborting`); return; }
+
+    const asset = await pickImage(false);
+    if (!asset) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setUploadingContent(true);
+    showStatus("Uploading to gallery…");
+
     try {
-      const { secure_url, public_id } = await uploadImageToCloudinary(picked.uri);
+      // ── Cloudinary upload ──────────────────────────────────────────────
+      console.log(`${TAG} [CONTENT] Cloudinary upload started → uri=${asset.uri}`);
+      const mimeType = asset.mimeType ?? "image/jpeg";
+      const { secure_url, public_id } = await uploadImageToCloudinary(asset.uri, mimeType);
+      console.log(`${TAG} [CONTENT] Cloudinary upload SUCCESS → secure_url=${secure_url} public_id=${public_id}`);
+
+      // ── Firebase write to content collection ───────────────────────────
+      console.log(`${TAG} [CONTENT] Firebase content write started...`);
       const newId = await addContent(user.uid, "image", secure_url, undefined, public_id);
-      // Prepend to local state immediately — no refetch needed
-      setContent((prev) => [
-        { contentId: newId, userId: user.uid, type: "image", url: secure_url, publicId: public_id, timestamp: Date.now() },
-        ...prev,
-      ]);
+      console.log(`${TAG} [CONTENT] Firebase content write SUCCESS → contentId=${newId}`);
+
+      // Prepend to local state immediately
+      const newItem: ContentItem = {
+        contentId: newId,
+        userId: user.uid,
+        type: "image",
+        url: secure_url,
+        publicId: public_id,
+        timestamp: Date.now(),
+      };
+      setContent((prev) => [newItem, ...prev]);
+      showStatus("✓ Photo added to gallery!");
     } catch (err: any) {
+      console.error(`${TAG} [CONTENT] UPLOAD FAILED:`, err);
       Alert.alert("Upload failed", err?.message ?? "Could not upload image. Please try again.");
     } finally {
       setUploadingContent(false);
     }
   }
 
-  // ── Content Delete: Cloudinary + Firebase ───────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // Content delete: Cloudinary + Firebase
+  // ══════════════════════════════════════════════════════════════════════════
   async function handleDeleteContent(contentId: string) {
+    console.log(`${TAG} [DELETE] contentId=${contentId}`);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const item = content.find((c) => c.contentId === contentId);
-    // Remove from UI immediately
     setContent((prev) => prev.filter((c) => c.contentId !== contentId));
-    // Delete from Firebase
-    await deleteContent(contentId).catch(() => {});
-    // Delete from Cloudinary (best-effort)
+    await deleteContent(contentId).catch((e) => console.error(`${TAG} [DELETE] Firebase error:`, e));
     if (item?.publicId) {
+      console.log(`${TAG} [DELETE] Cloudinary delete → publicId=${item.publicId}`);
       deleteImageFromCloudinary(item.publicId).catch(() => {});
     }
   }
@@ -169,6 +241,13 @@ export default function ProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
+        {/* ── Status Banner ── */}
+        {statusMsg ? (
+          <View style={[styles.statusBanner, { backgroundColor: colors.primary }]}>
+            <Text style={styles.statusText}>{statusMsg}</Text>
+          </View>
+        ) : null}
+
         {/* ── Header ── */}
         <View style={[styles.header, { paddingTop: topPad + 8 }]}>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Profile</Text>
@@ -183,14 +262,14 @@ export default function ProfileScreen() {
         {/* ── Profile Info ── */}
         <View style={styles.profileSection}>
 
-          {/* Avatar — tap to change PROFILE PHOTO only */}
+          {/* Avatar tap → PROFILE PHOTO ONLY */}
           <TouchableOpacity
             onPress={handleUploadAvatar}
             activeOpacity={0.8}
             disabled={uploadingAvatar}
           >
             <ProfileAvatar uri={profile?.photo} size={96} name={profile?.name} />
-            <View style={[styles.editBadge, { backgroundColor: colors.primary, borderColor: colors.background }]}>
+            <View style={[styles.editBadge, { backgroundColor: uploadingAvatar ? colors.mutedForeground : colors.primary, borderColor: colors.background }]}>
               {uploadingAvatar ? (
                 <ActivityIndicator size={10} color="#fff" />
               ) : (
@@ -198,6 +277,14 @@ export default function ProfileScreen() {
               )}
             </View>
           </TouchableOpacity>
+
+          {/* Avatar upload progress label */}
+          {uploadingAvatar ? (
+            <View style={[styles.uploadingRow, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+              <ActivityIndicator size={12} color={colors.primary} />
+              <Text style={[styles.uploadingText, { color: colors.primary }]}>Updating profile photo…</Text>
+            </View>
+          ) : null}
 
           <Text style={[styles.name, { color: colors.foreground }]}>{profile?.name ?? "—"}</Text>
           <Text style={[styles.usernameText, { color: colors.mutedForeground }]}>
@@ -249,7 +336,7 @@ export default function ProfileScreen() {
             </View>
           ) : null}
 
-          {/* Action buttons — Edit Profile + My QR only */}
+          {/* Action buttons — Edit Profile + My QR */}
           <View style={styles.actions}>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.primary }]}
@@ -292,9 +379,12 @@ export default function ProfileScreen() {
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Content</Text>
 
-          {/* Content Upload button — SEPARATE from profile photo */}
+          {/* Content Upload button — SEPARATE system from profile photo */}
           <TouchableOpacity
-            style={[styles.addContentBtn, { backgroundColor: colors.primary }]}
+            style={[
+              styles.addContentBtn,
+              { backgroundColor: uploadingContent ? colors.mutedForeground : colors.primary },
+            ]}
             onPress={handleUploadContent}
             disabled={uploadingContent}
             activeOpacity={0.8}
@@ -306,6 +396,14 @@ export default function ProfileScreen() {
             )}
           </TouchableOpacity>
         </View>
+
+        {/* Content upload progress label */}
+        {uploadingContent ? (
+          <View style={[styles.uploadingRow, { backgroundColor: colors.secondary, borderColor: colors.border, marginHorizontal: 16, marginBottom: 8 }]}>
+            <ActivityIndicator size={12} color={colors.primary} />
+            <Text style={[styles.uploadingText, { color: colors.primary }]}>Uploading to gallery…</Text>
+          </View>
+        ) : null}
 
         <ContentGrid
           items={content}
@@ -320,6 +418,12 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
+  statusBanner: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    alignItems: "center",
+  },
+  statusText: { color: "#fff", fontSize: 13, fontFamily: "Inter_600SemiBold" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -345,6 +449,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  uploadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  uploadingText: { fontSize: 12, fontFamily: "Inter_600SemiBold" },
   name: { fontSize: 20, fontFamily: "Inter_700Bold", marginTop: 4 },
   usernameText: { fontSize: 14, fontFamily: "Inter_400Regular" },
   bio: { fontSize: 14, fontFamily: "Inter_400Regular", textAlign: "center", lineHeight: 20 },
