@@ -895,11 +895,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerCenter: { flex: 1, gap: 7, minWidth: 0 },
+  headerCenter: { flex: 1, gap: 5, minWidth: 0 },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 16,
     fontFamily: 'Inter_700Bold',
-    letterSpacing: -0.3,
+    letterSpacing: -0.2,
   },
   statsRow: { flexDirection: 'row', gap: 7 },
   statPill: {
@@ -925,14 +925,14 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 6,
     flexShrink: 0,
   },
   actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 9,
     paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
