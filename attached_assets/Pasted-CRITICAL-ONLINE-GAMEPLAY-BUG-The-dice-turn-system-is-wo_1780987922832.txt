@@ -1,0 +1,206 @@
+CRITICAL ONLINE GAMEPLAY BUG
+
+The dice turn system is working correctly.
+
+Current status:
+
+✓ Player A turn comes correctly
+✓ Player B turn comes correctly
+✓ Dice ownership works
+✓ Turn switching works
+
+Do NOT modify the turn system.
+
+Do NOT modify dice ownership.
+
+The problem is different.
+
+================================
+
+CURRENT BUG
+
+================================
+
+Example:
+
+Player A rolls a 6.
+
+Correct behavior should be:
+
+1. Dice shows 6
+2. Player token becomes selectable
+3. Player taps token
+4. Token exits home/base
+5. Game continues
+
+But currently:
+
+1. Dice shows 6
+2. Player taps token
+3. Nothing happens
+4. Token does not open
+5. Token does not move
+6. Game becomes stuck
+
+The same issue happens for all players.
+
+================================
+
+IMPORTANT
+
+================================
+
+This is NOT a turn bug.
+
+This is NOT a dice bug.
+
+Turns are already working.
+
+Dice ownership is already working.
+
+The bug is:
+
+Token selection / token interaction is broken.
+
+================================
+
+CHECK THESE THINGS
+
+================================
+
+1. Token touch events
+
+Verify:
+
+- onPress
+- onClick
+- Touchable
+- Gesture handlers
+
+Are actually firing.
+
+2. Token permissions
+
+Verify:
+
+When player rolls 6:
+
+The token should become selectable.
+
+Check:
+
+canMoveToken
+
+canOpenToken
+
+availableMoves
+
+validMoves
+
+3. Home Exit Logic
+
+When token is inside base/home:
+
+Dice = 6
+
+The system must allow:
+
+Home → Start Position
+
+Check if this validation is failing.
+
+4. Ownership Validation
+
+Example:
+
+Player A owns Red.
+
+Player A rolls 6.
+
+Player A must be allowed to click Red token.
+
+Verify ownership check is not blocking valid moves.
+
+5. Input Lock
+
+Check:
+
+isRolling
+
+isAnimating
+
+isMoving
+
+isProcessingMove
+
+These flags may still be TRUE after dice roll.
+
+If any lock remains active:
+
+Token clicks are ignored.
+
+================================
+
+DEBUG REQUIRED
+
+================================
+
+When player taps token, log:
+
+playerId
+
+assignedColor
+
+diceValue
+
+tokenId
+
+canMoveToken
+
+canOpenToken
+
+isMyTurn
+
+isRolling
+
+isAnimating
+
+isProcessingMove
+
+Tell me which condition is preventing token movement.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+Roll 6
+
+↓
+
+Tap token
+
+↓
+
+Token opens from base
+
+↓
+
+Firebase updates
+
+↓
+
+All players see movement
+
+↓
+
+Game continues
+
+Do NOT rewrite game.
+
+Do NOT rewrite board.
+
+Do NOT rewrite multiplayer.
+
+Only fix token selection and token opening after a valid dice roll.
