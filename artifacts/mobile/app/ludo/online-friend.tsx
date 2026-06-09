@@ -4,10 +4,13 @@ import {
   Animated,
   FlatList,
   Image,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -23,10 +26,14 @@ import { useLudo } from '@/context/LudoContext';
 import {
   UserPresence,
   UserProfile,
+  getGameRoom,
+  joinRoomAsSpectator,
   sendGameInvite,
   subscribeToFriends,
   subscribeToFriendsPresence,
 } from '@/lib/firestore';
+
+const AMBER = '#F59E0B';
 
 type GameMode = 2 | 3 | 4;
 
@@ -381,6 +388,35 @@ export default function OnlineFriendScreen() {
   const [sent, setSent] = useState(false);
   const presenceUnsubRef = useRef<(() => void) | null>(null);
 
+  // ── Room spectator dialog ────────────────────────────────────────────────
+  const [showRoomModal, setShowRoomModal] = useState(false);
+  const [roomInput, setRoomInput] = useState('');
+  const [roomLoading, setRoomLoading] = useState(false);
+  const [roomError, setRoomError] = useState('');
+
+  async function handleWatchRoom() {
+    const id = roomInput.trim().toUpperCase();
+    if (!id) { setRoomError('Please enter a Room ID'); return; }
+    setRoomLoading(true);
+    setRoomError('');
+    try {
+      const room = await getGameRoom(id);
+      if (!room) { setRoomError('Room not found'); setRoomLoading(false); return; }
+      if (room.status === 'finished') { setRoomError('Match has ended'); setRoomLoading(false); return; }
+      if (room.status !== 'in_game') { setRoomError('Match has not started yet'); setRoomLoading(false); return; }
+      if (user?.uid) {
+        await joinRoomAsSpectator(id, user.uid, profile?.name || 'Spectator', profile?.photo || undefined);
+      }
+      setShowRoomModal(false);
+      setRoomInput('');
+      router.push(`/ludo/spectator?roomId=${id}` as any);
+    } catch {
+      setRoomError('Something went wrong. Try again.');
+    } finally {
+      setRoomLoading(false);
+    }
+  }
+
   const screenOpacity = useRef(new Animated.Value(0)).current;
   const sendBtnScale = useRef(new Animated.Value(1)).current;
 
@@ -504,6 +540,22 @@ export default function OnlineFriendScreen() {
             >
               <Feather name="mail" size={13} color="#34D399" />
               <Text style={[styles.actionPillText, { color: '#34D399' }]}>Invite</Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.actionPill, { borderColor: 'rgba(245,158,11,0.4)',
+                backgroundColor: colors.isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.07)' }]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                playSound();
+                setRoomInput('');
+                setRoomError('');
+                setShowRoomModal(true);
+              }}
+              hitSlop={8}
+            >
+              <Feather name="eye" size={13} color={AMBER} />
+              <Text style={[styles.actionPillText, { color: AMBER }]}>Room</Text>
             </Pressable>
           </View>
         </View>
@@ -632,6 +684,97 @@ export default function OnlineFriendScreen() {
           </View>
         )}
       </Animated.View>
+
+      {/* ── Room Spectator Modal ──────────────────────────────────── */}
+      <Modal
+        visible={showRoomModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowRoomModal(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowRoomModal(false)} />
+          <View style={[styles.modalCard, {
+            backgroundColor: colors.isDark ? '#1a1a2e' : '#fff',
+            borderColor: colors.isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.3)',
+          }]}>
+            {/* Title */}
+            <View style={styles.modalHeader}>
+              <View style={[styles.modalIconWrap, {
+                backgroundColor: 'rgba(245,158,11,0.12)',
+                borderColor: 'rgba(245,158,11,0.3)',
+              }]}>
+                <Feather name="eye" size={18} color={AMBER} />
+              </View>
+              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Enter Room ID</Text>
+            </View>
+
+            {/* Input */}
+            <TextInput
+              style={[styles.roomInput, {
+                backgroundColor: colors.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
+                borderColor: roomError
+                  ? '#EF4444'
+                  : colors.isDark ? 'rgba(245,158,11,0.3)' : 'rgba(245,158,11,0.4)',
+                color: colors.foreground,
+              }]}
+              placeholder="Room ID"
+              placeholderTextColor={colors.mutedForeground}
+              value={roomInput}
+              onChangeText={(t) => { setRoomInput(t.toUpperCase()); setRoomError(''); }}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={20}
+              returnKeyType="go"
+              onSubmitEditing={handleWatchRoom}
+              editable={!roomLoading}
+            />
+
+            {/* Error */}
+            {roomError ? (
+              <View style={styles.roomErrorRow}>
+                <Feather name="alert-circle" size={13} color="#EF4444" />
+                <Text style={styles.roomErrorText}>{roomError}</Text>
+              </View>
+            ) : null}
+
+            {/* Buttons */}
+            <View style={styles.modalBtnRow}>
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnCancel, {
+                  backgroundColor: colors.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
+                  borderColor: colors.border,
+                }]}
+                onPress={() => setShowRoomModal(false)}
+                disabled={roomLoading}
+              >
+                <Text style={[styles.modalBtnText, { color: colors.mutedForeground }]}>Cancel</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.modalBtn, styles.modalBtnWatch, {
+                  opacity: roomLoading ? 0.7 : 1,
+                }]}
+                onPress={handleWatchRoom}
+                disabled={roomLoading}
+              >
+                {roomLoading ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <>
+                    <Feather name="eye" size={14} color="#000" />
+                    <Text style={styles.modalBtnWatchText}>Watch Match</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </ThemedBackground>
   );
 }
@@ -1023,5 +1166,92 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter_700Bold',
     color: '#fff',
+  },
+
+  // ── Room Modal ───────────────────────────────────────────────────────────────
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 24,
+  },
+  modalCard: {
+    width: '100%',
+    borderRadius: 22,
+    borderWidth: 1,
+    padding: 24,
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.3,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  modalIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+  },
+  roomInput: {
+    borderWidth: 1.5,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    fontSize: 16,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 1.5,
+  },
+  roomErrorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: -4,
+  },
+  roomErrorText: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+  },
+  modalBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  modalBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 13,
+    borderRadius: 13,
+  },
+  modalBtnCancel: {
+    borderWidth: 1,
+  },
+  modalBtnWatch: {
+    backgroundColor: AMBER,
+  },
+  modalBtnText: {
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  modalBtnWatchText: {
+    color: '#000',
+    fontSize: 14,
+    fontFamily: 'Inter_700Bold',
   },
 });

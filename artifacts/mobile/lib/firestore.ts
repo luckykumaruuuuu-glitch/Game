@@ -1311,3 +1311,36 @@ export async function cleanupExpiredRooms(userId: string): Promise<void> {
     )
   );
 }
+
+// ─── Spectator ────────────────────────────────────────────────────────────────
+
+export async function joinRoomAsSpectator(
+  roomId: string,
+  userId: string,
+  userName: string,
+  userPhoto?: string
+): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    [`spectators.${userId}`]: {
+      userId,
+      name: userName,
+      photo: userPhoto || "",
+      joinedAt: Date.now(),
+    },
+    lastActivityAt: Date.now(),
+  });
+}
+
+export async function leaveRoomAsSpectator(
+  roomId: string,
+  userId: string
+): Promise<void> {
+  try {
+    await updateDoc(doc(db, "gameRooms", roomId), {
+      [`spectators.${userId}`]: deleteField(),
+      lastActivityAt: Date.now(),
+    });
+  } catch {
+    // Room may be gone — ignore silently
+  }
+}

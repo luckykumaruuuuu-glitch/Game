@@ -1,0 +1,205 @@
+IMPLEMENT ROOM SPECTATOR SYSTEM
+
+CURRENT SCREEN
+
+Ludo → Online Friend Section
+
+Top Right Area currently contains:
+
+- Active
+- Invite
+
+ADD ONE NEW BUTTON:
+
+- Room
+
+Final layout:
+
+Active | Invite | Room
+
+================================
+
+BUTTON PLACEMENT
+
+================================
+
+The Room button must ONLY appear on the Online Friend main screen.
+
+Do NOT show this button:
+
+- Inside game screen
+- Inside match board
+- Inside room lobby after joining
+- Inside any other screen
+
+Only show it on the Online Friend home screen next to Active and Invite.
+
+================================
+
+ROOM BUTTON FUNCTION
+
+================================
+
+When user taps Room:
+
+Open popup dialog.
+
+Title:
+
+Enter Room ID
+
+Input:
+
+Room ID Text Field
+
+Buttons:
+
+- Watch Match
+- Cancel
+
+================================
+
+ROOM VALIDATION
+
+================================
+
+When user enters Room ID:
+
+1. Check if room exists.
+
+2. Check if room is currently active.
+
+If room does not exist:
+
+Show:
+
+Room not found
+
+If room has ended:
+
+Show:
+
+Match has ended
+
+If room is active:
+
+Allow entry as Spectator.
+
+================================
+
+SPECTATOR MODE
+
+================================
+
+Spectator is NOT a player.
+
+Spectator must NEVER:
+
+- Roll dice
+- Move tokens
+- Join turn system
+- Take any game action
+- Affect game state
+
+Spectator can ONLY watch.
+
+================================
+
+REALTIME MATCH VIEW
+
+================================
+
+After entering valid Room ID:
+
+Open live board.
+
+Spectator must see in realtime:
+
+- Dice rolls
+- Dice numbers
+- Token movements
+- Current turn
+- Player names
+- Player status
+- Exit/Kick status
+- Chat messages (if chat exists)
+- Match progress
+
+Everything must update instantly.
+
+================================
+
+FIREBASE STRUCTURE
+
+================================
+
+Keep players and spectators separate.
+
+Example:
+
+rooms
+└── roomId
+├── players
+├── spectators
+├── gameState
+└── chat
+
+Spectators must never be added to players collection.
+
+================================
+
+UI REQUIREMENTS
+
+================================
+
+Show label at top:
+
+SPECTATOR MODE
+
+or
+
+WATCHING MATCH
+
+Make it clear that user is watching only.
+
+================================
+
+IMPORTANT RULES
+
+================================
+
+Do NOT modify existing gameplay.
+
+Do NOT modify turn logic.
+
+Do NOT modify dice system.
+
+Do NOT modify player controls.
+
+Do NOT modify room creation system.
+
+Do NOT modify invite system.
+
+Do NOT modify active room system.
+
+Only add a new Room button and spectator mode functionality.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+Active | Invite | Room
+
+User enters Room ID.
+
+If room is active:
+
+User joins as Spectator.
+
+User watches match in realtime.
+
+User cannot interact with gameplay.
+
+Existing systems remain unchanged.
