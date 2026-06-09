@@ -8222,9 +8222,13 @@ window._setTurnPlayer = function(playerIndex) {
       if (typeof emit === 'function') {
         emit({ type: 'TURN_ADVANCED', currentPlayerIndex: playerIndex, phase: 'AWAITING_ROLL', movableTokenIndexes: [] });
       }
+      // Only notify React Native when we actually corrected the engine state.
+      // Emitting mpTurn unconditionally (even when state was already correct)
+      // caused React Native to call writeCurrentTurn → Firebase → subscription
+      // → _setTurnPlayer again → infinite write loop.
+      var msg = JSON.stringify({ type: 'mpTurn', currentPlayerIndex: playerIndex });
+      if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
     }
-    var msg = JSON.stringify({ type: 'mpTurn', currentPlayerIndex: playerIndex });
-    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
   } catch(e) { console.warn('[MP] _setTurnPlayer error', String(e)); }
 };
 

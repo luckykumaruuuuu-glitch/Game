@@ -224,8 +224,11 @@ export default function RoomLobbyScreen() {
 
   function buildQuickStartId(gameMode: 2 | 3 | 4): string {
     if (gameMode === 4) return 'qs,4,0';
-    const colors = Array.from({ length: gameMode }, (_, i) => i).join(',');
-    return `qs,${gameMode},0,${colors}`;
+    // HUMAN_PREFERRED_POSITIONS = [2, 0, 1, 3] — must use actual position values as color
+    // indices so the game engine renders Red/Yellow/Green correctly for each player.
+    // e.g. 2-player → 'qs,2,0,2,0'  (host=Red/pos2, joiner=Yellow/pos0)
+    const humanColors = HUMAN_PREFERRED_POSITIONS.slice(0, gameMode).join(',');
+    return `qs,${gameMode},0,${humanColors}`;
   }
 
   function buildNamesByPlayerIndex(sortedPlayers: GameRoomPlayer[], gameMode: 2 | 3 | 4): string[] {

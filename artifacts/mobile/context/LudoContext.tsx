@@ -263,8 +263,12 @@ function LudoNativeOverlay({
           return;
         }
 
-        if (fbTurn !== lastKnownTurnRef.current && fbTurn !== mpConfig.myPlayerIndex) {
+        if (fbTurn !== lastKnownTurnRef.current) {
           lastKnownTurnRef.current = fbTurn;
+          // Always inject _setTurnPlayer — even for own turn — so if the local
+          // engine's currentPlayerIndex is out of sync (reconnect, state restore,
+          // etc.) it gets corrected and the active player can roll/move.
+          // _setTurnPlayer is a no-op when state is already correct.
           const syncJs =
             `(function(){try{` +
               `if(typeof window._setTurnPlayer==='function'){` +
@@ -273,8 +277,6 @@ function LudoNativeOverlay({
             `}catch(e){console.warn('[MP turn sync]',String(e));}` +
             `})();true;`;
           setTimeout(() => { webViewRef.current?.injectJavaScript(syncJs); }, 80);
-        } else if (fbTurn !== lastKnownTurnRef.current) {
-          lastKnownTurnRef.current = fbTurn;
         }
       }
 
