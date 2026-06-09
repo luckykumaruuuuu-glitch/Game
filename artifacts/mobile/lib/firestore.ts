@@ -629,7 +629,7 @@ export function subscribeToMessages(
     const msgs = snap.docs
       .map((d) => ({ messageId: d.id, ...d.data() } as ChatMessage))
       .filter((m) => {
-        if (clearedBefore && m.timestamp < clearedBefore) return false;
+        if (clearedBefore !== null && m.timestamp < clearedBefore) return false;
         if (m.deletedFor?.includes(myId)) return false;
         return true;
       });

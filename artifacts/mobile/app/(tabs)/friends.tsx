@@ -193,22 +193,38 @@ export default function FriendsTab() {
                     </View>
                   </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={[
-                      styles.actionBtn,
-                      {
-                        backgroundColor: colors.primary + "22",
-                        borderColor: colors.primary + "44",
-                      },
-                    ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      router.push(`/chat/${item.userId}`);
-                    }}
-                    activeOpacity={0.8}
-                  >
-                    <Feather name="message-circle" size={17} color={colors.primary} />
-                  </TouchableOpacity>
+                  <View style={styles.actions}>
+                    <TouchableOpacity
+                      style={[
+                        styles.actionBtn,
+                        {
+                          backgroundColor: colors.primary + "22",
+                          borderColor: colors.primary + "44",
+                        },
+                      ]}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        router.push(`/chat/${item.userId}`);
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="message-circle" size={17} color={colors.primary} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.actionBtn,
+                        {
+                          backgroundColor: "#EF444422",
+                          borderColor: "#EF444444",
+                        },
+                      ]}
+                      onPress={() => handleRemove(item)}
+                      activeOpacity={0.8}
+                    >
+                      <Feather name="user-minus" size={17} color="#EF4444" />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               );
             }}

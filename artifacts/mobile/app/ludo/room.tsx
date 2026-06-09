@@ -300,38 +300,45 @@ export default function RoomLobbyScreen() {
   function launchGame() {
     if (hasNavigated.current) return;
     hasNavigated.current = true;
-    if (Platform.OS !== 'web') {
-      if (room) {
-        // Build game params from room data and start the existing Ludo game.
-        // The LudoNativeOverlay is a full-screen overlay — no navigation needed.
-        const sortedPlayers = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
-        const quickStartId = buildQuickStartId(room.gameMode);
-        const namesByPlayerIndex = buildNamesByPlayerIndex(sortedPlayers, room.gameMode);
-        // Compute this user's board color index: join order → HUMAN_PREFERRED_POSITIONS mapping.
-        const myJoinIndex = sortedPlayers.findIndex((p) => p.userId === user?.uid);
-        const myPlayerIndex = myJoinIndex >= 0 ? HUMAN_PREFERRED_POSITIONS[myJoinIndex] : 0;
-        const playerIndexMap: Record<string, number> = {};
-        sortedPlayers.slice(0, room.gameMode).forEach((p, i) => {
-          playerIndexMap[p.userId] = HUMAN_PREFERRED_POSITIONS[i];
-        });
-        startOnlineGame(
-          quickStartId,
-          namesByPlayerIndex,
-          roomId ?? undefined,
-          myPlayerIndex,
-          user?.uid,
-          room.gameState,
-          user?.uid === room.hostId,
-          playerIndexMap,
-          room.gameMode
-        );
+    try {
+      if (Platform.OS !== 'web') {
+        if (room) {
+          // Build game params from room data and start the existing Ludo game.
+          // The LudoNativeOverlay is a full-screen overlay — no navigation needed.
+          const sortedPlayers = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
+          const quickStartId = buildQuickStartId(room.gameMode);
+          const namesByPlayerIndex = buildNamesByPlayerIndex(sortedPlayers, room.gameMode);
+          // Compute this user's board color index: join order → HUMAN_PREFERRED_POSITIONS mapping.
+          const myJoinIndex = sortedPlayers.findIndex((p) => p.userId === user?.uid);
+          const myPlayerIndex = myJoinIndex >= 0 ? HUMAN_PREFERRED_POSITIONS[myJoinIndex] : 0;
+          const playerIndexMap: Record<string, number> = {};
+          sortedPlayers.slice(0, room.gameMode).forEach((p, i) => {
+            playerIndexMap[p.userId] = HUMAN_PREFERRED_POSITIONS[i];
+          });
+          startOnlineGame(
+            quickStartId,
+            namesByPlayerIndex,
+            roomId ?? undefined,
+            myPlayerIndex,
+            user?.uid,
+            room.gameState,
+            user?.uid === room.hostId,
+            playerIndexMap,
+            room.gameMode
+          );
+        } else {
+          // Fallback: just open the game home screen
+          showLudo();
+          router.replace('/(tabs)/ludo' as any);
+        }
       } else {
-        // Fallback: just open the game home screen
-        showLudo();
-        router.replace('/(tabs)/ludo' as any);
+        router.replace('/ludo' as any);
       }
-    } else {
-      router.replace('/ludo' as any);
+    } catch (e) {
+      console.error('[launchGame] failed to start game:', e);
+      hasNavigated.current = false;
+      showLudo();
+      router.replace('/(tabs)/ludo' as any);
     }
   }
 

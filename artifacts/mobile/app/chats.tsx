@@ -36,14 +36,18 @@ export default function ChatsScreen() {
 
   useEffect(() => {
     if (!user) return;
+    // Cache profiles so we don't re-fetch on every subscription update
+    const profileCache = new Map<string, Awaited<ReturnType<typeof getUserProfile>>>();
+
     const unsub = subscribeToUserChats(user.uid, async (rooms) => {
-      // Fetch profiles for rooms that don't have one yet
       const withProfiles = await Promise.all(
         rooms.map(async (room) => {
           const otherId = room.participants.find((p) => p !== user.uid);
           if (!otherId) return room;
-          const profile = await getUserProfile(otherId);
-          return { ...room, otherUserProfile: profile };
+          if (!profileCache.has(otherId)) {
+            profileCache.set(otherId, await getUserProfile(otherId));
+          }
+          return { ...room, otherUserProfile: profileCache.get(otherId) };
         })
       );
       setChats(withProfiles);
