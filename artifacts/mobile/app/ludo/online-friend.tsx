@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import {
@@ -26,15 +27,190 @@ import {
 
 type GameMode = 2 | 3 | 4;
 
-const MODES: { value: GameMode; label: string; icon: string; desc: string }[] = [
-  { value: 2, label: '2P', icon: '👤', desc: '1 vs 1' },
-  { value: 3, label: '3P', icon: '👥', desc: '3 Players' },
-  { value: 4, label: '4P', icon: '👨‍👩‍👧‍👦', desc: '4 Players' },
+const MODES: { value: GameMode; label: string; desc: string }[] = [
+  { value: 2, label: '2P', desc: '1 vs 1' },
+  { value: 3, label: '3P', desc: '3 Players' },
+  { value: 4, label: '4P', desc: '4 Squad' },
 ];
+
+// ── Premium player icons — consistent stroke style ──────────────────────────
+function Icon2P({ color }: { color: string }) {
+  return (
+    <Svg width={44} height={36} viewBox="0 0 44 36" fill="none">
+      {/* Back player */}
+      <Circle cx="28" cy="10" r="6" stroke={color} strokeWidth="1.7" strokeOpacity="0.55" />
+      <Path
+        d="M16 34c0-5.523 5.373-10 12-10"
+        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.55"
+      />
+      {/* Front player */}
+      <Circle cx="16" cy="11" r="7" stroke={color} strokeWidth="2" />
+      <Path
+        d="M2 35c0-6.075 6.268-11 14-11s14 4.925 14 11"
+        stroke={color} strokeWidth="2" strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+function Icon3P({ color }: { color: string }) {
+  return (
+    <Svg width={52} height={36} viewBox="0 0 52 36" fill="none">
+      {/* Left */}
+      <Circle cx="10" cy="12" r="5.5" stroke={color} strokeWidth="1.7" strokeOpacity="0.5" />
+      <Path
+        d="M2 35c0-4.97 3.582-9 8-9"
+        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.5"
+      />
+      {/* Right */}
+      <Circle cx="42" cy="12" r="5.5" stroke={color} strokeWidth="1.7" strokeOpacity="0.5" />
+      <Path
+        d="M50 35c0-4.97-3.582-9-8-9"
+        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.5"
+      />
+      {/* Center (front) */}
+      <Circle cx="26" cy="10" r="7" stroke={color} strokeWidth="2" />
+      <Path
+        d="M12 35c0-6.075 6.268-11 14-11s14 4.925 14 11"
+        stroke={color} strokeWidth="2" strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+function Icon4P({ color }: { color: string }) {
+  return (
+    <Svg width={52} height={42} viewBox="0 0 52 42" fill="none">
+      {/* Top-left */}
+      <Circle cx="13" cy="8" r="5" stroke={color} strokeWidth="1.7" strokeOpacity="0.55" />
+      <Path
+        d="M4 24c0-4.418 4.03-8 9-8"
+        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.55"
+      />
+      {/* Top-right */}
+      <Circle cx="39" cy="8" r="5" stroke={color} strokeWidth="1.7" strokeOpacity="0.55" />
+      <Path
+        d="M48 24c0-4.418-4.03-8-9-8"
+        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.55"
+      />
+      {/* Bottom-left */}
+      <Circle cx="13" cy="28" r="5" stroke={color} strokeWidth="1.9" strokeOpacity="0.8" />
+      <Path
+        d="M4 42c0-4.418 4.03-8 9-8"
+        stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeOpacity="0.8"
+      />
+      {/* Bottom-right */}
+      <Circle cx="39" cy="28" r="5" stroke={color} strokeWidth="1.9" strokeOpacity="0.8" />
+      <Path
+        d="M48 42c0-4.418-4.03-8-9-8"
+        stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeOpacity="0.8"
+      />
+    </Svg>
+  );
+}
+
+const MODE_ICONS = {
+  2: Icon2P,
+  3: Icon3P,
+  4: Icon4P,
+} as const;
 
 const PURPLE = '#7C3AED';
 const PURPLE_LIGHT = '#A78BFA';
 const GREEN = '#10B981';
+
+// ── Animated premium mode card ───────────────────────────────────────────────
+function ModeCard({
+  mode,
+  active,
+  onPress,
+}: {
+  mode: typeof MODES[number];
+  active: boolean;
+  onPress: () => void;
+}) {
+  const scale = useRef(new Animated.Value(active ? 1.04 : 1)).current;
+  const glow = useRef(new Animated.Value(active ? 1 : 0)).current;
+  const pulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, {
+      toValue: active ? 1.05 : 1,
+      useNativeDriver: true,
+      damping: 14,
+      stiffness: 180,
+    }).start();
+    Animated.timing(glow, {
+      toValue: active ? 1 : 0,
+      duration: 220,
+      useNativeDriver: false,
+    }).start();
+  }, [active]);
+
+  useEffect(() => {
+    if (!active) return;
+    const anim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1.12, duration: 1000, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: 1000, useNativeDriver: true }),
+      ])
+    );
+    anim.start();
+    return () => { anim.stop(); pulse.setValue(1); };
+  }, [active]);
+
+  const IconComp = MODE_ICONS[mode.value];
+  const iconColor = active ? '#C4B5FD' : 'rgba(255,255,255,0.28)';
+  const borderColor = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(255,255,255,0.09)', 'rgba(167,139,250,0.75)'] });
+  const bgColor = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(255,255,255,0.04)', 'rgba(124,58,237,0.18)'] });
+
+  return (
+    <Pressable
+      style={styles.modeChipWrap}
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onPress(); }}
+    >
+      <Animated.View style={{ transform: [{ scale }] }}>
+        {/* Outer glow ring */}
+        {active && (
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              styles.modeGlowRing,
+              { transform: [{ scale: pulse }] },
+            ]}
+          />
+        )}
+        <Animated.View
+          style={[
+            styles.modeChip,
+            { borderColor, backgroundColor: bgColor },
+          ]}
+        >
+          {/* Glass inner highlight */}
+          <View style={styles.modeChipHighlight} />
+
+          {/* Icon area */}
+          <View style={[styles.modeIconWrap, active && styles.modeIconWrapActive]}>
+            <IconComp color={iconColor} />
+          </View>
+
+          {/* Label */}
+          <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
+            {mode.label}
+          </Text>
+
+          {/* Desc */}
+          <Text style={[styles.modeDesc, active && styles.modeDescActive]}>
+            {mode.desc}
+          </Text>
+
+          {/* Active indicator dot */}
+          {active && <View style={styles.modeActiveDot} />}
+        </Animated.View>
+      </Animated.View>
+    </Pressable>
+  );
+}
 
 function SkeletonCard() {
   const shimmer = useRef(new Animated.Value(0)).current;
@@ -328,30 +504,14 @@ export default function OnlineFriendScreen() {
         <View style={styles.modeSection}>
           <Text style={styles.sectionLabel}>SELECT PLAYERS</Text>
           <View style={styles.modeRow}>
-            {MODES.map((m) => {
-              const active = mode === m.value;
-              return (
-                <Pressable
-                  key={m.value}
-                  style={styles.modeChipWrap}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMode(m.value); }}
-                >
-                  {active ? (
-                    <LinearGradient colors={[PURPLE, '#4C1D95']} style={[styles.modeChip, styles.modeChipActive]}>
-                      <Text style={styles.modeEmoji}>{m.icon}</Text>
-                      <Text style={styles.modeLabel}>{m.label}</Text>
-                      <Text style={styles.modeDesc}>{m.desc}</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={[styles.modeChip, styles.modeChipInactive]}>
-                      <Text style={styles.modeEmoji}>{m.icon}</Text>
-                      <Text style={[styles.modeLabel, { color: 'rgba(255,255,255,0.45)' }]}>{m.label}</Text>
-                      <Text style={[styles.modeDesc, { color: 'rgba(255,255,255,0.25)' }]}>{m.desc}</Text>
-                    </View>
-                  )}
-                </Pressable>
-              );
-            })}
+            {MODES.map((m) => (
+              <ModeCard
+                key={m.value}
+                mode={m}
+                active={mode === m.value}
+                onPress={() => setMode(m.value)}
+              />
+            ))}
           </View>
         </View>
 
@@ -555,46 +715,102 @@ const styles = StyleSheet.create({
 
   modeSection: {
     paddingHorizontal: 16,
-    paddingBottom: 18,
+    paddingBottom: 20,
   },
   sectionLabel: {
     fontSize: 10,
     fontFamily: 'Inter_600SemiBold',
     color: 'rgba(255,255,255,0.3)',
-    letterSpacing: 1.3,
-    marginBottom: 11,
+    letterSpacing: 1.5,
+    marginBottom: 12,
   },
   modeRow: { flexDirection: 'row', gap: 10 },
   modeChipWrap: { flex: 1 },
   modeChip: {
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingTop: 18,
+    paddingBottom: 14,
     paddingHorizontal: 8,
-    borderRadius: 16,
-    gap: 4,
-  },
-  modeChipActive: {
-    shadowColor: PURPLE,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.55,
-    shadowRadius: 14,
-    elevation: 10,
-  },
-  modeChipInactive: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
+    gap: 6,
+    overflow: 'hidden',
+    shadowColor: PURPLE,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0,
+    shadowRadius: 18,
+    elevation: 0,
   },
-  modeEmoji: { fontSize: 22 },
+  modeGlowRing: {
+    borderRadius: 22,
+    borderWidth: 1.5,
+    borderColor: 'rgba(167,139,250,0.3)',
+    shadowColor: PURPLE,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 20,
+    elevation: 12,
+  },
+  modeChipHighlight: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 36,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+  },
+  modeIconWrap: {
+    width: 58,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginBottom: 2,
+  },
+  modeIconWrapActive: {
+    backgroundColor: 'rgba(124,58,237,0.2)',
+    shadowColor: PURPLE,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.6,
+    shadowRadius: 10,
+    elevation: 6,
+  },
   modeLabel: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'Inter_700Bold',
-    color: '#fff',
+    color: 'rgba(255,255,255,0.4)',
+    letterSpacing: 0.5,
+  },
+  modeLabelActive: {
+    color: '#E9D5FF',
+    letterSpacing: 0.8,
+    textShadowColor: 'rgba(167,139,250,0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8,
   },
   modeDesc: {
     fontSize: 9,
-    fontFamily: 'Inter_400Regular',
-    color: 'rgba(255,255,255,0.7)',
+    fontFamily: 'Inter_500Medium',
+    color: 'rgba(255,255,255,0.2)',
+    letterSpacing: 0.3,
+  },
+  modeDescActive: {
+    color: 'rgba(196,181,253,0.7)',
+  },
+  modeActiveDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#A78BFA',
+    shadowColor: PURPLE,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 3,
+    marginTop: 2,
   },
 
   divider: {

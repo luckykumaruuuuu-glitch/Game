@@ -1,0 +1,167 @@
+DARK MODE / LIGHT MODE SYNC BUG FIX
+
+CURRENT PROBLEM:
+
+Theme switching is inconsistent.
+
+Observed behavior:
+
+1. Home Screen:
+
+- Dark Mode ON → UI updates correctly.
+- Light Mode ON → Some buttons/icons still use old styling.
+- New upgraded button design is not applied consistently in Light Mode.
+
+2. Online Friend Section:
+
+- Dark Mode ON → Screen shows Dark Mode correctly.
+- Light Mode ON → Screen still remains Dark Mode.
+- Theme change from Home Screen is not propagating to Online Friend screens.
+
+ROOT CAUSE:
+
+Theme state is not being shared globally.
+
+Some screens are using:
+
+- Global theme state
+
+But Online Friend screens are using:
+
+- Hardcoded dark colors
+  OR
+- Their own local theme state
+
+Because of this:
+
+Home Screen Theme = Light
+
+Online Friend Theme = Dark
+
+Both become out of sync.
+
+REQUIRED FIX:
+
+DO NOT create separate theme systems.
+
+Use ONLY one global theme source for entire app.
+
+Example:
+
+theme.mode
+
+dark = true
+
+or
+
+theme.mode = "dark"
+
+theme.mode = "light"
+
+Every screen must read from same theme provider/context/store.
+
+SCREENS THAT MUST FOLLOW GLOBAL THEME:
+
+- Home Screen
+- Online Friends Screen
+- Room Screen
+- Waiting Lobby Screen
+- Active Game Screen
+- Invite Screen
+- Player Cards
+- Mode Selection Cards (2P / 3P / 4P)
+- Buttons
+- Dialogs
+- Toasts
+- Status Chips
+
+EVERYTHING must update instantly when theme changes.
+
+LIGHT MODE REQUIREMENTS:
+
+When Light Mode enabled:
+
+Background:
+
+- Light theme colors
+
+Cards:
+
+- Light glass effect
+
+Text:
+
+- Dark readable text
+
+Buttons:
+
+- Same upgraded premium design
+- Same glow concept
+- Same rounded corners
+- Same modern UI
+
+Do NOT revert to old buttons.
+
+The new premium button design must exist in BOTH modes.
+
+Example:
+
+Dark Mode:
+
+- Purple glow
+- Neon effects
+
+Light Mode:
+
+- Soft glow
+- Frosted glass
+- Light shadows
+
+But same design language.
+
+ONLINE FRIEND SCREEN FIX:
+
+Currently:
+Light Mode → still looks Dark.
+
+Required:
+
+If user changes theme:
+
+Dark → Online Friend becomes Dark
+
+Light → Online Friend becomes Light
+
+without reload.
+
+Theme should update in real time.
+
+ADDITIONAL CHECK:
+
+Verify these screens:
+
+- Online Friends
+- Room Creation
+- Room Waiting
+- Invite Flow
+- Active Game List
+
+No hardcoded colors should remain.
+
+Replace all hardcoded:
+
+#000000
+#111111
+#121212
+
+etc
+
+with theme-based colors.
+
+FINAL RESULT:
+
+Entire app must use one centralized theme system.
+
+Changing Dark/Light Mode anywhere must instantly update every screen including Online Friend section.
+
+No screen should remain stuck in Dark Mode after switching to Light Mode.
