@@ -1,5 +1,5 @@
 const CLOUD_NAME = "ddmx5qvhn";
-const UPLOAD_PRESET = "upload_profile";
+const UPLOAD_PRESET = "ml_default";
 
 export interface CloudinaryUploadResult {
   secure_url: string;
