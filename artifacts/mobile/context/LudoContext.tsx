@@ -41,6 +41,7 @@ interface LudoContextValue {
     playerIndexMap?: Record<string, number>,
     gameMode?: 2 | 3 | 4
   ) => void;
+  playSound: () => void;
 }
 
 const LudoContext = createContext<LudoContextValue>({
@@ -48,6 +49,7 @@ const LudoContext = createContext<LudoContextValue>({
   hide: () => {},
   isVisible: false,
   startOnlineGame: () => {},
+  playSound: () => {},
 });
 
 export function useLudo() {
@@ -134,11 +136,13 @@ function LudoNativeOverlay({
   onHide,
   pendingOnlineGame,
   gameStartTrigger,
+  injectJSRef,
 }: {
   isVisible: boolean;
   onHide: () => void;
   pendingOnlineGame: React.MutableRefObject<PendingGame | null>;
   gameStartTrigger: number;
+  injectJSRef: React.MutableRefObject<((js: string) => void) | null>;
 }) {
   const WebView = require('react-native-webview').WebView;
   const { resolvedTheme } = useTheme();
@@ -198,6 +202,12 @@ function LudoNativeOverlay({
 
   useEffect(() => {
     console.log('[GAME_SCREEN_MOUNTED] native WebView overlay mounted, isVisible=' + isVisible);
+    injectJSRef.current = (js: string) => {
+      webViewRef.current?.injectJavaScript(js);
+    };
+    return () => {
+      injectJSRef.current = null;
+    };
   }, []);
 
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
@@ -654,6 +664,7 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
   const [isVisible, setIsVisible] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
   const pendingOnlineGame = useRef<PendingGame | null>(null);
+  const injectJSRef = useRef<((js: string) => void) | null>(null);
   // Incremented each time startOnlineGame is called so LudoNativeOverlay's
   // useEffect fires even when the WebView is already loaded.
   const [gameStartTrigger, setGameStartTrigger] = useState(0);
@@ -665,6 +676,12 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
 
   const hide = useCallback(() => {
     setIsVisible(false);
+  }, []);
+
+  const playSound = useCallback(() => {
+    injectJSRef.current?.(
+      '(function(){try{if(typeof window._playClickSound==="function"){window._playClickSound();}}catch(e){}})();true;'
+    );
   }, []);
 
   const startOnlineGame = useCallback((
@@ -685,7 +702,7 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <LudoContext.Provider value={{ show, hide, isVisible, startOnlineGame }}>
+    <LudoContext.Provider value={{ show, hide, isVisible, startOnlineGame, playSound }}>
       <View style={styles.root}>
         {children}
         {Platform.OS !== 'web' && hasLoaded && (
@@ -694,6 +711,7 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
             onHide={hide}
             pendingOnlineGame={pendingOnlineGame}
             gameStartTrigger={gameStartTrigger}
+            injectJSRef={injectJSRef}
           />
         )}
       </View>

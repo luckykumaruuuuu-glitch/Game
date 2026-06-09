@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedBackground } from '@/components/ThemedBackground';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
+import { useLudo } from '@/context/LudoContext';
 import {
   UserPresence,
   UserProfile,
@@ -369,6 +370,7 @@ export default function OnlineFriendScreen() {
   const insets = useSafeAreaInsets();
   const colors = useColors();
   const { user, profile } = useAuth();
+  const { playSound } = useLudo();
 
   const [mode, setMode] = useState<GameMode | null>(null);
   const [friends, setFriends] = useState<UserProfile[]>([]);
@@ -433,6 +435,7 @@ export default function OnlineFriendScreen() {
   async function handleSendInvite() {
     if (!user || !profile || !mode || selected.size === 0) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    playSound();
     setSending(true);
     try {
       const roomId = await sendGameInvite(user.uid, profile, Array.from(selected), mode);
@@ -462,7 +465,7 @@ export default function OnlineFriendScreen() {
         <View style={[styles.header, { paddingTop: topPad }]}>
           <Pressable
             style={[styles.backBtn, { backgroundColor: backBtnBg, borderColor: colors.border }]}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.back(); }}
             hitSlop={12}
           >
             <Ionicons name="chevron-back" size={22} color={colors.foreground} />
@@ -486,7 +489,7 @@ export default function OnlineFriendScreen() {
             <Pressable
               style={[styles.actionPill, { borderColor: 'rgba(124,58,237,0.4)',
                 backgroundColor: colors.isDark ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.07)' }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ludo/active-games' as any); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.push('/ludo/active-games' as any); }}
               hitSlop={8}
             >
               <Feather name="activity" size={13} color={PURPLE_LIGHT} />
@@ -496,7 +499,7 @@ export default function OnlineFriendScreen() {
             <Pressable
               style={[styles.actionPill, { borderColor: 'rgba(16,185,129,0.35)',
                 backgroundColor: colors.isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.07)' }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ludo/invites' as any); }}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.push('/ludo/invites' as any); }}
               hitSlop={8}
             >
               <Feather name="mail" size={13} color="#34D399" />
@@ -514,7 +517,7 @@ export default function OnlineFriendScreen() {
                 key={m.value}
                 mode={m}
                 active={mode === m.value}
-                onPress={() => setMode(m.value)}
+                onPress={() => { playSound(); setMode(m.value); }}
               />
             ))}
           </View>
@@ -571,6 +574,7 @@ export default function OnlineFriendScreen() {
                       onPress={() => {
                         if (!isMaxed) {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          playSound();
                           toggleSelect(item.userId);
                         }
                       }}

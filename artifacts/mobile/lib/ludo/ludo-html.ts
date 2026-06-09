@@ -8600,6 +8600,20 @@ var Header = class extends HTMLElement {
   }
 };
 window.customElements.define("wc-settings", Header);
+window._playClickSound = function() {
+  try {
+    if (typeof playClickSound === "function") {
+      if (audioCtx && audioCtx.state === "suspended") {
+        audioCtx.resume().then(function() { playClickSound(); }).catch(function() { playClickSound(); });
+      } else {
+        playClickSound();
+      }
+    }
+  } catch(e) {}
+};
+document.addEventListener("touchstart", function() {
+  if (audioCtx && audioCtx.state === "suspended") { try { audioCtx.resume(); } catch(e) {} }
+}, { passive: true });
 </script>
 </body>
 </html>`;

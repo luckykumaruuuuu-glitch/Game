@@ -216,7 +216,7 @@ export default function RoomLobbyScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
-  const { show: showLudo, startOnlineGame } = useLudo();
+  const { show: showLudo, startOnlineGame, playSound } = useLudo();
 
   // Board positions assigned to human players in order of joining.
   // Matches HUMAN_PREFERRED_POSITIONS inside the Ludo game HTML bundle.
@@ -387,6 +387,7 @@ export default function RoomLobbyScreen() {
   async function handleCopy() {
     if (!roomId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    playSound();
     await Clipboard.setStringAsync(shortCode(roomId));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -395,6 +396,7 @@ export default function RoomLobbyScreen() {
   async function handleKickVote(targetUserId: string) {
     if (!roomId || !user) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    playSound();
     try {
       await castExitVote(roomId, targetUserId, user.uid);
     } catch (e) {
@@ -407,6 +409,7 @@ export default function RoomLobbyScreen() {
     const myPlayer = room.players[user.uid];
     if (!myPlayer) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    playSound();
     setReadyToggling(true);
     try {
       await togglePlayerReady(roomId, user.uid, !myPlayer.isReady);
@@ -424,7 +427,7 @@ export default function RoomLobbyScreen() {
     return (
       <View style={[styles.root, { backgroundColor: colors.background }]}>
         <View style={[styles.header, { paddingTop: topPad, borderBottomColor: colors.border }]}>
-          <TouchableOpacity style={styles.backBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }} hitSlop={12}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.back(); }} hitSlop={12}>
             <Ionicons name="chevron-back" size={22} color={colors.foreground} />
           </TouchableOpacity>
           <Text style={[styles.title, { color: colors.foreground }]}>Game Room</Text>
@@ -468,7 +471,7 @@ export default function RoomLobbyScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* ── Header ─────────────────────────────────────────── */}
       <View style={[styles.header, { paddingTop: topPad, borderBottomColor: colors.border }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }} hitSlop={12}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.back(); }} hitSlop={12}>
           <Ionicons name="chevron-back" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.foreground }]}>Game Room</Text>

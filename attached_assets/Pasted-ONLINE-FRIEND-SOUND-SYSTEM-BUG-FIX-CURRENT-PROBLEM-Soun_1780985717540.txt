@@ -1,0 +1,187 @@
+ONLINE FRIEND SOUND SYSTEM BUG FIX
+
+CURRENT PROBLEM:
+
+Sound system is working correctly in:
+
+- New Game (Offline Mode)
+- Offline Friend Mode
+
+But sound system is NOT working in:
+
+- Online Friend Mode
+- Online Room
+- Online Gameplay
+
+OBSERVED BEHAVIOR:
+
+Working:
+
+✓ Button Touch Sound
+
+✓ Click Sound
+
+✓ Dice Roll Sound
+
+✓ Token Move Sound
+
+✓ Kill/Cut Sound
+
+✓ Win Sound
+
+✓ Existing Game Audio
+
+Not Working:
+
+✗ Online Friend Button Click Sound
+
+✗ Online Friend UI Touch Sound
+
+✗ Room Screen Sounds
+
+✗ Online Dice Sound
+
+✗ Online Token Movement Sound
+
+✗ Online Gameplay Audio
+
+ROOT CAUSE:
+
+Most likely Online Friend flow is bypassing the global audio manager.
+
+Offline modes are calling:
+
+playSound()
+
+audioManager.play()
+
+soundService.play()
+
+(or existing audio wrapper)
+
+But Online Friend screens are not calling the same audio system.
+
+Another possibility:
+
+Online screens are mounted in a different navigator/layout and the audio context/provider is not available there.
+
+REQUIRED FIX:
+
+DO NOT create a new sound system.
+
+DO NOT add new sound files.
+
+Use the EXACT SAME sound system already used by:
+
+- New Game
+- Offline Friend
+
+Online Friend must use the same audio manager.
+
+CHECK THESE LOCATIONS:
+
+1. Online Friend Home Screen
+
+- Button press sound
+
+2. 2P / 3P / 4P Selection
+
+- Touch sound
+
+3. Invite Button
+
+- Touch sound
+
+4. Active Game Button
+
+- Touch sound
+
+5. Room Creation
+
+- Touch sound
+
+6. Ready Button
+
+- Touch sound
+
+7. Start Match
+
+- Touch sound
+
+8. Dice Roll
+
+- Dice sound
+
+9. Token Movement
+
+- Move sound
+
+10. Kill/Cut Event
+
+- Kill sound
+
+11. Win Event
+
+- Win sound
+
+12. Exit/Rejoin Events
+
+- Existing notification sound
+
+IMPLEMENTATION RULE:
+
+Every place where user interaction happens:
+
+onPress
+onClick
+onTouchEnd
+
+must call the same audio function already used in Offline Mode.
+
+Example:
+
+Current Offline:
+playButtonSound()
+
+Required:
+Online Friend screens must call the same function.
+
+DO NOT duplicate sounds.
+
+DO NOT create separate online sounds.
+
+GAMEPLAY AUDIO FIX:
+
+Verify that online gameplay screen is subscribing to sound settings.
+
+Current issue suggests:
+
+Offline gameplay → connected to sound manager
+
+Online gameplay → disconnected from sound manager
+
+Make Online gameplay use the exact same audio hooks/providers/services.
+
+SETTINGS CHECK:
+
+If user enables sound:
+
+soundEnabled = true
+
+Then sound must work in:
+
+✓ New Game
+✓ Offline Friend
+✓ Online Friend
+
+If user disables sound:
+
+soundEnabled = false
+
+Then sound must stop everywhere.
+
+FINAL RESULT:
+
+Online Friend mode must have 100% identical sound behavior to Offline Friend mode.
+
+Any sound that works offline must also work online using the same audio engine and same sound files.
