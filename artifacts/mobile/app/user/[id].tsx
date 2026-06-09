@@ -72,8 +72,12 @@ export default function UserProfileScreen() {
       setLoading(false);
     });
 
-    // Realtime content subscription
-    const unsubContent = subscribeToUserContent(id, setContent);
+    // Realtime content subscription — error handler ensures loading never hangs
+    const unsubContent = subscribeToUserContent(
+      id,
+      setContent,
+      (err) => console.error("[USER PROFILE] content subscription error:", err.message)
+    );
 
     // One-time relation check
     if (user?.uid === id) {

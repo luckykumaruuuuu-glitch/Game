@@ -278,17 +278,28 @@ export async function getUserContent(userId: string): Promise<ContentItem[]> {
 
 export function subscribeToUserContent(
   userId: string,
-  callback: (items: ContentItem[]) => void
+  callback: (items: ContentItem[]) => void,
+  onError?: (err: Error) => void
 ): () => void {
+  // No orderBy here — avoids composite index requirement. Sort client-side.
   const q = query(
     collection(db, "content"),
-    where("userId", "==", userId),
-    orderBy("timestamp", "desc")
+    where("userId", "==", userId)
   );
-  return onSnapshot(q, (snap) => {
-    const items = snap.docs.map((d) => ({ contentId: d.id, ...d.data() } as ContentItem));
-    callback(items);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const items = snap.docs
+        .map((d) => ({ contentId: d.id, ...d.data() } as ContentItem))
+        .sort((a, b) => b.timestamp - a.timestamp);
+      console.log(`[FIRESTORE] subscribeToUserContent → ${items.length} items for userId=${userId}`);
+      callback(items);
+    },
+    (err) => {
+      console.error("[FIRESTORE] subscribeToUserContent error:", err.message);
+      onError?.(err);
+    }
+  );
 }
 
 export async function addContent(

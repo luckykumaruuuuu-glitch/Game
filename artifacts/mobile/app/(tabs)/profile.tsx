@@ -59,11 +59,18 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!user) return;
     console.log(`${TAG} subscribeToUserContent → userId=${user.uid}`);
-    const unsub = subscribeToUserContent(user.uid, (items) => {
-      console.log(`${TAG} content update → ${items.length} items`);
-      setContent(items);
-      setLoadingContent(false);
-    });
+    const unsub = subscribeToUserContent(
+      user.uid,
+      (items) => {
+        console.log(`${TAG} content update → ${items.length} items`);
+        setContent(items);
+        setLoadingContent(false);
+      },
+      (err) => {
+        console.error(`${TAG} content subscription error:`, err.message);
+        setLoadingContent(false);
+      }
+    );
     return () => unsub();
   }, [user]);
 
