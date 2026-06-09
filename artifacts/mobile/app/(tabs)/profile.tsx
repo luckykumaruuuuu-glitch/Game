@@ -21,11 +21,53 @@ import { GlassCard } from "@/components/GlassCard";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ThemedBackground } from "@/components/ThemedBackground";
 import { useAuth } from "@/context/AuthContext";
-import { ContentItem, deleteContent, getUserContent, updateProfilePhoto, removeProfilePhoto } from "@/lib/firestore";
+import {
+  ContentItem,
+  addContent,
+  deleteContent,
+  getUserContent,
+  updateProfilePhoto,
+} from "@/lib/firestore";
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from "@/lib/cloudinary";
 import { useColors } from "@/hooks/useColors";
 
 const MAX_IMAGE_BYTES = 1 * 1024 * 1024; // 1 MB
+
+async function pickAndValidateImage(): Promise<{ uri: string } | null> {
+  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!permission.granted) {
+    Alert.alert("Permission required", "Please allow access to your photo library.");
+    return null;
+  }
+
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ["images"],
+    quality: 0.9,
+  });
+
+  if (result.canceled || !result.assets?.[0]) return null;
+
+  const asset = result.assets[0];
+  const uri = asset.uri;
+
+  // Validate file size
+  let fileSizeBytes = asset.fileSize ?? 0;
+  if (!fileSizeBytes && Platform.OS !== "web") {
+    try {
+      const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
+      if (info.exists && "size" in info) fileSizeBytes = (info as any).size ?? 0;
+    } catch {
+      /* proceed optimistically */
+    }
+  }
+
+  if (fileSizeBytes > 0 && fileSizeBytes > MAX_IMAGE_BYTES) {
+    Alert.alert("Image too large", "Profile image must be less than 1 MB.");
+    return null;
+  }
+
+  return { uri };
+}
 
 export default function ProfileScreen() {
   const colors = useColors();
@@ -34,8 +76,8 @@ export default function ProfileScreen() {
   const [content, setContent] = useState<ContentItem[]>([]);
   const [loadingContent, setLoadingContent] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [uploadingContent, setUploadingContent] = useState(false);
 
   const loadContent = useCallback(async () => {
     if (!user) return;
@@ -57,96 +99,65 @@ export default function ProfileScreen() {
     setRefreshing(false);
   }, [refreshProfile, loadContent]);
 
-  async function handleDelete(id: string) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await deleteContent(id);
-    setContent((prev) => prev.filter((c) => c.contentId !== id));
-  }
-
-  async function handleUploadPhoto() {
-    if (!user) return;
-
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert("Permission required", "Please allow access to your photo library.");
-      return;
-    }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ["images"],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.9,
-    });
-
-    if (result.canceled || !result.assets?.[0]) return;
-
-    const asset = result.assets[0];
-    const uri = asset.uri;
-
-    // Validate file size
-    let fileSizeBytes = asset.fileSize ?? 0;
-    if (!fileSizeBytes && Platform.OS !== "web") {
-      try {
-        const info = await FileSystem.getInfoAsync(uri, { size: true } as any);
-        if (info.exists && "size" in info) fileSizeBytes = (info as any).size ?? 0;
-      } catch {
-        /* ignore — proceed optimistically */
-      }
-    }
-
-    if (fileSizeBytes > 0 && fileSizeBytes > MAX_IMAGE_BYTES) {
-      Alert.alert("Image too large", "Profile image must be less than 1 MB.");
-      return;
-    }
+  // ── SYSTEM 1: Profile Photo ─────────────────────────────────────────────────
+  // Changes avatar only. Never touches content collection.
+  async function handleUploadAvatar() {
+    if (!user || uploadingAvatar) return;
+    const picked = await pickAndValidateImage();
+    if (!picked) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setUploading(true);
+    setUploadingAvatar(true);
     try {
-      const { secure_url, public_id } = await uploadImageToCloudinary(uri);
+      const { secure_url, public_id } = await uploadImageToCloudinary(picked.uri);
       await updateProfilePhoto(user.uid, secure_url, public_id);
       await refreshProfile();
     } catch (err: any) {
       Alert.alert("Upload failed", err?.message ?? "Could not upload photo. Please try again.");
     } finally {
-      setUploading(false);
+      setUploadingAvatar(false);
     }
   }
 
-  async function handleDeletePhoto() {
-    if (!user || !profile?.photo) return;
+  // ── SYSTEM 2: Content Gallery ───────────────────────────────────────────────
+  // Uploads to content collection ONLY. Never changes profile photo.
+  async function handleUploadContent() {
+    if (!user || uploadingContent) return;
+    const picked = await pickAndValidateImage();
+    if (!picked) return;
 
-    Alert.alert(
-      "Delete Profile Photo",
-      "Are you sure you want to remove your profile photo?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            setDeleting(true);
-            try {
-              const publicId = profile.photoPublicId;
-              await removeProfilePhoto(user.uid);
-              await refreshProfile();
-              if (publicId) {
-                deleteImageFromCloudinary(publicId).catch(() => {});
-              }
-            } catch (err: any) {
-              Alert.alert("Error", "Could not delete photo. Please try again.");
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setUploadingContent(true);
+    try {
+      const { secure_url, public_id } = await uploadImageToCloudinary(picked.uri);
+      const newId = await addContent(user.uid, "image", secure_url, undefined, public_id);
+      // Prepend to local state immediately — no refetch needed
+      setContent((prev) => [
+        { contentId: newId, userId: user.uid, type: "image", url: secure_url, publicId: public_id, timestamp: Date.now() },
+        ...prev,
+      ]);
+    } catch (err: any) {
+      Alert.alert("Upload failed", err?.message ?? "Could not upload image. Please try again.");
+    } finally {
+      setUploadingContent(false);
+    }
+  }
+
+  // ── Content Delete: Cloudinary + Firebase ───────────────────────────────────
+  async function handleDeleteContent(contentId: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const item = content.find((c) => c.contentId === contentId);
+    // Remove from UI immediately
+    setContent((prev) => prev.filter((c) => c.contentId !== contentId));
+    // Delete from Firebase
+    await deleteContent(contentId).catch(() => {});
+    // Delete from Cloudinary (best-effort)
+    if (item?.publicId) {
+      deleteImageFromCloudinary(item.publicId).catch(() => {});
+    }
   }
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
-  const hasPhoto = !!profile?.photo;
 
   return (
     <ThemedBackground>
@@ -158,7 +169,7 @@ export default function ProfileScreen() {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* ── Header ── */}
         <View style={[styles.header, { paddingTop: topPad + 8 }]}>
           <Text style={[styles.headerTitle, { color: colors.foreground }]}>Profile</Text>
           <TouchableOpacity
@@ -169,22 +180,18 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Profile Info */}
+        {/* ── Profile Info ── */}
         <View style={styles.profileSection}>
-          {/* Avatar — tap to upload */}
+
+          {/* Avatar — tap to change PROFILE PHOTO only */}
           <TouchableOpacity
-            onPress={handleUploadPhoto}
+            onPress={handleUploadAvatar}
             activeOpacity={0.8}
-            disabled={uploading || deleting}
+            disabled={uploadingAvatar}
           >
             <ProfileAvatar uri={profile?.photo} size={96} name={profile?.name} />
-            <View
-              style={[
-                styles.editBadge,
-                { backgroundColor: colors.primary, borderColor: colors.background },
-              ]}
-            >
-              {uploading ? (
+            <View style={[styles.editBadge, { backgroundColor: colors.primary, borderColor: colors.background }]}>
+              {uploadingAvatar ? (
                 <ActivityIndicator size={10} color="#fff" />
               ) : (
                 <Feather name="camera" size={11} color="#fff" />
@@ -200,7 +207,7 @@ export default function ProfileScreen() {
             <Text style={[styles.bio, { color: colors.foreground }]}>{profile.bio}</Text>
           ) : null}
 
-          {/* Profile details chips */}
+          {/* Info chips */}
           {(profile?.gender || profile?.city || profile?.country || profile?.phone || profile?.dateOfBirth || profile?.createdAt) ? (
             <View style={styles.infoChips}>
               {!!profile?.gender && (
@@ -242,7 +249,7 @@ export default function ProfileScreen() {
             </View>
           ) : null}
 
-          {/* Actions */}
+          {/* Action buttons — Edit Profile + My QR only */}
           <View style={styles.actions}>
             <TouchableOpacity
               style={[styles.actionBtn, { backgroundColor: colors.primary }]}
@@ -262,49 +269,6 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Upload / Delete photo buttons */}
-          <View style={styles.photoActions}>
-            <TouchableOpacity
-              style={[
-                styles.photoBtn,
-                { backgroundColor: colors.primary + "18", borderColor: colors.primary + "55" },
-              ]}
-              onPress={handleUploadPhoto}
-              disabled={uploading || deleting}
-              activeOpacity={0.8}
-            >
-              {uploading ? (
-                <ActivityIndicator size={14} color={colors.primary} />
-              ) : (
-                <Feather name="upload" size={14} color={colors.primary} />
-              )}
-              <Text style={[styles.photoBtnText, { color: colors.primary }]}>
-                {uploading ? "Uploading…" : hasPhoto ? "Change Photo" : "Upload Photo"}
-              </Text>
-            </TouchableOpacity>
-
-            {hasPhoto && (
-              <TouchableOpacity
-                style={[
-                  styles.photoBtn,
-                  { backgroundColor: "#EF444418", borderColor: "#EF444455" },
-                ]}
-                onPress={handleDeletePhoto}
-                disabled={uploading || deleting}
-                activeOpacity={0.8}
-              >
-                {deleting ? (
-                  <ActivityIndicator size={14} color="#EF4444" />
-                ) : (
-                  <Feather name="trash-2" size={14} color="#EF4444" />
-                )}
-                <Text style={[styles.photoBtnText, { color: "#EF4444" }]}>
-                  {deleting ? "Deleting…" : "Delete Photo"}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
           {/* Stats */}
           <GlassCard style={styles.statsCard}>
             <View style={styles.statItem}>
@@ -312,32 +276,43 @@ export default function ProfileScreen() {
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Posts</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <TouchableOpacity
-              style={styles.statItem}
-              onPress={() => router.push("/friends")}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity style={styles.statItem} onPress={() => router.push("/friends")} activeOpacity={0.8}>
               <Feather name="users" size={20} color={colors.primary} />
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Friends</Text>
             </TouchableOpacity>
             <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-            <TouchableOpacity
-              style={styles.statItem}
-              onPress={() => router.push("/friend-requests")}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity style={styles.statItem} onPress={() => router.push("/friend-requests")} activeOpacity={0.8}>
               <Feather name="user-plus" size={20} color={colors.primary} />
               <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>Requests</Text>
             </TouchableOpacity>
           </GlassCard>
         </View>
 
-        {/* Content Section */}
+        {/* ── Content Section ── */}
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Content</Text>
+
+          {/* Content Upload button — SEPARATE from profile photo */}
+          <TouchableOpacity
+            style={[styles.addContentBtn, { backgroundColor: colors.primary }]}
+            onPress={handleUploadContent}
+            disabled={uploadingContent}
+            activeOpacity={0.8}
+          >
+            {uploadingContent ? (
+              <ActivityIndicator size={14} color="#fff" />
+            ) : (
+              <Feather name="plus" size={16} color="#fff" />
+            )}
+          </TouchableOpacity>
         </View>
 
-        <ContentGrid items={content} loading={loadingContent} onDelete={handleDelete} editable />
+        <ContentGrid
+          items={content}
+          loading={loadingContent}
+          onDelete={handleDeleteContent}
+          editable
+        />
       </ScrollView>
     </ThemedBackground>
   );
@@ -401,21 +376,6 @@ const styles = StyleSheet.create({
   },
   actionBtnTextWhite: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   actionBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
-  photoActions: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 2,
-  },
-  photoBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-  },
-  photoBtnText: { fontSize: 13, fontFamily: "Inter_600SemiBold" },
   statsCard: { flexDirection: "row", alignItems: "center", width: "100%", marginTop: 4 },
   statItem: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 10 },
   statValue: { fontSize: 18, fontFamily: "Inter_700Bold" },
@@ -430,4 +390,11 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
   },
   sectionTitle: { fontSize: 16, fontFamily: "Inter_700Bold" },
+  addContentBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+  },
 });

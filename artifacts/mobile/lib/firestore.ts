@@ -76,6 +76,7 @@ export interface ContentItem {
   userId: string;
   type: "image" | "text";
   url: string;
+  publicId?: string;
   caption?: string;
   timestamp: number;
 }
@@ -279,12 +280,14 @@ export async function addContent(
   userId: string,
   type: ContentItem["type"],
   url: string,
-  caption?: string
+  caption?: string,
+  publicId?: string
 ): Promise<string> {
   const ref = await addDoc(collection(db, "content"), {
     userId,
     type,
     url,
+    publicId: publicId ?? "",
     caption: caption ?? "",
     timestamp: Date.now(),
   });
