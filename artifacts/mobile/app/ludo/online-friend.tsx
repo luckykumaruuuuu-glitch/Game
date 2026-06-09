@@ -4,8 +4,6 @@ import {
   Animated,
   FlatList,
   Image,
-  KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -20,6 +18,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedBackground } from '@/components/ThemedBackground';
+import { AppModal } from '@/components/AppModal';
+import { GlassCard } from '@/components/GlassCard';
 import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { useLudo } from '@/context/LudoContext';
@@ -372,6 +372,181 @@ function ChooseModePrompt() {
   );
 }
 
+// ── Room Spectator Modal ──────────────────────────────────────────────────────
+function RoomModal({
+  visible,
+  onClose,
+  roomInput,
+  setRoomInput,
+  roomError,
+  setRoomError,
+  roomLoading,
+  onWatch,
+  colors,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  roomInput: string;
+  setRoomInput: (v: string) => void;
+  roomError: string;
+  setRoomError: (v: string) => void;
+  roomLoading: boolean;
+  onWatch: () => void;
+  colors: any;
+}) {
+  const [focused, setFocused] = useState(false);
+  const focusAnim = useRef(new Animated.Value(0)).current;
+  const watchScale = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    Animated.timing(focusAnim, {
+      toValue: focused ? 1 : 0,
+      duration: 200,
+      useNativeDriver: false,
+    }).start();
+  }, [focused]);
+
+  const inputBorderColor = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: roomError
+      ? ['#EF4444', '#EF4444']
+      : ['rgba(245,158,11,0.28)', 'rgba(245,158,11,0.85)'],
+  });
+  const inputGlow = focusAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 12],
+  });
+
+  function onWatchPressIn() {
+    Animated.spring(watchScale, { toValue: 0.95, useNativeDriver: true, damping: 15 }).start();
+  }
+  function onWatchPressOut() {
+    Animated.spring(watchScale, { toValue: 1, useNativeDriver: true, damping: 12 }).start();
+  }
+
+  return (
+    <AppModal visible={visible} onClose={onClose}>
+      <GlassCard
+        style={[
+          styles.rmCard,
+          {
+            borderColor: 'rgba(245,158,11,0.30)',
+            shadowColor: AMBER,
+          },
+        ]}
+        intensity={40}
+        padding={0}
+      >
+        {/* ── Amber glow strip at top */}
+        <View style={styles.rmGlowStrip} />
+
+        <View style={styles.rmInner}>
+          {/* ── Icon + Title */}
+          <View style={styles.rmHeader}>
+            <View style={styles.rmIconRing}>
+              <View style={styles.rmIconGlow} />
+              <Feather name="eye" size={20} color={AMBER} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rmTitle, { color: colors.foreground }]}>Watch a Match</Text>
+              <Text style={[styles.rmSubtitle, { color: colors.mutedForeground }]}>Enter the Room ID to spectate</Text>
+            </View>
+          </View>
+
+          {/* ── Input */}
+          <Animated.View
+            style={[
+              styles.rmInputWrap,
+              {
+                borderColor: roomError ? '#EF4444' : inputBorderColor,
+                shadowColor: roomError ? '#EF4444' : AMBER,
+                shadowRadius: inputGlow,
+                shadowOpacity: focused ? 0.45 : 0,
+                shadowOffset: { width: 0, height: 0 },
+                elevation: focused ? 6 : 0,
+                backgroundColor: colors.isDark
+                  ? 'rgba(255,255,255,0.05)'
+                  : 'rgba(0,0,0,0.04)',
+              },
+            ]}
+          >
+            <Feather
+              name="hash"
+              size={16}
+              color={focused ? AMBER : colors.mutedForeground}
+              style={styles.rmInputIcon}
+            />
+            <TextInput
+              style={[styles.rmInput, { color: colors.foreground }]}
+              placeholder="Enter Room ID"
+              placeholderTextColor={colors.mutedForeground}
+              value={roomInput}
+              onChangeText={(t) => { setRoomInput(t.toUpperCase()); setRoomError(''); }}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={20}
+              returnKeyType="go"
+              onSubmitEditing={onWatch}
+              editable={!roomLoading}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+            />
+          </Animated.View>
+
+          {/* ── Error */}
+          {roomError ? (
+            <View style={styles.rmErrorRow}>
+              <Feather name="alert-circle" size={13} color="#EF4444" />
+              <Text style={styles.rmErrorText}>{roomError}</Text>
+            </View>
+          ) : null}
+
+          {/* ── Buttons */}
+          <View style={styles.rmBtnRow}>
+            {/* Cancel */}
+            <Pressable
+              style={[styles.rmCancelBtn, {
+                borderColor: colors.isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.10)',
+                backgroundColor: colors.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+              }]}
+              onPress={onClose}
+              disabled={roomLoading}
+            >
+              <Text style={[styles.rmCancelText, { color: colors.mutedForeground }]}>Cancel</Text>
+            </Pressable>
+
+            {/* Watch Match */}
+            <Animated.View style={[styles.rmWatchOuter, { transform: [{ scale: watchScale }] }]}>
+              <Pressable
+                style={[styles.rmWatchBtn, { opacity: roomLoading ? 0.7 : 1 }]}
+                onPress={onWatch}
+                onPressIn={onWatchPressIn}
+                onPressOut={onWatchPressOut}
+                disabled={roomLoading}
+              >
+                <LinearGradient
+                  colors={['#FBBF24', '#F59E0B', '#D97706']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={StyleSheet.absoluteFill}
+                />
+                {roomLoading ? (
+                  <ActivityIndicator size="small" color="#000" />
+                ) : (
+                  <>
+                    <Feather name="eye" size={15} color="#000" />
+                    <Text style={styles.rmWatchText}>Watch Match</Text>
+                  </>
+                )}
+              </Pressable>
+            </Animated.View>
+          </View>
+        </View>
+      </GlassCard>
+    </AppModal>
+  );
+}
+
 // ── Main screen ───────────────────────────────────────────────────────────────
 export default function OnlineFriendScreen() {
   const insets = useSafeAreaInsets();
@@ -687,94 +862,17 @@ export default function OnlineFriendScreen() {
       </Animated.View>
 
       {/* ── Room Spectator Modal ──────────────────────────────────── */}
-      <Modal
+      <RoomModal
         visible={showRoomModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowRoomModal(false)}
-      >
-        <KeyboardAvoidingView
-          style={styles.modalOverlay}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setShowRoomModal(false)} />
-          <View style={[styles.modalCard, {
-            backgroundColor: colors.isDark ? '#1a1a2e' : '#fff',
-            borderColor: colors.isDark ? 'rgba(245,158,11,0.25)' : 'rgba(245,158,11,0.3)',
-          }]}>
-            {/* Title */}
-            <View style={styles.modalHeader}>
-              <View style={[styles.modalIconWrap, {
-                backgroundColor: 'rgba(245,158,11,0.12)',
-                borderColor: 'rgba(245,158,11,0.3)',
-              }]}>
-                <Feather name="eye" size={18} color={AMBER} />
-              </View>
-              <Text style={[styles.modalTitle, { color: colors.foreground }]}>Enter Room ID</Text>
-            </View>
-
-            {/* Input */}
-            <TextInput
-              style={[styles.roomInput, {
-                backgroundColor: colors.isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-                borderColor: roomError
-                  ? '#EF4444'
-                  : colors.isDark ? 'rgba(245,158,11,0.3)' : 'rgba(245,158,11,0.4)',
-                color: colors.foreground,
-              }]}
-              placeholder="Room ID"
-              placeholderTextColor={colors.mutedForeground}
-              value={roomInput}
-              onChangeText={(t) => { setRoomInput(t.toUpperCase()); setRoomError(''); }}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={20}
-              returnKeyType="go"
-              onSubmitEditing={handleWatchRoom}
-              editable={!roomLoading}
-            />
-
-            {/* Error */}
-            {roomError ? (
-              <View style={styles.roomErrorRow}>
-                <Feather name="alert-circle" size={13} color="#EF4444" />
-                <Text style={styles.roomErrorText}>{roomError}</Text>
-              </View>
-            ) : null}
-
-            {/* Buttons */}
-            <View style={styles.modalBtnRow}>
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnCancel, {
-                  backgroundColor: colors.isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.05)',
-                  borderColor: colors.border,
-                }]}
-                onPress={() => setShowRoomModal(false)}
-                disabled={roomLoading}
-              >
-                <Text style={[styles.modalBtnText, { color: colors.mutedForeground }]}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
-                style={[styles.modalBtn, styles.modalBtnWatch, {
-                  opacity: roomLoading ? 0.7 : 1,
-                }]}
-                onPress={handleWatchRoom}
-                disabled={roomLoading}
-              >
-                {roomLoading ? (
-                  <ActivityIndicator size="small" color="#000" />
-                ) : (
-                  <>
-                    <Feather name="eye" size={14} color="#000" />
-                    <Text style={styles.modalBtnWatchText}>Watch Match</Text>
-                  </>
-                )}
-              </Pressable>
-            </View>
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        onClose={() => setShowRoomModal(false)}
+        roomInput={roomInput}
+        setRoomInput={setRoomInput}
+        roomError={roomError}
+        setRoomError={setRoomError}
+        roomLoading={roomLoading}
+        onWatch={handleWatchRoom}
+        colors={colors}
+      />
 
     </ThemedBackground>
   );
@@ -1170,90 +1268,132 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 
-  // ── Room Modal ───────────────────────────────────────────────────────────────
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    paddingHorizontal: 24,
-  },
-  modalCard: {
-    width: '100%',
-    borderRadius: 22,
+  // ── Room Modal (premium glass) ───────────────────────────────────────────────
+  rmCard: {
+    borderRadius: 24,
+    overflow: 'hidden',
     borderWidth: 1,
-    padding: 24,
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.3,
-    shadowRadius: 24,
-    elevation: 16,
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.35,
+    shadowRadius: 32,
+    elevation: 20,
   },
-  modalHeader: {
+  rmGlowStrip: {
+    height: 2,
+    backgroundColor: 'rgba(245,158,11,0.55)',
+    shadowColor: AMBER,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+  },
+  rmInner: {
+    padding: 24,
+    gap: 18,
+  },
+  rmHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 14,
   },
-  modalIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
+  rmIconRing: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: 'rgba(245,158,11,0.45)',
+    backgroundColor: 'rgba(245,158,11,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  modalTitle: {
+  rmIconGlow: {
+    position: 'absolute',
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(245,158,11,0.18)',
+    shadowColor: AMBER,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 14,
+  },
+  rmTitle: {
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
+    letterSpacing: -0.2,
   },
-  roomInput: {
+  rmSubtitle: {
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  rmInputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderWidth: 1.5,
     borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    overflow: 'hidden',
+  },
+  rmInputIcon: {
+    paddingLeft: 14,
+    paddingRight: 8,
+  },
+  rmInput: {
+    flex: 1,
+    paddingVertical: 14,
+    paddingRight: 14,
     fontSize: 16,
     fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 1.5,
+    letterSpacing: 2,
   },
-  roomErrorRow: {
+  rmErrorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: -4,
+    marginTop: -6,
   },
-  roomErrorText: {
+  rmErrorText: {
     color: '#EF4444',
     fontSize: 13,
     fontFamily: 'Inter_500Medium',
   },
-  modalBtnRow: {
+  rmBtnRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 4,
   },
-  modalBtn: {
+  rmCancelBtn: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 13,
+    paddingVertical: 14,
     borderRadius: 13,
-  },
-  modalBtnCancel: {
     borderWidth: 1,
   },
-  modalBtnWatch: {
-    backgroundColor: AMBER,
-  },
-  modalBtnText: {
+  rmCancelText: {
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
   },
-  modalBtnWatchText: {
-    color: '#000',
+  rmWatchOuter: {
+    flex: 1.6,
+    borderRadius: 13,
+    overflow: 'hidden',
+    shadowColor: AMBER,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.55,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  rmWatchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingVertical: 14,
+    borderRadius: 13,
+    overflow: 'hidden',
+  },
+  rmWatchText: {
     fontSize: 14,
     fontFamily: 'Inter_700Bold',
+    color: '#000',
   },
 });
