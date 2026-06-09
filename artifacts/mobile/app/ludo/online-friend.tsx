@@ -509,7 +509,7 @@ export default function OnlineFriendScreen() {
           </Pressable>
 
           <View style={styles.headerCenter}>
-            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Online Friends</Text>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]} numberOfLines={1}>Online Friends</Text>
             <View style={styles.statsRow}>
               <View style={[styles.statPill, { backgroundColor: pillBg, borderColor: pillBorder }]}>
                 <Feather name="users" size={9} color={statTextColor} />
@@ -787,7 +787,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingBottom: 20,
-    gap: 12,
+    gap: 10,
   },
   backBtn: {
     width: 38,
@@ -797,7 +797,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerCenter: { flex: 1, gap: 7 },
+  headerCenter: { flex: 1, gap: 7, minWidth: 0 },
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Inter_700Bold',
@@ -827,14 +827,15 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
+    gap: 5,
+    flexShrink: 0,
   },
   actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     borderRadius: 20,
     borderWidth: 1,
   },
