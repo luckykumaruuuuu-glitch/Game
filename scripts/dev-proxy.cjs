@@ -1,16 +1,18 @@
 /**
- * Dev proxy: forwards all requests from port 5000 to the Expo web dev server
- * on port 18115. This lets Replit's preview pane (port 5000) display the app.
+ * Dev proxy: forwards all requests from port 5000.
+ * - /api/* → API server on port 8000
+ * - everything else → Expo web dev server on port 18115
  */
 const http = require('http');
 
-const TARGET_PORT = 18115;
+const EXPO_PORT = 18115;
+const API_PORT = 8000;
 const PROXY_PORT = 5000;
 const MAX_RETRIES = 30;
 const RETRY_INTERVAL = 2000;
 
 function waitForTarget(retries, cb) {
-  const req = http.get({ hostname: 'localhost', port: TARGET_PORT, path: '/' }, () => {
+  const req = http.get({ hostname: 'localhost', port: EXPO_PORT, path: '/' }, () => {
     cb();
   });
   req.on('error', () => {
@@ -20,13 +22,13 @@ function waitForTarget(retries, cb) {
   req.setTimeout(1500, () => { req.destroy(); });
 }
 
-const server = http.createServer((req, res) => {
+function proxyTo(req, res, targetPort) {
   const options = {
     hostname: 'localhost',
-    port: TARGET_PORT,
+    port: targetPort,
     path: req.url,
     method: req.method,
-    headers: { ...req.headers, host: `localhost:${TARGET_PORT}` },
+    headers: { ...req.headers, host: `localhost:${targetPort}` },
   };
 
   const proxyReq = http.request(options, (proxyRes) => {
@@ -36,15 +38,23 @@ const server = http.createServer((req, res) => {
 
   proxyReq.on('error', () => {
     if (!res.headersSent) res.writeHead(502);
-    res.end('Expo dev server not ready yet. Please wait a moment and refresh.');
+    res.end(`Proxy error: target port ${targetPort} not reachable.`);
   });
 
   req.pipe(proxyReq, { end: true });
+}
+
+const server = http.createServer((req, res) => {
+  if (req.url && req.url.startsWith('/api')) {
+    proxyTo(req, res, API_PORT);
+  } else {
+    proxyTo(req, res, EXPO_PORT);
+  }
 });
 
-console.log(`[proxy] Waiting for Expo dev server on port ${TARGET_PORT}...`);
+console.log(`[proxy] Waiting for Expo dev server on port ${EXPO_PORT}...`);
 waitForTarget(MAX_RETRIES, () => {
   server.listen(PROXY_PORT, '0.0.0.0', () => {
-    console.log(`[proxy] Ready — forwarding :${PROXY_PORT} → :${TARGET_PORT}`);
+    console.log(`[proxy] Ready — /api → :${API_PORT} | everything else → :${EXPO_PORT}`);
   });
 });

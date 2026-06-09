@@ -25,22 +25,31 @@ export async function uploadImageToCloudinary(uri: string): Promise<CloudinaryUp
   return { secure_url: data.secure_url, public_id: data.public_id };
 }
 
+/**
+ * Deletes an image from Cloudinary via our API server.
+ * The server handles the signed request (CLOUDINARY_API_KEY + CLOUDINARY_API_SECRET).
+ * In the browser, calls go through the dev-proxy at /api.
+ * In native, uses EXPO_PUBLIC_API_URL if set.
+ * This is best-effort — Firebase removal already handled separately.
+ */
 export async function deleteImageFromCloudinary(publicId: string): Promise<void> {
   try {
-    let apiBase: string | null = null;
+    let base: string;
 
     if (process.env.EXPO_PUBLIC_API_URL) {
-      apiBase = process.env.EXPO_PUBLIC_API_URL;
-    } else if (typeof window !== "undefined" && window.location?.hostname) {
-      apiBase = `${window.location.protocol}//${window.location.hostname}:8000`;
+      base = process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, "");
+    } else if (typeof window !== "undefined") {
+      // Browser (Expo web): use relative path — dev-proxy routes /api → API server
+      base = "";
+    } else {
+      // Native without config — skip
+      return;
     }
 
-    if (!apiBase) return;
-
-    await fetch(`${apiBase}/api/media/cloudinary/${encodeURIComponent(publicId)}`, {
+    await fetch(`${base}/api/media/cloudinary/${encodeURIComponent(publicId)}`, {
       method: "DELETE",
     });
   } catch {
-    // Best-effort: Firebase deletion already happened; Cloudinary cleanup may be orphaned
+    // Best-effort: Firebase deletion already happened; orphaned Cloudinary file is acceptable
   }
 }
