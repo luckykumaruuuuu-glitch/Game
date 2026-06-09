@@ -24,6 +24,7 @@ import {
   areFriends,
   getChatId,
   getUserContent,
+  subscribeToUserContent,
   hasPendingRequest,
   sendFriendRequest,
   removeFriend,
@@ -71,8 +72,8 @@ export default function UserProfileScreen() {
       setLoading(false);
     });
 
-    // One-time content fetch
-    getUserContent(id).then(setContent).catch(() => {});
+    // Realtime content subscription
+    const unsubContent = subscribeToUserContent(id, setContent);
 
     // One-time relation check
     if (user?.uid === id) {
@@ -97,7 +98,7 @@ export default function UserProfileScreen() {
       setRelation("none");
     }
 
-    return () => unsubProfile();
+    return () => { unsubProfile(); unsubContent(); };
   }, [id, user]);
 
   async function handleAddFriend() {

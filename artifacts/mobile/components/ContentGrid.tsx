@@ -12,6 +12,19 @@ const GAP = 10;
 const SCREEN_W = Dimensions.get("window").width;
 const CELL = (SCREEN_W - 32 - GAP) / COLS;
 
+function formatTimestamp(ts: number): string {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const day = d.getDate();
+  const month = d.toLocaleString("en-US", { month: "short" });
+  const year = d.getFullYear();
+  const hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const h12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${day} ${month} ${year} • ${h12}:${minutes} ${ampm}`;
+}
+
 interface ContentGridProps {
   items: ContentItem[];
   loading?: boolean;
@@ -21,7 +34,7 @@ interface ContentGridProps {
 
 export function ContentGrid({ items, loading, onDelete, editable }: ContentGridProps) {
   const colors = useColors();
-  const [viewerUri, setViewerUri] = useState<string | null>(null);
+  const [viewerItem, setViewerItem] = useState<ContentItem | null>(null);
 
   if (loading) {
     return (
@@ -48,7 +61,7 @@ export function ContentGrid({ items, loading, onDelete, editable }: ContentGridP
             {item.type === "image" ? (
               <TouchableOpacity
                 activeOpacity={0.88}
-                onPress={() => setViewerUri(item.url)}
+                onPress={() => setViewerItem(item)}
                 style={styles.imageCell}
               >
                 <Image
@@ -83,8 +96,27 @@ export function ContentGrid({ items, loading, onDelete, editable }: ContentGridP
                 )}
               </GlassCard>
             )}
-            {item.caption ? (
-              <Text style={[styles.caption, { color: colors.mutedForeground }]} numberOfLines={1}>
+
+            {/* Caption + Timestamp below every image */}
+            {item.type === "image" && (
+              <View style={styles.meta}>
+                {!!item.caption && (
+                  <Text
+                    style={[styles.captionText, { color: colors.foreground }]}
+                    numberOfLines={2}
+                  >
+                    {item.caption}
+                  </Text>
+                )}
+                <Text style={[styles.timestampText, { color: colors.mutedForeground }]}>
+                  {formatTimestamp(item.timestamp)}
+                </Text>
+              </View>
+            )}
+
+            {/* Legacy caption for text items */}
+            {item.type !== "image" && item.caption ? (
+              <Text style={[styles.captionText, { color: colors.mutedForeground }]} numberOfLines={1}>
                 {item.caption}
               </Text>
             ) : null}
@@ -93,9 +125,11 @@ export function ContentGrid({ items, loading, onDelete, editable }: ContentGridP
       </View>
 
       <ImageViewerModal
-        visible={viewerUri !== null}
-        uri={viewerUri}
-        onClose={() => setViewerUri(null)}
+        visible={viewerItem !== null}
+        uri={viewerItem?.url ?? null}
+        caption={viewerItem?.caption}
+        timestamp={viewerItem?.timestamp}
+        onClose={() => setViewerItem(null)}
       />
     </>
   );
@@ -139,11 +173,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  caption: {
-    fontSize: 11,
-    marginTop: 4,
+  meta: {
+    marginTop: 5,
+    gap: 2,
+  },
+  captionText: {
+    fontSize: 12,
     fontFamily: "Inter_400Regular",
-    textAlign: "center",
+    lineHeight: 17,
+  },
+  timestampText: {
+    fontSize: 10,
+    fontFamily: "Inter_400Regular",
+    marginTop: 1,
   },
   center: {
     paddingVertical: 48,

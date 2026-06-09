@@ -3,7 +3,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import { router } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CaptionInputModal } from "@/components/CaptionInputModal";
 import { ContentGrid } from "@/components/ContentGrid";
 import { GlassCard } from "@/components/GlassCard";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
@@ -25,7 +26,7 @@ import {
   ContentItem,
   addContent,
   deleteContent,
-  getUserContent,
+  subscribeToUserContent,
   updateProfilePhoto,
 } from "@/lib/firestore";
 import { uploadImageToCloudinary, deleteImageFromCloudinary } from "@/lib/cloudinary";
@@ -44,6 +45,8 @@ export default function ProfileScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingContent, setUploadingContent] = useState(false);
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [pendingAsset, setPendingAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [captionModalVisible, setCaptionModalVisible] = useState(false);
 
   // ── Show brief status banner ──────────────────────────────────────────────
   function showStatus(msg: string, durationMs = 3000) {
@@ -52,28 +55,23 @@ export default function ProfileScreen() {
     setTimeout(() => setStatusMsg(null), durationMs);
   }
 
-  // ── Load content gallery ─────────────────────────────────────────────────
-  const loadContent = useCallback(async () => {
+  // ── Realtime content subscription ────────────────────────────────────────
+  useEffect(() => {
     if (!user) return;
-    console.log(`${TAG} loadContent → userId=${user.uid}`);
-    try {
-      const items = await getUserContent(user.uid);
-      console.log(`${TAG} loadContent → got ${items.length} items`);
+    console.log(`${TAG} subscribeToUserContent → userId=${user.uid}`);
+    const unsub = subscribeToUserContent(user.uid, (items) => {
+      console.log(`${TAG} content update → ${items.length} items`);
       setContent(items);
-    } catch (err) {
-      console.error(`${TAG} loadContent ERROR:`, err);
-    } finally {
       setLoadingContent(false);
-    }
+    });
+    return () => unsub();
   }, [user]);
-
-  useEffect(() => { loadContent(); }, [loadContent]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refreshProfile(), loadContent()]);
+    await refreshProfile();
     setRefreshing(false);
-  }, [refreshProfile, loadContent]);
+  }, [refreshProfile]);
 
   // ── Shared image picker helper ────────────────────────────────────────────
   async function pickImage(squareCrop: boolean): Promise<ImagePicker.ImagePickerAsset | null> {
@@ -170,6 +168,8 @@ export default function ProfileScreen() {
   // ══════════════════════════════════════════════════════════════════════════
   // SYSTEM 2 — CONTENT GALLERY
   // Separate from profile photo. Saves to content collection ONLY.
+  // Step 1: pick image → show caption modal
+  // Step 2: user types caption (optional) → tap Post → upload
   // ══════════════════════════════════════════════════════════════════════════
   async function handleUploadContent() {
     console.log(`${TAG} [CONTENT] handleUploadContent called user=${user?.uid}`);
@@ -179,32 +179,29 @@ export default function ProfileScreen() {
     const asset = await pickImage(false);
     if (!asset) return;
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPendingAsset(asset);
+    setCaptionModalVisible(true);
+  }
+
+  async function handleCaptionPost(caption: string) {
+    if (!user || !pendingAsset) return;
     setUploadingContent(true);
     showStatus("Uploading to gallery…");
 
     try {
-      // ── Cloudinary upload ──────────────────────────────────────────────
-      console.log(`${TAG} [CONTENT] Cloudinary upload started → uri=${asset.uri}`);
-      const mimeType = asset.mimeType ?? "image/jpeg";
-      const { secure_url, public_id } = await uploadImageToCloudinary(asset.uri, mimeType);
+      console.log(`${TAG} [CONTENT] Cloudinary upload started → uri=${pendingAsset.uri}`);
+      const mimeType = pendingAsset.mimeType ?? "image/jpeg";
+      const { secure_url, public_id } = await uploadImageToCloudinary(pendingAsset.uri, mimeType);
       console.log(`${TAG} [CONTENT] Cloudinary upload SUCCESS → secure_url=${secure_url} public_id=${public_id}`);
 
-      // ── Firebase write to content collection ───────────────────────────
       console.log(`${TAG} [CONTENT] Firebase content write started...`);
-      const newId = await addContent(user.uid, "image", secure_url, undefined, public_id);
-      console.log(`${TAG} [CONTENT] Firebase content write SUCCESS → contentId=${newId}`);
+      await addContent(user.uid, "image", secure_url, caption || undefined, public_id);
+      console.log(`${TAG} [CONTENT] Firebase content write SUCCESS`);
 
-      // Prepend to local state immediately
-      const newItem: ContentItem = {
-        contentId: newId,
-        userId: user.uid,
-        type: "image",
-        url: secure_url,
-        publicId: public_id,
-        timestamp: Date.now(),
-      };
-      setContent((prev) => [newItem, ...prev]);
+      setCaptionModalVisible(false);
+      setPendingAsset(null);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       showStatus("✓ Photo added to gallery!");
     } catch (err: any) {
       console.error(`${TAG} [CONTENT] UPLOAD FAILED:`, err);
@@ -212,6 +209,12 @@ export default function ProfileScreen() {
     } finally {
       setUploadingContent(false);
     }
+  }
+
+  function handleCaptionCancel() {
+    if (uploadingContent) return;
+    setCaptionModalVisible(false);
+    setPendingAsset(null);
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -412,6 +415,14 @@ export default function ProfileScreen() {
           editable
         />
       </ScrollView>
+
+      <CaptionInputModal
+        visible={captionModalVisible}
+        imageUri={pendingAsset?.uri ?? null}
+        uploading={uploadingContent}
+        onPost={handleCaptionPost}
+        onCancel={handleCaptionCancel}
+      />
     </ThemedBackground>
   );
 }

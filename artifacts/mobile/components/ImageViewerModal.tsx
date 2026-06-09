@@ -1,14 +1,23 @@
 import { Feather } from "@expo/vector-icons";
 import { Image } from "expo-image";
 import React, { useCallback } from "react";
-import { Dimensions, Modal, Platform, StatusBar, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Dimensions,
+  Modal,
+  Platform,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
 } from "react-native-reanimated";
 
 const SCREEN = Dimensions.get("window");
@@ -17,13 +26,28 @@ const MAX_SCALE = 5;
 const DOUBLE_TAP_SCALE = 2.5;
 const SPRING_CONFIG = { damping: 20, stiffness: 200, mass: 0.5 };
 
+function formatTimestamp(ts: number): string {
+  if (!ts) return "";
+  const d = new Date(ts);
+  const day = d.getDate();
+  const month = d.toLocaleString("en-US", { month: "short" });
+  const year = d.getFullYear();
+  const hours = d.getHours();
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  const h12 = hours % 12 === 0 ? 12 : hours % 12;
+  return `${day} ${month} ${year} • ${h12}:${minutes} ${ampm}`;
+}
+
 interface ImageViewerModalProps {
   visible: boolean;
   uri: string | null;
+  caption?: string;
+  timestamp?: number;
   onClose: () => void;
 }
 
-export function ImageViewerModal({ visible, uri, onClose }: ImageViewerModalProps) {
+export function ImageViewerModal({ visible, uri, caption, timestamp, onClose }: ImageViewerModalProps) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const translateX = useSharedValue(0);
@@ -32,7 +56,6 @@ export function ImageViewerModal({ visible, uri, onClose }: ImageViewerModalProp
   const savedTranslateY = useSharedValue(0);
   const originX = useSharedValue(0);
   const originY = useSharedValue(0);
-  const opacity = useSharedValue(1);
 
   const resetTransform = useCallback(() => {
     scale.value = withSpring(1, SPRING_CONFIG);
@@ -91,9 +114,7 @@ export function ImageViewerModal({ visible, uri, onClose }: ImageViewerModalProp
   const panGesture = Gesture.Pan()
     .minDistance(1)
     .onUpdate((e) => {
-      if (scale.value <= 1.05) {
-        return;
-      }
+      if (scale.value <= 1.05) return;
       const clamped = clampTranslation(
         savedTranslateX.value + e.translationX,
         savedTranslateY.value + e.translationY,
@@ -153,8 +174,11 @@ export function ImageViewerModal({ visible, uri, onClose }: ImageViewerModalProp
       { translateY: translateY.value },
       { scale: scale.value },
     ],
-    opacity: opacity.value,
   }));
+
+  const hasCaption = !!caption?.trim();
+  const hasTimestamp = !!timestamp;
+  const showOverlay = hasCaption || hasTimestamp;
 
   if (!uri) return null;
 
@@ -180,6 +204,7 @@ export function ImageViewerModal({ visible, uri, onClose }: ImageViewerModalProp
           </Animated.View>
         </GestureDetector>
 
+        {/* Close button */}
         <TouchableOpacity
           style={styles.closeBtn}
           onPress={handleClose}
@@ -191,7 +216,32 @@ export function ImageViewerModal({ visible, uri, onClose }: ImageViewerModalProp
           </View>
         </TouchableOpacity>
 
-        {Platform.OS === "android" && <StatusBar backgroundColor="rgba(0,0,0,0.95)" barStyle="light-content" />}
+        {/* Caption + Timestamp overlay at bottom */}
+        {showOverlay && (
+          <View style={styles.overlayBottom} pointerEvents="box-none">
+            <View style={styles.overlayCard}>
+              {hasCaption && (
+                <ScrollView
+                  style={styles.captionScroll}
+                  showsVerticalScrollIndicator={false}
+                  bounces={false}
+                >
+                  <Text style={styles.captionText}>{caption}</Text>
+                </ScrollView>
+              )}
+              {hasTimestamp && (
+                <View style={styles.timestampRow}>
+                  <Feather name="clock" size={11} color="rgba(255,255,255,0.55)" />
+                  <Text style={styles.timestampText}>{formatTimestamp(timestamp!)}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
+        {Platform.OS === "android" && (
+          <StatusBar backgroundColor="rgba(0,0,0,0.95)" barStyle="light-content" />
+        )}
       </GestureHandlerRootView>
     </Modal>
   );
@@ -233,5 +283,42 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.18)",
     alignItems: "center",
     justifyContent: "center",
+  },
+  overlayBottom: {
+    position: "absolute",
+    bottom: Platform.OS === "ios" ? 44 : 28,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 18,
+    zIndex: 10,
+  },
+  overlayCard: {
+    backgroundColor: "rgba(0,0,0,0.60)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.10)",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    gap: 6,
+    maxHeight: 160,
+  },
+  captionScroll: {
+    maxHeight: 96,
+  },
+  captionText: {
+    color: "#fff",
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 20,
+  },
+  timestampRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  timestampText: {
+    color: "rgba(255,255,255,0.55)",
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
   },
 });

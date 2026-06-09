@@ -276,6 +276,21 @@ export async function getUserContent(userId: string): Promise<ContentItem[]> {
     .sort((a, b) => b.timestamp - a.timestamp);
 }
 
+export function subscribeToUserContent(
+  userId: string,
+  callback: (items: ContentItem[]) => void
+): () => void {
+  const q = query(
+    collection(db, "content"),
+    where("userId", "==", userId),
+    orderBy("timestamp", "desc")
+  );
+  return onSnapshot(q, (snap) => {
+    const items = snap.docs.map((d) => ({ contentId: d.id, ...d.data() } as ContentItem));
+    callback(items);
+  });
+}
+
 export async function addContent(
   userId: string,
   type: ContentItem["type"],
