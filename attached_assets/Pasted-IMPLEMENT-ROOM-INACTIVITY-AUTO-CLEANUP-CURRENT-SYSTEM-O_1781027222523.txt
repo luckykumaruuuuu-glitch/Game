@@ -1,0 +1,147 @@
+IMPLEMENT ROOM INACTIVITY AUTO CLEANUP
+
+CURRENT SYSTEM
+
+Online Friend rooms remain active indefinitely.
+
+This must be changed.
+
+================================
+
+ROOM INACTIVITY RULE
+
+================================
+
+If no activity occurs inside a room for 10 minutes:
+
+Automatically mark room as INACTIVE.
+
+================================
+
+WHAT COUNTS AS ACTIVITY
+
+================================
+
+Any of the following should reset the 10-minute timer:
+
+- Player joins room
+- Player reconnects
+- Dice roll
+- Token movement
+- Chat message
+- Spectator joins
+- Any game state update
+
+Whenever activity occurs:
+
+Update:
+
+lastActivityAt = serverTimestamp()
+
+================================
+
+AUTO ROOM EXPIRY
+
+================================
+
+If:
+
+Current Time - lastActivityAt > 10 minutes
+
+Then:
+
+roomStatus = INACTIVE
+
+================================
+
+INACTIVE ROOM BEHAVIOR
+
+================================
+
+Once room becomes INACTIVE:
+
+- Remove from Active Room list
+- Spectators cannot join
+- Room ID becomes invalid
+- Room button lookup must fail
+
+Show:
+
+"This room is no longer active"
+
+================================
+
+ROOM ID VALIDATION
+
+================================
+
+When someone enters a Room ID:
+
+Check:
+
+roomStatus == ACTIVE
+
+If ACTIVE:
+
+Allow spectator access.
+
+If INACTIVE:
+
+Show:
+
+Room expired
+
+Do not allow entry.
+
+================================
+
+PLAYER RETURN RULE
+
+================================
+
+If all players leave and room becomes inactive:
+
+Room is permanently closed.
+
+Players must create a new room.
+
+Do not automatically reactivate expired rooms.
+
+================================
+
+FIREBASE FIELDS
+
+================================
+
+Store:
+
+roomStatus: ACTIVE | INACTIVE
+
+lastActivityAt: serverTimestamp()
+
+================================
+
+ACTIVE ROOM LIST
+
+================================
+
+Only show rooms where:
+
+roomStatus == ACTIVE
+
+Hide inactive rooms automatically.
+
+================================
+
+IMPORTANT
+
+================================
+
+Do NOT change:
+
+- Gameplay
+- Turn system
+- Dice system
+- Room creation system
+
+Only add inactivity timeout and room expiry logic.

@@ -522,6 +522,18 @@ function LudoNativeOverlay({
         </Pressable>
       )}
 
+      {/* Room ID label — top-right, display only, never blocks gameplay */}
+      {isVisible && mpConfig && (
+        <View
+          style={[styles.roomIdLabel, { top: insets.top + 10 }]}
+          pointerEvents="none"
+        >
+          <Text style={styles.roomIdText}>
+            Room ID: {mpConfig.roomId}
+          </Text>
+        </View>
+      )}
+
       {/* Move history log — shown during online games, floats above debug bar */}
       {isVisible && mpConfig && moveLog.length > 0 && (
         <View style={[styles.moveLogContainer, { bottom: insets.bottom + 52 }]}>
@@ -851,6 +863,22 @@ const styles = StyleSheet.create({
     color: '#F59E0B',
     fontSize: 11,
     fontFamily: 'Inter_500Medium',
+  },
+  roomIdLabel: {
+    position: 'absolute',
+    right: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  roomIdText: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.4,
   },
   winnerOverlay: {
     position: 'absolute',
