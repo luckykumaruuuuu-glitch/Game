@@ -16,6 +16,8 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ThemedBackground } from '@/components/ThemedBackground';
+import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import {
   UserPresence,
@@ -33,17 +35,19 @@ const MODES: { value: GameMode; label: string; desc: string }[] = [
   { value: 4, label: '4P', desc: '4 Squad' },
 ];
 
+const PURPLE = '#7C3AED';
+const PURPLE_LIGHT = '#A78BFA';
+const GREEN = '#10B981';
+
 // ── Premium player icons — consistent stroke style ──────────────────────────
 function Icon2P({ color }: { color: string }) {
   return (
     <Svg width={44} height={36} viewBox="0 0 44 36" fill="none">
-      {/* Back player */}
       <Circle cx="28" cy="10" r="6" stroke={color} strokeWidth="1.7" strokeOpacity="0.55" />
       <Path
         d="M16 34c0-5.523 5.373-10 12-10"
         stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.55"
       />
-      {/* Front player */}
       <Circle cx="16" cy="11" r="7" stroke={color} strokeWidth="2" />
       <Path
         d="M2 35c0-6.075 6.268-11 14-11s14 4.925 14 11"
@@ -56,24 +60,12 @@ function Icon2P({ color }: { color: string }) {
 function Icon3P({ color }: { color: string }) {
   return (
     <Svg width={52} height={36} viewBox="0 0 52 36" fill="none">
-      {/* Left */}
       <Circle cx="10" cy="12" r="5.5" stroke={color} strokeWidth="1.7" strokeOpacity="0.5" />
-      <Path
-        d="M2 35c0-4.97 3.582-9 8-9"
-        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.5"
-      />
-      {/* Right */}
+      <Path d="M2 35c0-4.97 3.582-9 8-9" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.5" />
       <Circle cx="42" cy="12" r="5.5" stroke={color} strokeWidth="1.7" strokeOpacity="0.5" />
-      <Path
-        d="M50 35c0-4.97-3.582-9-8-9"
-        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.5"
-      />
-      {/* Center (front) */}
+      <Path d="M50 35c0-4.97-3.582-9-8-9" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.5" />
       <Circle cx="26" cy="10" r="7" stroke={color} strokeWidth="2" />
-      <Path
-        d="M12 35c0-6.075 6.268-11 14-11s14 4.925 14 11"
-        stroke={color} strokeWidth="2" strokeLinecap="round"
-      />
+      <Path d="M12 35c0-6.075 6.268-11 14-11s14 4.925 14 11" stroke={color} strokeWidth="2" strokeLinecap="round" />
     </Svg>
   );
 }
@@ -81,43 +73,19 @@ function Icon3P({ color }: { color: string }) {
 function Icon4P({ color }: { color: string }) {
   return (
     <Svg width={52} height={42} viewBox="0 0 52 42" fill="none">
-      {/* Top-left */}
       <Circle cx="13" cy="8" r="5" stroke={color} strokeWidth="1.7" strokeOpacity="0.55" />
-      <Path
-        d="M4 24c0-4.418 4.03-8 9-8"
-        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.55"
-      />
-      {/* Top-right */}
+      <Path d="M4 24c0-4.418 4.03-8 9-8" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.55" />
       <Circle cx="39" cy="8" r="5" stroke={color} strokeWidth="1.7" strokeOpacity="0.55" />
-      <Path
-        d="M48 24c0-4.418-4.03-8-9-8"
-        stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.55"
-      />
-      {/* Bottom-left */}
+      <Path d="M48 24c0-4.418-4.03-8-9-8" stroke={color} strokeWidth="1.7" strokeLinecap="round" strokeOpacity="0.55" />
       <Circle cx="13" cy="28" r="5" stroke={color} strokeWidth="1.9" strokeOpacity="0.8" />
-      <Path
-        d="M4 42c0-4.418 4.03-8 9-8"
-        stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeOpacity="0.8"
-      />
-      {/* Bottom-right */}
+      <Path d="M4 42c0-4.418 4.03-8 9-8" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeOpacity="0.8" />
       <Circle cx="39" cy="28" r="5" stroke={color} strokeWidth="1.9" strokeOpacity="0.8" />
-      <Path
-        d="M48 42c0-4.418-4.03-8-9-8"
-        stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeOpacity="0.8"
-      />
+      <Path d="M48 42c0-4.418-4.03-8-9-8" stroke={color} strokeWidth="1.9" strokeLinecap="round" strokeOpacity="0.8" />
     </Svg>
   );
 }
 
-const MODE_ICONS = {
-  2: Icon2P,
-  3: Icon3P,
-  4: Icon4P,
-} as const;
-
-const PURPLE = '#7C3AED';
-const PURPLE_LIGHT = '#A78BFA';
-const GREEN = '#10B981';
+const MODE_ICONS = { 2: Icon2P, 3: Icon3P, 4: Icon4P } as const;
 
 // ── Animated premium mode card ───────────────────────────────────────────────
 function ModeCard({
@@ -129,6 +97,7 @@ function ModeCard({
   active: boolean;
   onPress: () => void;
 }) {
+  const colors = useColors();
   const scale = useRef(new Animated.Value(active ? 1.04 : 1)).current;
   const glow = useRef(new Animated.Value(active ? 1 : 0)).current;
   const pulse = useRef(new Animated.Value(1)).current;
@@ -160,9 +129,10 @@ function ModeCard({
   }, [active]);
 
   const IconComp = MODE_ICONS[mode.value];
-  const iconColor = active ? '#C4B5FD' : 'rgba(255,255,255,0.28)';
-  const borderColor = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(255,255,255,0.09)', 'rgba(167,139,250,0.75)'] });
-  const bgColor = glow.interpolate({ inputRange: [0, 1], outputRange: ['rgba(255,255,255,0.04)', 'rgba(124,58,237,0.18)'] });
+  const iconColor = active ? '#C4B5FD' : colors.isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.3)';
+  const inactiveBg = colors.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+  const borderColor = glow.interpolate({ inputRange: [0, 1], outputRange: [colors.border, 'rgba(167,139,250,0.75)'] });
+  const bgColor = glow.interpolate({ inputRange: [0, 1], outputRange: [inactiveBg, 'rgba(124,58,237,0.18)'] });
 
   return (
     <Pressable
@@ -170,41 +140,38 @@ function ModeCard({
       onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); onPress(); }}
     >
       <Animated.View style={{ transform: [{ scale }] }}>
-        {/* Outer glow ring */}
         {active && (
           <Animated.View
-            style={[
-              StyleSheet.absoluteFill,
-              styles.modeGlowRing,
-              { transform: [{ scale: pulse }] },
-            ]}
+            style={[StyleSheet.absoluteFill, styles.modeGlowRing, { transform: [{ scale: pulse }] }]}
           />
         )}
-        <Animated.View
-          style={[
-            styles.modeChip,
-            { borderColor, backgroundColor: bgColor },
-          ]}
-        >
-          {/* Glass inner highlight */}
-          <View style={styles.modeChipHighlight} />
+        <Animated.View style={[styles.modeChip, { borderColor, backgroundColor: bgColor }]}>
+          <View style={[
+            styles.modeChipHighlight,
+            { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.6)' },
+          ]} />
 
-          {/* Icon area */}
-          <View style={[styles.modeIconWrap, active && styles.modeIconWrapActive]}>
+          <View style={[styles.modeIconWrap, active && styles.modeIconWrapActive,
+            !active && { backgroundColor: colors.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)' },
+          ]}>
             <IconComp color={iconColor} />
           </View>
 
-          {/* Label */}
-          <Text style={[styles.modeLabel, active && styles.modeLabelActive]}>
+          <Text style={[
+            styles.modeLabel,
+            { color: active ? '#E9D5FF' : colors.mutedForeground },
+            active && styles.modeLabelActive,
+          ]}>
             {mode.label}
           </Text>
 
-          {/* Desc */}
-          <Text style={[styles.modeDesc, active && styles.modeDescActive]}>
+          <Text style={[
+            styles.modeDesc,
+            { color: active ? 'rgba(196,181,253,0.7)' : colors.isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.3)' },
+          ]}>
             {mode.desc}
           </Text>
 
-          {/* Active indicator dot */}
           {active && <View style={styles.modeActiveDot} />}
         </Animated.View>
       </Animated.View>
@@ -212,7 +179,9 @@ function ModeCard({
   );
 }
 
+// ── Skeleton ─────────────────────────────────────────────────────────────────
 function SkeletonCard() {
+  const colors = useColors();
   const shimmer = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     Animated.loop(
@@ -223,19 +192,22 @@ function SkeletonCard() {
     ).start();
   }, [shimmer]);
   const opacity = shimmer.interpolate({ inputRange: [0, 1], outputRange: [0.25, 0.6] });
+  const skBg = colors.isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)';
+  const skEl = colors.isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
   return (
-    <Animated.View style={[styles.skeletonCard, { opacity }]}>
-      <View style={styles.skeletonAvatar} />
+    <Animated.View style={[styles.skeletonCard, { opacity, backgroundColor: skBg, borderColor: colors.border }]}>
+      <View style={[styles.skeletonAvatar, { backgroundColor: skEl }]} />
       <View style={{ flex: 1, gap: 8 }}>
-        <View style={styles.skeletonLine} />
-        <View style={[styles.skeletonLine, { width: '45%' }]} />
+        <View style={[styles.skeletonLine, { backgroundColor: skEl }]} />
+        <View style={[styles.skeletonLine, { width: '45%', backgroundColor: skEl }]} />
       </View>
-      <View style={styles.skeletonCheck} />
+      <View style={[styles.skeletonCheck, { backgroundColor: skEl }]} />
     </Animated.View>
   );
 }
 
-function OnlinePulse() {
+// ── Online pulse dot ──────────────────────────────────────────────────────────
+function OnlinePulse({ cardBg }: { cardBg: string }) {
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0.7)).current;
   useEffect(() => {
@@ -255,11 +227,12 @@ function OnlinePulse() {
   return (
     <View style={styles.pulseWrap}>
       <Animated.View style={[styles.pulseRing, { transform: [{ scale }], opacity }]} />
-      <View style={styles.pulseCore} />
+      <View style={[styles.pulseCore, { borderColor: cardBg }]} />
     </View>
   );
 }
 
+// ── Friend card ───────────────────────────────────────────────────────────────
 interface FriendCardProps {
   item: UserProfile;
   isOnline: boolean;
@@ -269,8 +242,15 @@ interface FriendCardProps {
 }
 
 function FriendCard({ item, isOnline, isSelected, isMaxed, onPress }: FriendCardProps) {
+  const colors = useColors();
   const scale = useRef(new Animated.Value(1)).current;
   const displayName = item.name || item.username || '?';
+
+  const cardBg = isSelected
+    ? colors.isDark ? 'rgba(124,58,237,0.14)' : 'rgba(124,58,237,0.08)'
+    : colors.isDark ? 'rgba(255,255,255,0.04)' : colors.card;
+  const cardBorder = isSelected ? 'rgba(124,58,237,0.45)' : colors.border;
+  const offlineBg = colors.isDark ? '#374151' : '#D1D5DB';
 
   return (
     <Pressable
@@ -286,8 +266,13 @@ function FriendCard({ item, isOnline, isSelected, isMaxed, onPress }: FriendCard
       <Animated.View
         style={[
           styles.friendCard,
+          {
+            backgroundColor: cardBg,
+            borderColor: cardBorder,
+            transform: [{ scale }],
+            opacity: isMaxed ? 0.38 : 1,
+          },
           isSelected && styles.friendCardSelected,
-          { transform: [{ scale }], opacity: isMaxed ? 0.38 : 1 },
         ]}
       >
         <View style={styles.avatarWrap}>
@@ -295,26 +280,35 @@ function FriendCard({ item, isOnline, isSelected, isMaxed, onPress }: FriendCard
             <Image source={{ uri: item.photo }} style={styles.avatar} />
           ) : (
             <LinearGradient
-              colors={isOnline ? [PURPLE, '#4C1D95'] : ['#374151', '#1F2937']}
+              colors={isOnline ? [PURPLE, '#4C1D95'] : colors.isDark ? ['#374151', '#1F2937'] : ['#D1D5DB', '#9CA3AF']}
               style={[styles.avatar, styles.avatarFallback]}
             >
               <Text style={styles.avatarInitial}>{displayName[0].toUpperCase()}</Text>
             </LinearGradient>
           )}
-          {isOnline ? <OnlinePulse /> : <View style={styles.offlineDot} />}
+          {isOnline
+            ? <OnlinePulse cardBg={cardBg} />
+            : <View style={[styles.offlineDot, { backgroundColor: offlineBg, borderColor: cardBg }]} />
+          }
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={styles.friendName} numberOfLines={1}>{displayName}</Text>
+          <Text style={[styles.friendName, { color: colors.foreground }]} numberOfLines={1}>
+            {displayName}
+          </Text>
           <View style={styles.statusRow}>
-            <View style={[styles.statusDot, { backgroundColor: isOnline ? GREEN : '#4B5563' }]} />
-            <Text style={[styles.friendStatus, { color: isOnline ? GREEN : 'rgba(255,255,255,0.3)' }]}>
+            <View style={[styles.statusDot, { backgroundColor: isOnline ? GREEN : colors.isDark ? '#4B5563' : '#9CA3AF' }]} />
+            <Text style={[styles.friendStatus, { color: isOnline ? GREEN : colors.mutedForeground }]}>
               {isOnline ? 'Online' : 'Offline'}
             </Text>
           </View>
         </View>
 
-        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]}>
+        <View style={[
+          styles.checkbox,
+          { borderColor: isSelected ? PURPLE : colors.isDark ? 'rgba(255,255,255,0.18)' : colors.border },
+          isSelected && styles.checkboxSelected,
+        ]}>
           {isSelected && <Feather name="check" size={13} color="#fff" />}
         </View>
       </Animated.View>
@@ -322,7 +316,9 @@ function FriendCard({ item, isOnline, isSelected, isMaxed, onPress }: FriendCard
   );
 }
 
+// ── Empty state ───────────────────────────────────────────────────────────────
 function EmptyState() {
+  const colors = useColors();
   const breathe = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     Animated.loop(
@@ -335,34 +331,43 @@ function EmptyState() {
   return (
     <View style={styles.emptyWrap}>
       <Animated.View style={{ transform: [{ scale: breathe }] }}>
-        <LinearGradient
-          colors={['rgba(124,58,237,0.25)', 'rgba(124,58,237,0.08)']}
-          style={styles.emptyIconBg}
-        >
+        <View style={[styles.emptyIconBg, {
+          backgroundColor: colors.isDark ? 'rgba(124,58,237,0.15)' : 'rgba(124,58,237,0.08)',
+          borderColor: colors.isDark ? 'rgba(124,58,237,0.2)' : 'rgba(124,58,237,0.15)',
+        }]}>
           <Feather name="wifi-off" size={34} color={PURPLE_LIGHT} />
-        </LinearGradient>
+        </View>
       </Animated.View>
-      <Text style={styles.emptyTitle}>No Friends Yet</Text>
-      <Text style={styles.emptySubtitle}>
+      <Text style={[styles.emptyTitle, { color: colors.foreground }]}>No Friends Yet</Text>
+      <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
         Add friends using the QR scanner to start playing Ludo together!
       </Text>
     </View>
   );
 }
 
+// ── Choose mode prompt ────────────────────────────────────────────────────────
 function ChooseModePrompt() {
+  const colors = useColors();
   return (
     <View style={styles.promptWrap}>
-      <View style={styles.promptIconWrap}>
-        <Feather name="arrow-up-circle" size={30} color="rgba(124,58,237,0.4)" />
+      <View style={[styles.promptIconWrap, {
+        backgroundColor: colors.isDark ? 'rgba(124,58,237,0.07)' : 'rgba(124,58,237,0.06)',
+        borderColor: colors.isDark ? 'rgba(124,58,237,0.18)' : 'rgba(124,58,237,0.2)',
+      }]}>
+        <Feather name="arrow-up-circle" size={30} color="rgba(124,58,237,0.5)" />
       </View>
-      <Text style={styles.promptText}>Choose a game mode above{'\n'}to invite your friends</Text>
+      <Text style={[styles.promptText, { color: colors.mutedForeground }]}>
+        Choose a game mode above{'\n'}to invite your friends
+      </Text>
     </View>
   );
 }
 
+// ── Main screen ───────────────────────────────────────────────────────────────
 export default function OnlineFriendScreen() {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
   const { user, profile } = useAuth();
 
   const [mode, setMode] = useState<GameMode | null>(null);
@@ -441,28 +446,36 @@ export default function OnlineFriendScreen() {
   const topPad = insets.top + (Platform.OS === 'web' ? 0 : 4);
   const canSend = mode !== null && selected.size === maxSelectable && !sending && !sent;
 
+  // Derived theme-aware colors for inline use
+  const pillBg = colors.isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+  const pillBorder = colors.border;
+  const statTextColor = colors.mutedForeground;
+  const backBtnBg = colors.isDark ? 'rgba(255,255,255,0.06)' : colors.secondary;
+  const sendDisabledBg = colors.isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+  const sendDisabledText = colors.isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.25)';
+
   return (
-    <LinearGradient colors={['#09090B', '#0D0A1A', '#0A0A0F']} locations={[0, 0.5, 1]} style={styles.root}>
+    <ThemedBackground>
       <Animated.View style={[{ flex: 1 }, { opacity: screenOpacity }]}>
 
         {/* ── Header ─────────────────────────────────────────── */}
         <View style={[styles.header, { paddingTop: topPad }]}>
           <Pressable
-            style={styles.backBtn}
+            style={[styles.backBtn, { backgroundColor: backBtnBg, borderColor: colors.border }]}
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
             hitSlop={12}
           >
-            <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.85)" />
+            <Ionicons name="chevron-back" size={22} color={colors.foreground} />
           </Pressable>
 
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>Online Friends</Text>
+            <Text style={[styles.headerTitle, { color: colors.foreground }]}>Online Friends</Text>
             <View style={styles.statsRow}>
-              <View style={styles.statPill}>
-                <Feather name="users" size={9} color="rgba(255,255,255,0.4)" />
-                <Text style={styles.statText}>{friends.length} total</Text>
+              <View style={[styles.statPill, { backgroundColor: pillBg, borderColor: pillBorder }]}>
+                <Feather name="users" size={9} color={statTextColor} />
+                <Text style={[styles.statText, { color: statTextColor }]}>{friends.length} total</Text>
               </View>
-              <View style={[styles.statPill, styles.statPillGreen]}>
+              <View style={[styles.statPill, styles.statPillGreen, { backgroundColor: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.25)' }]}>
                 <View style={styles.statGreenDot} />
                 <Text style={[styles.statText, { color: GREEN }]}>{onlineCount} online</Text>
               </View>
@@ -471,38 +484,30 @@ export default function OnlineFriendScreen() {
 
           <View style={styles.headerActions}>
             <Pressable
-              style={styles.activeBtn}
+              style={[styles.actionPill, { borderColor: 'rgba(124,58,237,0.4)',
+                backgroundColor: colors.isDark ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.07)' }]}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ludo/active-games' as any); }}
               hitSlop={8}
             >
-              <LinearGradient
-                colors={['rgba(124,58,237,0.35)', 'rgba(91,33,182,0.2)']}
-                style={styles.activeBtnGrad}
-              >
-                <Feather name="activity" size={13} color={PURPLE_LIGHT} />
-                <Text style={styles.activeBtnText}>Active Game</Text>
-              </LinearGradient>
+              <Feather name="activity" size={13} color={PURPLE_LIGHT} />
+              <Text style={[styles.actionPillText, { color: PURPLE_LIGHT }]}>Active</Text>
             </Pressable>
 
             <Pressable
-              style={styles.inviteBtn}
+              style={[styles.actionPill, { borderColor: 'rgba(16,185,129,0.35)',
+                backgroundColor: colors.isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.07)' }]}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ludo/invites' as any); }}
               hitSlop={8}
             >
-              <LinearGradient
-                colors={['rgba(16,185,129,0.25)', 'rgba(5,150,105,0.15)']}
-                style={styles.inviteBtnGrad}
-              >
-                <Feather name="mail" size={13} color="#34D399" />
-                <Text style={styles.inviteBtnText}>Invite</Text>
-              </LinearGradient>
+              <Feather name="mail" size={13} color="#34D399" />
+              <Text style={[styles.actionPillText, { color: '#34D399' }]}>Invite</Text>
             </Pressable>
           </View>
         </View>
 
         {/* ── Mode Selector ──────────────────────────────────── */}
         <View style={styles.modeSection}>
-          <Text style={styles.sectionLabel}>SELECT PLAYERS</Text>
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>SELECT PLAYERS</Text>
           <View style={styles.modeRow}>
             {MODES.map((m) => (
               <ModeCard
@@ -516,17 +521,22 @@ export default function OnlineFriendScreen() {
         </View>
 
         {/* ── Divider ────────────────────────────────────────── */}
-        <View style={styles.divider} />
+        <View style={[styles.divider, { backgroundColor: colors.border }]} />
 
         {/* ── Friends List ───────────────────────────────────── */}
         {mode !== null ? (
           <View style={{ flex: 1 }}>
             <View style={styles.listHeader}>
-              <Text style={styles.sectionLabel}>
+              <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>
                 SELECT {maxSelectable} FRIEND{maxSelectable > 1 ? 'S' : ''}
               </Text>
-              <View style={styles.countBadge}>
-                <Text style={styles.countBadgeText}>{selected.size}/{maxSelectable}</Text>
+              <View style={[styles.countBadge, {
+                backgroundColor: colors.isDark ? 'rgba(124,58,237,0.18)' : 'rgba(124,58,237,0.1)',
+                borderColor: colors.isDark ? 'rgba(124,58,237,0.38)' : 'rgba(124,58,237,0.25)',
+              }]}>
+                <Text style={[styles.countBadgeText, { color: PURPLE_LIGHT }]}>
+                  {selected.size}/{maxSelectable}
+                </Text>
               </View>
             </View>
 
@@ -558,7 +568,12 @@ export default function OnlineFriendScreen() {
                       isOnline={isOnline}
                       isSelected={isSelected}
                       isMaxed={isMaxed}
-                      onPress={() => { if (!isMaxed) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleSelect(item.userId); } }}
+                      onPress={() => {
+                        if (!isMaxed) {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          toggleSelect(item.userId);
+                        }
+                      }}
                     />
                   );
                 }}
@@ -571,7 +586,7 @@ export default function OnlineFriendScreen() {
 
         {/* ── Send Button ────────────────────────────────────── */}
         {mode !== null && (
-          <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: colors.border }]}>
             <Animated.View style={{ transform: [{ scale: sendBtnScale }], borderRadius: 16, overflow: 'hidden' }}>
               <Pressable
                 onPress={handleSendInvite}
@@ -601,9 +616,9 @@ export default function OnlineFriendScreen() {
                     )}
                   </LinearGradient>
                 ) : (
-                  <View style={[styles.sendBtn, styles.sendBtnDisabled]}>
-                    <Feather name="send" size={17} color="rgba(255,255,255,0.2)" />
-                    <Text style={[styles.sendBtnText, { color: 'rgba(255,255,255,0.2)' }]}>
+                  <View style={[styles.sendBtn, { backgroundColor: sendDisabledBg, borderWidth: 1, borderColor: colors.border }]}>
+                    <Feather name="send" size={17} color={sendDisabledText} />
+                    <Text style={[styles.sendBtnText, { color: sendDisabledText }]}>
                       Send Game Invite
                     </Text>
                   </View>
@@ -613,13 +628,12 @@ export default function OnlineFriendScreen() {
           </View>
         )}
       </Animated.View>
-    </LinearGradient>
+    </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-
+  // ── Header ─────────────────────────────────────────────────────────────────
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -631,9 +645,7 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -641,7 +653,6 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontFamily: 'Inter_700Bold',
-    color: '#fff',
     letterSpacing: -0.3,
   },
   statsRow: { flexDirection: 'row', gap: 7 },
@@ -652,14 +663,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.09)',
   },
-  statPillGreen: {
-    backgroundColor: 'rgba(16,185,129,0.1)',
-    borderColor: 'rgba(16,185,129,0.25)',
-  },
+  statPillGreen: {},
   statGreenDot: {
     width: 6,
     height: 6,
@@ -669,50 +675,27 @@ const styles = StyleSheet.create({
   statText: {
     fontSize: 10,
     fontFamily: 'Inter_500Medium',
-    color: 'rgba(255,255,255,0.45)',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
   },
-  activeBtn: {
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.4)',
-  },
-  activeBtnGrad: {
+  actionPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: 10,
     paddingVertical: 7,
-  },
-  activeBtnText: {
-    fontSize: 11,
-    fontFamily: 'Inter_600SemiBold',
-    color: PURPLE_LIGHT,
-  },
-  inviteBtn: {
     borderRadius: 20,
-    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(16,185,129,0.35)',
   },
-  inviteBtnGrad: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  inviteBtnText: {
+  actionPillText: {
     fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
-    color: '#34D399',
   },
 
+  // ── Mode cards ──────────────────────────────────────────────────────────────
   modeSection: {
     paddingHorizontal: 16,
     paddingBottom: 20,
@@ -720,7 +703,6 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 10,
     fontFamily: 'Inter_600SemiBold',
-    color: 'rgba(255,255,255,0.3)',
     letterSpacing: 1.5,
     marginBottom: 12,
   },
@@ -759,7 +741,6 @@ const styles = StyleSheet.create({
     height: 36,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.05)',
   },
   modeIconWrap: {
     width: 58,
@@ -767,7 +748,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 14,
-    backgroundColor: 'rgba(255,255,255,0.04)',
     marginBottom: 2,
   },
   modeIconWrapActive: {
@@ -781,11 +761,9 @@ const styles = StyleSheet.create({
   modeLabel: {
     fontSize: 14,
     fontFamily: 'Inter_700Bold',
-    color: 'rgba(255,255,255,0.4)',
     letterSpacing: 0.5,
   },
   modeLabelActive: {
-    color: '#E9D5FF',
     letterSpacing: 0.8,
     textShadowColor: 'rgba(167,139,250,0.8)',
     textShadowOffset: { width: 0, height: 0 },
@@ -794,11 +772,7 @@ const styles = StyleSheet.create({
   modeDesc: {
     fontSize: 9,
     fontFamily: 'Inter_500Medium',
-    color: 'rgba(255,255,255,0.2)',
     letterSpacing: 0.3,
-  },
-  modeDescActive: {
-    color: 'rgba(196,181,253,0.7)',
   },
   modeActiveDot: {
     width: 5,
@@ -813,13 +787,14 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  // ── Divider ─────────────────────────────────────────────────────────────────
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: 'rgba(255,255,255,0.07)',
     marginHorizontal: 16,
     marginBottom: 14,
   },
 
+  // ── List header ─────────────────────────────────────────────────────────────
   listHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -831,36 +806,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 3,
     borderRadius: 20,
-    backgroundColor: 'rgba(124,58,237,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.38)',
   },
   countBadgeText: {
     fontSize: 12,
     fontFamily: 'Inter_700Bold',
-    color: PURPLE_LIGHT,
   },
 
+  // ── Friend card ─────────────────────────────────────────────────────────────
   friendCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     padding: 14,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.04)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
   },
   friendCardSelected: {
-    backgroundColor: 'rgba(124,58,237,0.14)',
-    borderColor: 'rgba(124,58,237,0.45)',
     shadowColor: PURPLE,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 5,
   },
-
   avatarWrap: {
     position: 'relative',
     width: 52,
@@ -880,7 +848,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontFamily: 'Inter_700Bold',
   },
-
   pulseWrap: {
     position: 'absolute',
     bottom: 1,
@@ -903,7 +870,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: GREEN,
     borderWidth: 2,
-    borderColor: '#09090B',
   },
   offlineDot: {
     position: 'absolute',
@@ -912,11 +878,8 @@ const styles = StyleSheet.create({
     width: 11,
     height: 11,
     borderRadius: 6,
-    backgroundColor: '#374151',
     borderWidth: 2,
-    borderColor: '#09090B',
   },
-
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -931,7 +894,6 @@ const styles = StyleSheet.create({
   friendName: {
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
-    color: '#fff',
   },
   friendStatus: {
     fontSize: 11,
@@ -942,7 +904,6 @@ const styles = StyleSheet.create({
     height: 26,
     borderRadius: 13,
     borderWidth: 1.5,
-    borderColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -956,35 +917,32 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
 
+  // ── Skeleton ────────────────────────────────────────────────────────────────
   skeletonCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
     padding: 14,
     borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.03)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
   },
   skeletonAvatar: {
     width: 52,
     height: 52,
     borderRadius: 26,
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   skeletonLine: {
     height: 11,
     width: '70%',
     borderRadius: 6,
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   skeletonCheck: {
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: 'rgba(255,255,255,0.06)',
   },
 
+  // ── Empty state ─────────────────────────────────────────────────────────────
   emptyWrap: {
     flex: 1,
     alignItems: 'center',
@@ -1000,22 +958,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.2)',
   },
   emptyTitle: {
     fontSize: 18,
     fontFamily: 'Inter_700Bold',
-    color: '#fff',
     textAlign: 'center',
   },
   emptySubtitle: {
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
-    color: 'rgba(255,255,255,0.35)',
     textAlign: 'center',
     lineHeight: 21,
   },
 
+  // ── Choose mode prompt ──────────────────────────────────────────────────────
   promptWrap: {
     flex: 1,
     alignItems: 'center',
@@ -1027,25 +983,22 @@ const styles = StyleSheet.create({
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: 'rgba(124,58,237,0.07)',
     borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   promptText: {
     fontSize: 14,
     fontFamily: 'Inter_400Regular',
-    color: 'rgba(255,255,255,0.28)',
     textAlign: 'center',
     lineHeight: 21,
   },
 
+  // ── Footer / Send button ────────────────────────────────────────────────────
   footer: {
     paddingHorizontal: 16,
     paddingTop: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(255,255,255,0.07)',
   },
   sendBtn: {
     flexDirection: 'row',
@@ -1061,11 +1014,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.55,
     shadowRadius: 18,
     elevation: 10,
-  },
-  sendBtnDisabled: {
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
   },
   sendBtnText: {
     fontSize: 16,
