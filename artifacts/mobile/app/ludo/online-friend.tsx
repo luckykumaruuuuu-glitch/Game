@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -250,6 +251,7 @@ export default function OnlineFriendScreen() {
 
   async function handleSendInvite() {
     if (!user || !profile || !mode || selected.size === 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setSending(true);
     try {
       const roomId = await sendGameInvite(user.uid, profile, Array.from(selected), mode);
@@ -271,7 +273,7 @@ export default function OnlineFriendScreen() {
         <View style={[styles.header, { paddingTop: topPad }]}>
           <Pressable
             style={styles.backBtn}
-            onPress={() => router.back()}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
             hitSlop={12}
           >
             <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.85)" />
@@ -294,7 +296,7 @@ export default function OnlineFriendScreen() {
           <View style={styles.headerActions}>
             <Pressable
               style={styles.activeBtn}
-              onPress={() => router.push('/ludo/active-games' as any)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ludo/active-games' as any); }}
               hitSlop={8}
             >
               <LinearGradient
@@ -308,7 +310,7 @@ export default function OnlineFriendScreen() {
 
             <Pressable
               style={styles.inviteBtn}
-              onPress={() => router.push('/ludo/invites' as any)}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ludo/invites' as any); }}
               hitSlop={8}
             >
               <LinearGradient
@@ -332,7 +334,7 @@ export default function OnlineFriendScreen() {
                 <Pressable
                   key={m.value}
                   style={styles.modeChipWrap}
-                  onPress={() => setMode(m.value)}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setMode(m.value); }}
                 >
                   {active ? (
                     <LinearGradient colors={[PURPLE, '#4C1D95']} style={[styles.modeChip, styles.modeChipActive]}>
@@ -396,7 +398,7 @@ export default function OnlineFriendScreen() {
                       isOnline={isOnline}
                       isSelected={isSelected}
                       isMaxed={isMaxed}
-                      onPress={() => !isMaxed && toggleSelect(item.userId)}
+                      onPress={() => { if (!isMaxed) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); toggleSelect(item.userId); } }}
                     />
                   );
                 }}

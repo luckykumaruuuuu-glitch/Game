@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
@@ -61,6 +62,7 @@ export default function ActiveGamesScreen() {
   const topPad = insets.top + (Platform.OS === 'web' ? 0 : 4);
 
   function handleResume(room: GameRoom) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     router.push({ pathname: '/ludo/room', params: { id: room.roomId } } as any);
   }
 
@@ -68,7 +70,7 @@ export default function ActiveGamesScreen() {
     <View style={[styles.root, { backgroundColor: colors.background }]}>
       {/* ── Header ──────────────────────────────────────────────── */}
       <View style={[styles.header, { paddingTop: topPad, borderBottomColor: colors.border }]}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }} hitSlop={12}>
           <Ionicons name="chevron-back" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <Text style={[styles.title, { color: colors.foreground }]}>Active Games</Text>

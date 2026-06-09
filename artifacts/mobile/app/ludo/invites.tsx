@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
@@ -62,6 +63,7 @@ export default function InvitesScreen() {
 
   async function handleRespond(invite: GameInvite, accept: boolean) {
     if (!user) return;
+    Haptics.impactAsync(accept ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Light);
     setResponding((prev) => ({
       ...prev,
       [invite.inviteId]: accept ? 'accepting' : 'declining',
@@ -113,7 +115,7 @@ export default function InvitesScreen() {
       <View style={[styles.header, { paddingTop: topPad, borderBottomColor: colors.border }]}>
         <TouchableOpacity
           style={styles.backBtn}
-          onPress={() => router.back()}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.back(); }}
           hitSlop={12}
         >
           <Ionicons name="chevron-back" size={22} color={colors.foreground} />
