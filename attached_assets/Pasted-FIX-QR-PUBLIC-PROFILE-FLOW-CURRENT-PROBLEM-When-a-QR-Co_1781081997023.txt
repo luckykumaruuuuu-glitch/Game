@@ -1,0 +1,175 @@
+FIX QR PUBLIC PROFILE FLOW
+
+CURRENT PROBLEM
+
+When a QR Code is scanned using:
+
+- Google Lens
+- Android QR Scanner
+- iPhone Camera Scanner
+
+the user is redirected to:
+
+Login Page
+
+or
+
+Register Page
+
+This is incorrect.
+
+================================
+
+REQUIRED BEHAVIOR
+
+================================
+
+QR scanning must open a Public Profile Page directly.
+
+Visitors should NOT be forced to:
+
+- Login
+- Register
+- Create Account
+
+before viewing the profile.
+
+================================
+
+PUBLIC PROFILE PAGE
+
+================================
+
+After scanning QR:
+
+Open Profile Preview Page.
+
+Show:
+
+- Profile Photo
+- Display Name
+- Public Bio
+- Public Photos
+- Public Videos
+- Public Information
+- Join Date
+
+================================
+
+PERMISSIONS
+
+================================
+
+Visitors can:
+
+✔ View Information
+
+✔ View Photos
+
+✔ View Videos
+
+✔ View Profile
+
+Visitors cannot:
+
+✖ Edit Profile
+
+✖ Upload Content
+
+✖ Delete Content
+
+✖ Change Information
+
+✖ Access Private Data
+
+================================
+
+CONTACT OPTION
+
+================================
+
+Add:
+
+Contact User Button
+
+This button should only allow contact actions supported by the app.
+
+No editing permissions.
+
+================================
+
+DOWNLOAD APP SECTION
+
+================================
+
+At the bottom of the page show:
+
+Download App
+
+Button
+
+If app installed:
+
+Open App
+
+If app not installed:
+
+Open Play Store
+
+================================
+
+AUTHENTICATION RULE
+
+================================
+
+Public Profile Page must be accessible without login.
+
+No authentication required for viewing public profile information.
+
+================================
+
+SECURITY
+
+================================
+
+Only expose public data.
+
+Never expose:
+
+- Email
+- Password
+- Private Firebase Data
+- Private Documents
+- Hidden Information
+
+================================
+
+EXPECTED FLOW
+
+================================
+
+Scan QR
+
+↓
+
+Public Profile Opens
+
+↓
+
+Profile Information Visible
+
+↓
+
+Optional Contact Button
+
+↓
+
+Download App Button
+
+↓
+
+No Login Required
+
+↓
+
+No Registration Required
