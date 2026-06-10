@@ -1,0 +1,153 @@
+MONSTER BUTTON SYSTEM – FULL AI IMPLEMENTATION HANDOVER
+
+================================
+
+SYSTEM OVERVIEW
+
+================================
+
+This is a 6-button Monster Control Panel system.
+
+Each button must behave as an independent AI-driven module.
+
+AI must generate:
+
+- Function Name
+- Function Logic
+- Animation
+- Trigger System
+
+Based ONLY on user-defined purpose.
+
+================================
+
+BUTTON STRUCTURE (6 BUTTONS)
+
+================================
+
+BUTTON 1: 👑 Crown Button
+FUNCTION PURPOSE: is button ka kam Hoga Jab yah button dabaya Jaaye to dice ka number 1 aana chahie agar koi bhi number nahin aana chahie Agar is button ko daba Diya Gaya Hai To Number Van hi aaega Chahe dice Kisi ka bhi ho chahe Bari dij mein kisi ki bhi ho 
+-
+
+BUTTON 2: 🔥 Flame Button
+FUNCTION PURPOSE: button ka kam Hoga Jab yah button dabaya Jaaye to dice ka number 2 aana chahie agar koi bhi number nahin aana chahie Agar is button ko daba Diya Gaya Hai To Number Van hi aaega Chahe dice Kisi ka bhi ho chahe Bari dij mein kisi ki bhi ho 
+
+---
+
+BUTTON 3: ⚡ Thunder Button
+FUNCTION PURPOSE: button ka kam Hoga Jab yah button dabaya Jaaye to dice ka number 3 aana chahie agar koi bhi number nahin aana chahie Agar is button ko daba Diya Gaya Hai To Number Van hi aaega Chahe dice Kisi ka bhi ho chahe Bari dij mein kisi ki bhi ho 
+
+---
+
+BUTTON 4: 💎 Diamond Button
+FUNCTION PURPOSE: button ka kam Hoga Jab yah button dabaya Jaaye to dice ka number 4 aana chahie agar koi bhi number nahin aana chahie Agar is button ko daba Diya Gaya Hai To Number Van hi aaega Chahe dice Kisi ka bhi ho chahe Bari dij mein kisi ki bhi ho 
+
+---
+
+BUTTON 5: 🐉 Dragon Button
+FUNCTION PURPOSE: button ka kam Hoga Jab yah button dabaya Jaaye to dice ka number 5 aana chahie agar koi bhi number nahin aana chahie Agar is button ko daba Diya Gaya Hai To Number Van hi aaega Chahe dice Kisi ka bhi ho chahe Bari dij mein kisi ki bhi ho 
+
+---
+
+BUTTON 6: ☠️ Shadow Button
+FUNCTION PURPOSE: button ka kam Hoga Jab yah button dabaya Jaaye to dice ka number 6 aana chahie agar koi bhi number nahin aana chahie Agar is button ko daba Diya Gaya Hai To Number Van hi aaega Chahe dice Kisi ka bhi ho chahe Bari dij mein kisi ki bhi ho 
+
+================================
+
+AI RESPONSIBILITY
+
+================================
+
+For EACH button:
+
+Step 1:
+Read FUNCTION PURPOSE
+
+Step 2:
+Generate Function Name
+
+Step 3:
+Generate Function Logic
+
+Step 4:
+Attach Trigger Event (onPress/click)
+
+Step 5:
+Assign Unique Animation Based on Theme
+
+Step 6:
+Bind everything to that button only
+
+================================
+
+CLICK BEHAVIOR
+
+================================
+
+On button click:
+
+→ Execute generated function instantly
+→ Run theme-based animation
+→ Show visual feedback
+→ Optional info panel opens if enabled
+
+NO DELAY ALLOWED.
+
+================================
+
+ANIMATION THEMES
+
+================================
+
+👑 Crown → Royal golden glow + king aura effect
+🔥 Flame → Fire burst + burning particles
+⚡ Thunder → Electric strike + lightning flash
+💎 Diamond → Crystal shine + sparkle rotation
+🐉 Dragon → Dragon movement + roar energy effect
+☠️ Shadow → Smoke + dark wave animation
+
+================================
+
+INFORMATION SYSTEM (OPTIONAL LATER)
+
+================================
+
+Each button can store:
+
+⭐⭐ Function Name
+⭐⭐ Function Logic
+⭐⭐ Animation Settings
+⭐⭐ Trigger Config
+
+(These are optional future upgrades)
+
+================================
+
+IMPORTANT RULE
+
+================================
+
+Each button must be fully independent.
+
+No shared logic between buttons.
+
+Each function must be AI-generated dynamically based on PURPOSE input.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+User fills only:
+
+FUNCTION PURPOSE: ........
+
+AI automatically builds:
+
+→ Complete working function
+→ Animation system
+→ Click trigger
+→ UI effect mapping
+
+No manual coding required from user.

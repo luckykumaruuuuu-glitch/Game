@@ -329,6 +329,7 @@ function LudoNativeOverlay({
   // Monster Control Panel state
   const [monsterPanelOpen, setMonsterPanelOpen] = useState(false);
   const [mcpActiveSlot, setMcpActiveSlot] = useState<McpSlotId>('crown');
+  const [hackedSlot, setHackedSlot] = useState<string | null>(null);
 
   // Monster floating animation
   const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
@@ -1076,7 +1077,7 @@ function LudoNativeOverlay({
         </Pressable>
       </Modal>
 
-      {/* ── MONSTER CONTROL PANEL modal ── */}
+      {/* ── HACK CONTROL PANEL modal ── */}
       <Modal
         visible={monsterPanelOpen}
         transparent
@@ -1087,85 +1088,93 @@ function LudoNativeOverlay({
           <Pressable style={styles.mcpCard} onPress={() => {}}>
             <View style={styles.mcpHandle} />
 
-            {/* Header */}
-            <View style={styles.mcpHeader}>
-              <View style={styles.mcpHeaderBadge}>
-                <Text style={styles.mcpHeaderBadgeIcon}>⚔️</Text>
+            {/* ── Terminal Header ── */}
+            <View style={styles.mcpTermHeader}>
+              <View style={styles.mcpTermDots}>
+                <View style={[styles.mcpTermDot, { backgroundColor: '#FF5F57' }]} />
+                <View style={[styles.mcpTermDot, { backgroundColor: '#FEBC2E' }]} />
+                <View style={[styles.mcpTermDot, { backgroundColor: '#28C840' }]} />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.mcpTitle}>MONSTER CONTROL</Text>
-                <Text style={styles.mcpSub}>Secret Gaming Dashboard · 6 Power Slots</Text>
-              </View>
+              <Text style={styles.mcpTermTitle}>root@leludo:~# dice_override --sys</Text>
             </View>
 
-            {/* ── Tab bar ── */}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.mcpTabBarContent}
-              style={styles.mcpTabBar}
-            >
-              {MCP_SLOTS.map((slot) => {
-                const active = mcpActiveSlot === slot.id;
+            <View style={styles.mcpTermBody}>
+              <Text style={styles.mcpTermLine}>
+                <Text style={styles.mcpTermGreen}>{'[✓] '}</Text>
+                <Text style={styles.mcpTermWhite}>AUTH BYPASS</Text>
+                <Text style={styles.mcpTermDim}> ............... </Text>
+                <Text style={styles.mcpTermGreen}>GRANTED</Text>
+              </Text>
+              <Text style={styles.mcpTermLine}>
+                <Text style={styles.mcpTermGreen}>{'[✓] '}</Text>
+                <Text style={styles.mcpTermWhite}>DICE ENGINE</Text>
+                <Text style={styles.mcpTermDim}> .............. </Text>
+                <Text style={styles.mcpTermCyan}>HOOKED</Text>
+              </Text>
+              <Text style={styles.mcpTermLine}>
+                <Text style={styles.mcpTermYellow}>{'[!] '}</Text>
+                <Text style={styles.mcpTermWhite}>SELECT TARGET VALUE TO INJECT</Text>
+              </Text>
+            </View>
+
+            {/* ── 6 Hack Buttons in 2x3 grid ── */}
+            <View style={styles.mcpBtnGrid}>
+              {MCP_SLOTS.map((slot, idx) => {
+                const diceVal = idx + 1;
+                const isActive = hackedSlot === slot.id;
                 return (
                   <TouchableOpacity
                     key={slot.id}
+                    activeOpacity={0.75}
                     style={[
-                      styles.mcpTab,
-                      active ? { borderBottomColor: slot.color, borderBottomWidth: 2 } : null,
+                      styles.mcpHackBtn,
+                      {
+                        borderColor: isActive ? slot.color : slot.border + '88',
+                        backgroundColor: isActive ? slot.glow : 'rgba(0,255,65,0.04)',
+                        shadowColor: isActive ? slot.color : 'transparent',
+                      },
                     ]}
-                    onPress={() => setMcpActiveSlot(slot.id as McpSlotId)}
-                    activeOpacity={0.7}
+                    onPress={() => {
+                      const js = `(function(){try{window._externalDiceValue=${diceVal};}catch(e){}})();true;`;
+                      webViewRef.current?.injectJavaScript(js);
+                      setHackedSlot(slot.id);
+                      setTimeout(() => setHackedSlot(null), 900);
+                    }}
                   >
-                    <Text style={active ? styles.mcpTabEmojiActive : styles.mcpTabEmoji}>
+                    {/* Scan line overlay */}
+                    <View style={styles.mcpScanLine} pointerEvents="none" />
+
+                    <Text style={[styles.mcpHackBtnEmoji, isActive && { transform: [{ scale: 1.18 }] }]}>
                       {slot.emoji}
                     </Text>
-                    <Text style={[styles.mcpTabLabel, { color: active ? slot.color : 'rgba(255,255,255,0.32)' }]}>
+
+                    <View style={styles.mcpHackBtnCodeRow}>
+                      <Text style={[styles.mcpHackBtnCode, { color: isActive ? slot.color : '#00FF41' }]}>
+                        {`FORCE:0${diceVal}`}
+                      </Text>
+                    </View>
+
+                    <Text style={[styles.mcpHackBtnName, { color: isActive ? slot.color : 'rgba(255,255,255,0.55)' }]}>
                       {slot.shortName}
                     </Text>
+
+                    {isActive && (
+                      <View style={[styles.mcpHackBtnFlash, { backgroundColor: slot.color + '22' }]} />
+                    )}
                   </TouchableOpacity>
                 );
               })}
-            </ScrollView>
+            </View>
 
-            {/* ── Active slot themed panel ── */}
-            {MCP_SLOTS.map((slot) => {
-              if (slot.id !== mcpActiveSlot) return null;
-              return (
-                <LinearGradient
-                  key={slot.id}
-                  colors={slot.gradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.mcpSlotPanel, { borderColor: slot.border }]}
-                >
-                  {/* Atmospheric glow blob */}
-                  <View style={[styles.mcpSlotGlowOrb, { backgroundColor: slot.glow }]} />
-
-                  {/* Big emoji */}
-                  <Text style={styles.mcpSlotEmoji}>{slot.emoji}</Text>
-
-                  {/* Name + desc */}
-                  <Text style={[styles.mcpSlotName, { color: slot.color }]}>{slot.name} Slot</Text>
-                  <Text style={styles.mcpSlotDesc}>{slot.desc}</Text>
-
-                  {/* Feature badge */}
-                  <View style={[styles.mcpFeatureBadge, { borderColor: slot.border, backgroundColor: slot.glow }]}>
-                    <Text style={[styles.mcpFeatureText, { color: slot.color }]}>
-                      ⚡ {slot.feature} — Coming Soon
-                    </Text>
-                  </View>
-
-                  {/* Lock indicator */}
-                  <View style={[styles.mcpLockRow, { borderColor: slot.border + '55' }]}>
-                    <Text style={styles.mcpLockIcon}>🔐</Text>
-                    <Text style={[styles.mcpLockText, { color: slot.color + 'AA' }]}>
-                      Feature Slot Reserved · Future Update
-                    </Text>
-                  </View>
-                </LinearGradient>
-              );
-            })}
+            {/* ── Status bar ── */}
+            <View style={styles.mcpStatusBar}>
+              <Text style={styles.mcpStatusDot}>●</Text>
+              <Text style={styles.mcpStatusText}>
+                {hackedSlot
+                  ? `INJECTING DICE VALUE ${MCP_SLOTS.findIndex(s => s.id === hackedSlot) + 1}...`
+                  : 'STANDING BY · AWAITING COMMAND'}
+              </Text>
+            </View>
 
             {/* Close */}
             <TouchableOpacity
@@ -1173,7 +1182,7 @@ function LudoNativeOverlay({
               activeOpacity={0.75}
               onPress={() => setMonsterPanelOpen(false)}
             >
-              <Text style={styles.mcpCloseBtnText}>✕  Close Panel</Text>
+              <Text style={styles.mcpCloseBtnText}>{'</> EXIT SESSION'}</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -2674,184 +2683,202 @@ const styles = StyleSheet.create({
     textShadowRadius: 10,
   },
 
-  // ── Monster Control Panel ──────────────────────────────────────────────────
+  // ── Hack Control Panel ────────────────────────────────────────────────────
   mcpBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.88)',
+    backgroundColor: 'rgba(0,0,0,0.92)',
     justifyContent: 'flex-end',
   },
   mcpCard: {
     width: '100%',
-    backgroundColor: '#060312',
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: '#020C02',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderTopWidth: 1,
     borderLeftWidth: 1,
     borderRightWidth: 1,
-    borderColor: 'rgba(139,92,246,0.45)',
-    paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 28,
-    gap: 14,
-    shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.55,
-    shadowRadius: 28,
+    borderColor: '#00FF4133',
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 30,
+    gap: 12,
+    shadowColor: '#00FF41',
+    shadowOffset: { width: 0, height: -6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
     elevation: 20,
   },
   mcpHandle: {
-    width: 44,
-    height: 4,
+    width: 40,
+    height: 3,
     borderRadius: 2,
-    backgroundColor: 'rgba(139,92,246,0.40)',
+    backgroundColor: '#00FF4144',
     alignSelf: 'center',
     marginBottom: 2,
   },
-  mcpHeader: {
+  // Terminal header bar
+  mcpTermHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-  },
-  mcpHeaderBadge: {
-    width: 46,
-    height: 46,
-    borderRadius: 15,
-    backgroundColor: 'rgba(124,58,237,0.18)',
-    borderWidth: 1,
-    borderColor: 'rgba(124,58,237,0.50)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mcpHeaderBadgeIcon: {
-    fontSize: 24,
-  },
-  mcpTitle: {
-    color: '#E9D5FF',
-    fontSize: 15,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 2.2,
-  },
-  mcpSub: {
-    color: 'rgba(255,255,255,0.32)',
-    fontSize: 10,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 3,
-    letterSpacing: 0.3,
-  },
-  // Tab bar
-  mcpTabBar: {
-    flexGrow: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(139,92,246,0.18)',
-  },
-  mcpTabBarContent: {
-    gap: 2,
-  },
-  mcpTab: {
-    alignItems: 'center',
-    paddingHorizontal: 11,
-    paddingBottom: 10,
-    paddingTop: 4,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-    minWidth: 54,
-  },
-  mcpTabEmoji: {
-    fontSize: 22,
-    marginBottom: 3,
-  },
-  mcpTabEmojiActive: {
-    fontSize: 27,
-    marginBottom: 3,
-  },
-  mcpTabLabel: {
-    fontSize: 8,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 1.1,
-  },
-  // Active slot panel
-  mcpSlotPanel: {
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingVertical: 22,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    gap: 10,
-    overflow: 'hidden',
-    position: 'relative',
-    minHeight: 196,
-    justifyContent: 'center',
-  },
-  mcpSlotGlowOrb: {
-    position: 'absolute',
-    top: -40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-  },
-  mcpSlotEmoji: {
-    fontSize: 54,
-    textShadowColor: 'rgba(255,255,255,0.25)',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 14,
-    marginBottom: 2,
-  },
-  mcpSlotName: {
-    fontSize: 22,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 1.8,
-    textAlign: 'center',
-  },
-  mcpSlotDesc: {
-    color: 'rgba(255,255,255,0.45)',
-    fontSize: 12,
-    fontFamily: 'Inter_400Regular',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  mcpFeatureBadge: {
-    paddingHorizontal: 16,
-    paddingVertical: 7,
-    borderRadius: 20,
-    borderWidth: 1,
-  },
-  mcpFeatureText: {
-    fontSize: 11,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 0.7,
-  },
-  mcpLockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
-    paddingHorizontal: 14,
+    backgroundColor: '#0A1A0A',
+    borderRadius: 8,
+    paddingHorizontal: 10,
     paddingVertical: 8,
-    borderRadius: 12,
+    gap: 10,
     borderWidth: 1,
+    borderColor: '#00FF4122',
   },
-  mcpLockIcon: {
-    fontSize: 12,
+  mcpTermDots: {
+    flexDirection: 'row',
+    gap: 5,
+    alignItems: 'center',
   },
-  mcpLockText: {
+  mcpTermDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  mcpTermTitle: {
+    color: '#00FF41',
+    fontSize: 10,
+    fontFamily: 'Inter_500Medium',
+    letterSpacing: 0.4,
+    flex: 1,
+  },
+  // Terminal output lines
+  mcpTermBody: {
+    backgroundColor: '#020C02',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#00FF4118',
+  },
+  mcpTermLine: {
     fontSize: 10,
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.3,
   },
+  mcpTermGreen: {
+    color: '#00FF41',
+    fontFamily: 'Inter_700Bold',
+  },
+  mcpTermCyan: {
+    color: '#00EEFF',
+    fontFamily: 'Inter_700Bold',
+  },
+  mcpTermYellow: {
+    color: '#FFD600',
+    fontFamily: 'Inter_700Bold',
+  },
+  mcpTermWhite: {
+    color: '#E0FFE0',
+    fontFamily: 'Inter_500Medium',
+  },
+  mcpTermDim: {
+    color: '#1a4a1a',
+    fontFamily: 'Inter_400Regular',
+  },
+  // 2x3 button grid
+  mcpBtnGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 9,
+  },
+  mcpHackBtn: {
+    width: '31%',
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 5,
+    overflow: 'hidden',
+    position: 'relative',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.7,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  mcpScanLine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.06,
+    backgroundColor: '#00FF41',
+    borderRadius: 10,
+  },
+  mcpHackBtnEmoji: {
+    fontSize: 30,
+  },
+  mcpHackBtnCodeRow: {
+    backgroundColor: '#000',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: '#00FF4133',
+  },
+  mcpHackBtnCode: {
+    fontSize: 9,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.2,
+  },
+  mcpHackBtnName: {
+    fontSize: 8,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 1.4,
+  },
+  mcpHackBtnFlash: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 10,
+  },
+  // Status bar
+  mcpStatusBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#030F03',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#00FF4118',
+  },
+  mcpStatusDot: {
+    color: '#00FF41',
+    fontSize: 8,
+  },
+  mcpStatusText: {
+    color: '#00FF41',
+    fontSize: 9,
+    fontFamily: 'Inter_500Medium',
+    letterSpacing: 1.1,
+    flex: 1,
+  },
   // Close button
   mcpCloseBtn: {
     marginTop: 2,
-    paddingVertical: 13,
-    borderRadius: 16,
+    paddingVertical: 12,
+    borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: 'rgba(139,92,246,0.10)',
+    backgroundColor: '#030F03',
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.30)',
+    borderColor: '#FF000033',
   },
   mcpCloseBtnText: {
-    color: '#C4B5FD',
-    fontSize: 14,
+    color: '#FF4444',
+    fontSize: 13,
     fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 0.8,
+    letterSpacing: 1.2,
   },
 });
