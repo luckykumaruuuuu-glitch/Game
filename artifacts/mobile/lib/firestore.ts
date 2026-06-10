@@ -997,16 +997,42 @@ export async function sendSpectatorInvite(
   toUserIds: string[],
   roomId: string
 ): Promise<void> {
+  const shortId = roomId.slice(-6).toUpperCase();
+  const chatText =
+    `🎮 LIVE MATCH INVITE\n` +
+    `${fromName} invited you to watch their Ludo match live!\n` +
+    `Room ID: ${shortId}\n` +
+    `Open Active Games to join as spectator.`;
+
   await Promise.all(
-    toUserIds.map((receiverId) =>
-      createNotification(receiverId, {
+    toUserIds.map(async (receiverId) => {
+      // 1. In-app notification (bell icon)
+      await createNotification(receiverId, {
         type: "game_invite",
         title: "🎮 LIVE MATCH INVITATION",
-        body: `${fromName} invited you to watch a live Ludo match! Tap to join as spectator.`,
+        body: `${fromName} invited you to watch a live Ludo match! Room: ${shortId}`,
         fromUserId: fromUserId,
         roomId: roomId,
-      })
-    )
+      });
+      // 2. DM chat message — appears in friend's Messages tab
+      const chatId = getChatId(fromUserId, receiverId);
+      const now = Date.now();
+      await setDoc(
+        doc(db, "chats", chatId),
+        {
+          participants: [fromUserId, receiverId],
+          lastMessage: chatText,
+          lastTimestamp: now,
+          lastSenderId: fromUserId,
+        },
+        { merge: true }
+      );
+      await addDoc(collection(db, "chats", chatId, "messages"), {
+        senderId: fromUserId,
+        text: chatText,
+        timestamp: now,
+      });
+    })
   );
 }
 

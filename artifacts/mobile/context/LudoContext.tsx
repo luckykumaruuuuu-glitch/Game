@@ -851,6 +851,16 @@ function LudoNativeOverlay({
             <Text style={styles.toolMenuTitle}>📨 Invite to Watch Live</Text>
             <Text style={styles.shareSubtitle}>Select friends to send a spectator invite</Text>
 
+            {/* Room ID chip — always visible at top of share sheet */}
+            {mpConfig?.roomId ? (
+              <View style={styles.roomIdChip}>
+                <Text style={styles.roomIdChipLabel}>ROOM ID</Text>
+                <Text style={styles.roomIdChipValue}>
+                  {mpConfig.roomId.slice(-6).toUpperCase()}
+                </Text>
+              </View>
+            ) : null}
+
             {friends.length === 0 ? (
               <View style={styles.shareEmptyBox}>
                 <Text style={styles.shareEmptyText}>No friends yet. Add friends to invite them!</Text>
@@ -1619,6 +1629,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Inter_400Regular',
     marginTop: -6,
+  },
+  roomIdChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(139,92,246,0.15)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.40)',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  roomIdChipLabel: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 1,
+  },
+  roomIdChipValue: {
+    color: '#C4B5FD',
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 3,
   },
   shareEmptyBox: {
     paddingVertical: 30,
