@@ -773,8 +773,8 @@ function LudoNativeOverlay({
         </Pressable>
       )}
 
-      {/* Tool button — only inside live online match */}
-      {isVisible && mpConfig && (
+      {/* Tool button — only inside live online match AND on the game board screen */}
+      {isVisible && mpConfig && ludoScreen === 'game' && (
         <TouchableOpacity
           style={[styles.toolBtn, { top: insets.top + 10 }]}
           onPress={() => setToolMenuOpen(true)}
