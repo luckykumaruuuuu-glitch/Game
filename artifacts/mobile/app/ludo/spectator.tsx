@@ -156,6 +156,7 @@ export default function SpectatorScreen() {
 
   const webViewRef = useRef<any>(null);
   const hasInitialized = useRef(false);
+  const webViewReadyRef = useRef(false);
   const lastSeenSeqRef = useRef(0);
   const lastKnownTurnRef = useRef(-1);
   const roomInitRef = useRef<GameRoom | null>(null);
@@ -194,11 +195,10 @@ export default function SpectatorScreen() {
     return () => { unsub(); setFloatingMsgs([]); };
   }, [roomId]);
 
-  // When WebView finishes loading, start game in read-only spectator mode
-  const handleWebViewLoaded = useCallback(() => {
+  // Core initialization — called when BOTH WebView is ready AND room data has arrived.
+  // Safe to call multiple times; hasInitialized guard makes it idempotent.
+  const initializeSpectator = useCallback((initRoom: GameRoom) => {
     if (hasInitialized.current) return;
-    const initRoom = roomInitRef.current;
-    if (!initRoom) return;
     hasInitialized.current = true;
     setWebLoaded(true);
 
@@ -263,6 +263,23 @@ export default function SpectatorScreen() {
       }, 1800);
     }
   }, []);
+
+  // WebView finished loading — mark it ready, then try to initialize if room is already here.
+  const handleWebViewLoaded = useCallback(() => {
+    webViewReadyRef.current = true;
+    if (roomInitRef.current) {
+      initializeSpectator(roomInitRef.current);
+    }
+  }, [initializeSpectator]);
+
+  // Room data arrived — try to initialize in case WebView already loaded first.
+  useEffect(() => {
+    if (!room) return;
+    if (!roomInitRef.current) roomInitRef.current = room;
+    if (webViewReadyRef.current) {
+      initializeSpectator(roomInitRef.current);
+    }
+  }, [room, initializeSpectator]);
 
   // Apply realtime game updates to the WebView as they arrive
   useEffect(() => {
