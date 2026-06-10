@@ -257,6 +257,7 @@ function LudoNativeOverlay({
   const [moveLog, setMoveLog] = useState<MoveLogEntry[]>([]);
   const lastSeenSeqRef = useRef(0);
   const lastWrittenSeqRef = useRef(0);
+  const lastSeenByActorRef = useRef<Record<string, number>>({});
   const lastKnownTurnRef = useRef(-1);
 
   // Exit detection state
@@ -311,6 +312,7 @@ function LudoNativeOverlay({
   function activateMpConfig(cfg: MpConfig) {
     lastSeenSeqRef.current = 0;
     lastWrittenSeqRef.current = 0;
+    lastSeenByActorRef.current = {};
     lastKnownTurnRef.current = -1;
     kickedIndicesRef.current = new Set();
     remoteActionQueueRef.current = [];
@@ -493,8 +495,8 @@ function LudoNativeOverlay({
         // (missed-update correction / reconnect scenario).
         const hasPendingAction =
           !!room.lastAction &&
-          room.lastAction.seq > lastSeenSeqRef.current &&
-          room.lastAction.actorId !== mpConfig.userId;
+          room.lastAction.actorId !== mpConfig.userId &&
+          room.lastAction.seq > (lastSeenByActorRef.current[room.lastAction.actorId] ?? 0);
 
         if (fbTurn !== lastKnownTurnRef.current) {
           // Always update the ref first so we never double-inject for the same value.
@@ -521,11 +523,26 @@ function LudoNativeOverlay({
       // call posts mpActionDone when its animation completes, which drains the
       // next item. This prevents ROLL_DICE and SELECT_TOKEN from running in
       // parallel, which was the root cause of cut-short dice animations.
+      //
+      // IMPORTANT: seq is a per-device counter — each player's device starts at 0
+      // and increments independently. We must NOT compare remote players' seq
+      // against our own lastSeenSeqRef (which tracks our own reflected actions).
+      // Instead use a per-actorId map so Player 2's seq=1 is never filtered out
+      // because Player 1 has already seen their own seq=3.
       if (!room.lastAction) return;
       const action = room.lastAction;
-      if (action.seq <= lastSeenSeqRef.current) return;
-      lastSeenSeqRef.current = action.seq;
-      if (action.actorId === mpConfig.userId) return;
+
+      if (action.actorId === mpConfig.userId) {
+        // Own action reflected back from Firestore — suppress relay but track seq
+        // so future re-deliveries of the same action are also skipped.
+        if (action.seq > lastSeenSeqRef.current) lastSeenSeqRef.current = action.seq;
+        return;
+      }
+
+      // Remote action — deduplicate per actor using per-actorId seq tracking.
+      const lastSeenForActor = lastSeenByActorRef.current[action.actorId] ?? 0;
+      if (action.seq <= lastSeenForActor) return;
+      lastSeenByActorRef.current[action.actorId] = action.seq;
       enqueueRemoteAction(action);
     });
     return unsub;
