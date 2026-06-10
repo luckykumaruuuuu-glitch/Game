@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
+import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -366,6 +367,29 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Control Panel — Monster gaming feature slots */}
+          <TouchableOpacity
+            style={styles.controlPanelBtn}
+            onPress={() => router.push("/(tabs)/control-panel")}
+            activeOpacity={0.85}
+          >
+            <LinearGradient
+              colors={["#1a0533", "#0d0d20", "#001a33"]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.controlPanelGradient}
+            >
+              <View style={styles.controlPanelLeft}>
+                <Text style={styles.controlPanelEmojis}>👑⚡🐉</Text>
+                <View>
+                  <Text style={styles.controlPanelTitle}>Monster Control Panel</Text>
+                  <Text style={styles.controlPanelSub}>6 power slots · Secret feature zone</Text>
+                </View>
+              </View>
+              <Feather name="chevron-right" size={18} color="rgba(153,51,255,0.8)" />
+            </LinearGradient>
+          </TouchableOpacity>
+
           {/* Stats */}
           <GlassCard style={styles.statsCard}>
             <View style={styles.statItem}>
@@ -508,6 +532,47 @@ const styles = StyleSheet.create({
   },
   actionBtnTextWhite: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   actionBtnText: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  controlPanelBtn: {
+    width: "100%",
+    borderRadius: 16,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "rgba(153,51,255,0.45)",
+    shadowColor: "#9933FF",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  controlPanelGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 12,
+  },
+  controlPanelLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  controlPanelEmojis: {
+    fontSize: 20,
+    letterSpacing: 2,
+  },
+  controlPanelTitle: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontFamily: "Inter_700Bold",
+    marginBottom: 2,
+  },
+  controlPanelSub: {
+    color: "rgba(153,51,255,0.8)",
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+  },
   statsCard: { flexDirection: "row", alignItems: "center", width: "100%", marginTop: 4 },
   statItem: { flex: 1, alignItems: "center", gap: 4, paddingVertical: 10 },
   statValue: { fontSize: 18, fontFamily: "Inter_700Bold" },

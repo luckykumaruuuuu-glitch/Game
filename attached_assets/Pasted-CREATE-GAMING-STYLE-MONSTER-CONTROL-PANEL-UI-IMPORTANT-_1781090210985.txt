@@ -1,0 +1,140 @@
+CREATE GAMING STYLE MONSTER CONTROL PANEL UI
+
+IMPORTANT
+
+Design a premium gaming UI system with themed control buttons.
+
+This system is part of an Online Multiplayer Game Secret Feature Panel.
+
+================================
+
+MAIN STRUCTURE
+
+================================
+
+Create a vertical list (line by line UI):
+
+👑 Crown Slot
+🔥 Flame Slot
+⚡ Thunder Slot
+💎 Diamond Slot
+🐉 Dragon Slot
+☠️ Shadow Slot
+
+Each slot must be a separate clickable button card.
+
+================================
+
+DESIGN REQUIREMENT (VERY IMPORTANT)
+
+================================
+
+Each button must have its own themed visual design:
+
+👑 Crown Slot
+
+- Royal king theme
+- Golden crown style
+- Luxury royal glow
+- Premium gold effects
+
+🔥 Flame Slot
+
+- Fire burning animation style
+- Red/orange glowing edges
+- Heat wave effect
+- Dynamic flame background
+
+⚡ Thunder Slot
+
+- Electric lightning theme
+- Blue neon glow
+- Spark animation effect
+- Energy pulse design
+
+💎 Diamond Slot
+
+- Crystal glass style
+- Transparent glossy UI
+- Diamond reflection effects
+- Premium shiny look
+
+🐉 Dragon Slot
+
+- Dragon themed UI
+- Dragon scales texture
+- Dark fantasy design
+- Mythical creature energy
+
+☠️ Shadow Slot
+
+- Skull / dark theme
+- Black smoke effect
+- Horror / stealth style
+- Dark glowing edges
+
+================================
+
+FUNCTIONALITY
+
+================================
+
+Each slot must have:
+
+1. Title (icon + name)
+2. Short description field (editable text input)
+3. Future feature placeholder area
+4. Clickable action button
+5. Expandable settings panel
+
+================================
+
+INPUT FEATURE
+
+================================
+
+Each slot must allow:
+
+- Text input field
+- Save button
+- Editable configuration
+- Future feature mapping support
+
+================================
+
+BEHAVIOR RULE
+
+================================
+
+- These are ONLY UI containers for future features
+- No real gameplay logic yet
+- No backend changes unless explicitly added later
+
+================================
+
+LAYOUT RULE
+
+================================
+
+- Vertical scroll layout
+- Each slot is a card
+- Smooth animations
+- Gaming style UI
+- Glassmorphism + neon effects
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+User sees:
+
+Themed gaming control dashboard where each slot visually matches its identity:
+
+Crown = Royal
+Flame = Fire
+Thunder = Lightning
+Diamond = Crystal
+Dragon = Fantasy beast
+Shadow = Dark horror

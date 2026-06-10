@@ -198,6 +198,12 @@ function ClassicTabLayout() {
           href: null,
         }}
       />
+      <Tabs.Screen
+        name="control-panel"
+        options={{
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
