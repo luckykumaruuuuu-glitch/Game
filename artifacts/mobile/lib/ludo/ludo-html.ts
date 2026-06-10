@@ -311,6 +311,8 @@ table td {
 }
 
 wc-settings { display: none !important; }
+#settings-icon { display: none !important; }
+#g-settings-btn { display: none !important; }
 
 .top-bar-title {
     flex: 1;
