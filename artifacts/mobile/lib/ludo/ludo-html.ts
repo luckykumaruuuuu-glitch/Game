@@ -8046,6 +8046,19 @@ var _restoringState = false;
 // Wrap dispatch: block actions when not my turn / not my token, emit actions to React Native.
 var _origDispatch = dispatch;
 function _mpDispatch(command) {
+  // Always reset MP state when a new game starts so a previous online session
+  // never bleeds into an offline or subsequent online game.
+  // Online games re-activate multiplayer via _initMultiplayer (injected by
+  // React Native 800 ms after START_GAME).
+  if (command.type === 'START_GAME') {
+    _mp.enabled = false;
+    _mp.myPlayerIndex = -1;
+    _mp.applyingRemote = false;
+    _mp.lastSentSeq = 0;
+    if (_applyingRemoteSafetyTimer) { clearTimeout(_applyingRemoteSafetyTimer); _applyingRemoteSafetyTimer = null; }
+    return _origDispatch(command);
+  }
+
   if (!_mp.enabled || _mp.applyingRemote) return _origDispatch(command);
 
   if (command.type === 'ROLL_DICE') {
