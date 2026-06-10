@@ -351,6 +351,22 @@ function LudoNativeOverlay({
     })
   ).current;
 
+  // Floating hack panel position + drag responder
+  const hackPanelPos = useRef(new Animated.ValueXY({ x: 16, y: 80 })).current;
+  const hackPanelPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 3 || Math.abs(gs.dy) > 3,
+      onPanResponderGrant: () => { hackPanelPos.extractOffset(); },
+      onPanResponderMove: Animated.event(
+        [null, { dx: hackPanelPos.x, dy: hackPanelPos.y }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: () => { hackPanelPos.flattenOffset(); },
+    })
+  ).current;
+
   // Start/stop float loop based on activation
   useEffect(() => {
     if (!secretKeyActivated) { monsterFloat.stopAnimation(); monsterFloat.setValue(0); return; }
@@ -373,7 +389,9 @@ function LudoNativeOverlay({
       setSecretKeyError('');
       setSecretKeySuccess(false);
       setMonsterPanelOpen(false);
+      setHackedSlot(null);
       monsterPos.setValue({ x: 20, y: 300 });
+      hackPanelPos.setValue({ x: 16, y: 80 });
     }
   }, [mpConfig]);
 
@@ -386,6 +404,7 @@ function LudoNativeOverlay({
         setSecretKeyModalOpen(false);
         setSecretKeyInput('');
         setSecretKeyActivated(true);
+        setMonsterPanelOpen(true); // auto-open floating hack panel
       }, 1400);
     } else {
       setSecretKeyError('Invalid Secret Key');
@@ -1077,135 +1096,116 @@ function LudoNativeOverlay({
         </Pressable>
       </Modal>
 
-      {/* ── HACK CONTROL PANEL modal ── */}
-      <Modal
-        visible={monsterPanelOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setMonsterPanelOpen(false)}
-      >
-        <Pressable style={styles.mcpBackdrop} onPress={() => setMonsterPanelOpen(false)}>
-          <Pressable style={styles.mcpCard} onPress={() => {}}>
-            <View style={styles.mcpHandle} />
-
-            {/* ── Terminal Header ── */}
-            <View style={styles.mcpTermHeader}>
-              <View style={styles.mcpTermDots}>
-                <View style={[styles.mcpTermDot, { backgroundColor: '#FF5F57' }]} />
-                <View style={[styles.mcpTermDot, { backgroundColor: '#FEBC2E' }]} />
-                <View style={[styles.mcpTermDot, { backgroundColor: '#28C840' }]} />
-              </View>
-              <Text style={styles.mcpTermTitle}>root@leludo:~# dice_override --sys</Text>
+      {/* ── FLOATING HACK PANEL — draggable anywhere on screen ── */}
+      {isVisible && mpConfig && ludoScreen === 'game' && secretKeyActivated && monsterPanelOpen && (
+        <Animated.View
+          style={[
+            styles.hackFloatPanel,
+            { transform: [{ translateX: hackPanelPos.x }, { translateY: hackPanelPos.y }] },
+          ]}
+        >
+          {/* Drag handle bar — touching this area moves the panel */}
+          <View {...hackPanelPanResponder.panHandlers} style={styles.hackDragBar}>
+            <View style={styles.hackDragDots}>
+              <View style={[styles.hackDot, { backgroundColor: '#FF5F57' }]} />
+              <View style={[styles.hackDot, { backgroundColor: '#FEBC2E' }]} />
+              <View style={[styles.hackDot, { backgroundColor: '#28C840' }]} />
             </View>
-
-            <View style={styles.mcpTermBody}>
-              <Text style={styles.mcpTermLine}>
-                <Text style={styles.mcpTermGreen}>{'[✓] '}</Text>
-                <Text style={styles.mcpTermWhite}>AUTH BYPASS</Text>
-                <Text style={styles.mcpTermDim}> ............... </Text>
-                <Text style={styles.mcpTermGreen}>GRANTED</Text>
-              </Text>
-              <Text style={styles.mcpTermLine}>
-                <Text style={styles.mcpTermGreen}>{'[✓] '}</Text>
-                <Text style={styles.mcpTermWhite}>DICE ENGINE</Text>
-                <Text style={styles.mcpTermDim}> .............. </Text>
-                <Text style={styles.mcpTermCyan}>HOOKED</Text>
-              </Text>
-              <Text style={styles.mcpTermLine}>
-                <Text style={styles.mcpTermYellow}>{'[!] '}</Text>
-                <Text style={styles.mcpTermWhite}>SELECT TARGET VALUE TO INJECT</Text>
-              </Text>
-            </View>
-
-            {/* ── 6 Hack Buttons in 2x3 grid ── */}
-            <View style={styles.mcpBtnGrid}>
-              {MCP_SLOTS.map((slot, idx) => {
-                const diceVal = idx + 1;
-                const isActive = hackedSlot === slot.id;
-                return (
-                  <TouchableOpacity
-                    key={slot.id}
-                    activeOpacity={0.75}
-                    style={[
-                      styles.mcpHackBtn,
-                      {
-                        borderColor: isActive ? slot.color : slot.border + '88',
-                        backgroundColor: isActive ? slot.glow : 'rgba(0,255,65,0.04)',
-                        shadowColor: isActive ? slot.color : 'transparent',
-                      },
-                    ]}
-                    onPress={() => {
-                      // Patch generateDiceRoll on first use, then set the forced value.
-                      // This intercepts the MP bridge's preRoll call so the forced number
-                      // is broadcast to Firebase and applied on ALL players' screens.
-                      const js = `(function(){
-                        try {
-                          if (!window.__hackDicePatched) {
-                            var _orig = generateDiceRoll;
-                            generateDiceRoll = function(randomFn) {
-                              if (window.__hackDiceNext !== null && window.__hackDiceNext !== undefined) {
-                                var v = window.__hackDiceNext;
-                                window.__hackDiceNext = null;
-                                return v;
-                              }
-                              return _orig(randomFn);
-                            };
-                            window.__hackDicePatched = true;
-                          }
-                          window.__hackDiceNext = ${diceVal};
-                        } catch(e) { console.warn('[HACK]', String(e)); }
-                      })();true;`;
-                      webViewRef.current?.injectJavaScript(js);
-                      setHackedSlot(slot.id);
-                      setTimeout(() => setHackedSlot(null), 900);
-                    }}
-                  >
-                    {/* Scan line overlay */}
-                    <View style={styles.mcpScanLine} pointerEvents="none" />
-
-                    <Text style={[styles.mcpHackBtnEmoji, isActive && { transform: [{ scale: 1.18 }] }]}>
-                      {slot.emoji}
-                    </Text>
-
-                    <View style={styles.mcpHackBtnCodeRow}>
-                      <Text style={[styles.mcpHackBtnCode, { color: isActive ? slot.color : '#00FF41' }]}>
-                        {`FORCE:0${diceVal}`}
-                      </Text>
-                    </View>
-
-                    <Text style={[styles.mcpHackBtnName, { color: isActive ? slot.color : 'rgba(255,255,255,0.55)' }]}>
-                      {slot.shortName}
-                    </Text>
-
-                    {isActive && (
-                      <View style={[styles.mcpHackBtnFlash, { backgroundColor: slot.color + '22' }]} />
-                    )}
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* ── Status bar ── */}
-            <View style={styles.mcpStatusBar}>
-              <Text style={styles.mcpStatusDot}>●</Text>
-              <Text style={styles.mcpStatusText}>
-                {hackedSlot
-                  ? `INJECTING DICE VALUE ${MCP_SLOTS.findIndex(s => s.id === hackedSlot) + 1}...`
-                  : 'STANDING BY · AWAITING COMMAND'}
-              </Text>
-            </View>
-
-            {/* Close */}
-            <TouchableOpacity
-              style={styles.mcpCloseBtn}
-              activeOpacity={0.75}
-              onPress={() => setMonsterPanelOpen(false)}
-            >
-              <Text style={styles.mcpCloseBtnText}>{'</> EXIT SESSION'}</Text>
+            <Text style={styles.hackPanelTitle}>⚡ DICE_OVERRIDE</Text>
+            <TouchableOpacity onPress={() => setMonsterPanelOpen(false)} style={styles.hackXBtn} activeOpacity={0.7}>
+              <Text style={styles.hackXText}>✕</Text>
             </TouchableOpacity>
-          </Pressable>
-        </Pressable>
-      </Modal>
+          </View>
+
+          {/* Terminal status line */}
+          <View style={styles.hackTermRow}>
+            <Text style={styles.hackTermText}>{'> root@sys: INJECT MODE ACTIVE_'}</Text>
+          </View>
+
+          {/* 6 hack buttons — 2 columns × 3 rows */}
+          <View style={styles.hackBtnGrid}>
+            {MCP_SLOTS.map((slot, idx) => {
+              const diceVal = idx + 1;
+              const isActive = hackedSlot === slot.id;
+              return (
+                <TouchableOpacity
+                  key={slot.id}
+                  activeOpacity={0.72}
+                  style={[
+                    styles.hackBtn,
+                    {
+                      borderColor: isActive ? slot.color : slot.border + '77',
+                      backgroundColor: isActive ? slot.glow : 'rgba(0,255,65,0.03)',
+                      shadowColor: isActive ? slot.color : 'transparent',
+                      shadowOpacity: isActive ? 0.9 : 0,
+                      shadowRadius: isActive ? 8 : 0,
+                      elevation: isActive ? 8 : 2,
+                    },
+                  ]}
+                  onPress={() => {
+                    const js = `(function(){
+                      try {
+                        if (!window.__hackDicePatched) {
+                          var _orig = generateDiceRoll;
+                          generateDiceRoll = function(randomFn) {
+                            if (window.__hackDiceNext !== null && window.__hackDiceNext !== undefined) {
+                              var v = window.__hackDiceNext;
+                              window.__hackDiceNext = null;
+                              return v;
+                            }
+                            return _orig(randomFn);
+                          };
+                          window.__hackDicePatched = true;
+                        }
+                        window.__hackDiceNext = ${diceVal};
+                      } catch(e) { console.warn('[HACK]', String(e)); }
+                    })();true;`;
+                    webViewRef.current?.injectJavaScript(js);
+                    setHackedSlot(slot.id);
+                    setTimeout(() => setHackedSlot(null), 900);
+                  }}
+                >
+                  {isActive && <View style={[styles.hackBtnFlash, { backgroundColor: slot.color + '20' }]} />}
+                  <Text style={[styles.hackBtnEmoji, isActive && { transform: [{ scale: 1.15 }] }]}>
+                    {slot.emoji}
+                  </Text>
+                  <Text style={[styles.hackBtnNum, { color: isActive ? slot.color : '#00FF41' }]}>
+                    {`[0${diceVal}]`}
+                  </Text>
+                  <Text style={[styles.hackBtnLabel, { color: isActive ? slot.color : 'rgba(0,255,65,0.5)' }]}>
+                    {slot.shortName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Status bar */}
+          <View style={styles.hackStatusRow}>
+            <Text style={[styles.hackStatusTxt, { color: hackedSlot ? '#FFD600' : '#00FF41' }]}>
+              {hackedSlot
+                ? `⚡ INJECTING → DICE ${MCP_SLOTS.findIndex(s => s.id === hackedSlot) + 1}`
+                : '● STANDING BY · AWAITING COMMAND'}
+            </Text>
+          </View>
+        </Animated.View>
+      )}
+
+      {/* Minimized chip — tap to reopen, drag to reposition */}
+      {isVisible && mpConfig && ludoScreen === 'game' && secretKeyActivated && !monsterPanelOpen && (
+        <Animated.View
+          style={[
+            styles.hackMinChip,
+            { transform: [{ translateX: monsterPos.x }, { translateY: monsterPos.y }] },
+          ]}
+          {...monsterPanResponder.panHandlers}
+        >
+          <TouchableOpacity onPress={() => setMonsterPanelOpen(true)} style={styles.hackMinTouch} activeOpacity={0.8}>
+            <Text style={styles.hackMinEmoji}>👾</Text>
+            <Text style={styles.hackMinLabel}>HACK</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      )}
 
       {/* ── SHARE ROOM / Friend Picker modal ── */}
       <Modal
@@ -1568,31 +1568,7 @@ function LudoNativeOverlay({
         </View>
       )}
 
-      {/* ── FLOATING MONSTER ICON — visible only during active online match after Secret Key activation ── */}
-      {isVisible && mpConfig && ludoScreen === 'game' && secretKeyActivated && (
-        <Animated.View
-          style={[
-            styles.monsterFloat,
-            {
-              transform: [
-                { translateX: monsterPos.x },
-                { translateY: monsterPos.y },
-                { translateY: monsterFloat },
-              ],
-            },
-          ]}
-          {...monsterPanResponder.panHandlers}
-        >
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => setMonsterPanelOpen(true)}
-            style={styles.monsterTouchable}
-          >
-            <View style={styles.monsterGlow} />
-            <Text style={styles.monsterEmoji}>👾</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      )}
+      {/* floating monster icon replaced by hackMinChip above */}
 
       {/* EXIT players voting panel — shown during online games on game board only */}
       {isVisible && mpConfig && ludoScreen === 'game' && exitPlayers.length > 0 && (
@@ -2702,202 +2678,160 @@ const styles = StyleSheet.create({
     textShadowRadius: 10,
   },
 
-  // ── Hack Control Panel ────────────────────────────────────────────────────
-  mcpBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.92)',
-    justifyContent: 'flex-end',
-  },
-  mcpCard: {
-    width: '100%',
+  // ── Floating Hack Panel ───────────────────────────────────────────────────
+  hackFloatPanel: {
+    position: 'absolute',
+    zIndex: 9100,
+    width: 220,
     backgroundColor: '#020C02',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: '#00FF4133',
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 30,
-    gap: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#00FF4144',
     shadowColor: '#00FF41',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 20,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 24,
+    overflow: 'hidden',
   },
-  mcpHandle: {
-    width: 40,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: '#00FF4144',
-    alignSelf: 'center',
-    marginBottom: 2,
-  },
-  // Terminal header bar
-  mcpTermHeader: {
+  // Drag handle bar at top
+  hackDragBar: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#0A1A0A',
-    borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: '#00FF4122',
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#00FF4122',
   },
-  mcpTermDots: {
+  hackDragDots: {
     flexDirection: 'row',
-    gap: 5,
+    gap: 4,
     alignItems: 'center',
   },
-  mcpTermDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  hackDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
-  mcpTermTitle: {
+  hackPanelTitle: {
     color: '#00FF41',
-    fontSize: 10,
-    fontFamily: 'Inter_500Medium',
-    letterSpacing: 0.4,
+    fontSize: 9,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.8,
     flex: 1,
   },
-  // Terminal output lines
-  mcpTermBody: {
-    backgroundColor: '#020C02',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    gap: 4,
+  hackXBtn: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF000022',
+    borderRadius: 4,
     borderWidth: 1,
-    borderColor: '#00FF4118',
+    borderColor: '#FF000055',
   },
-  mcpTermLine: {
+  hackXText: {
+    color: '#FF4444',
     fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    lineHeight: 14,
+  },
+  // Terminal status row
+  hackTermRow: {
+    backgroundColor: '#010A01',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#00FF4115',
+  },
+  hackTermText: {
+    color: '#00CC33',
+    fontSize: 8,
     fontFamily: 'Inter_500Medium',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
-  mcpTermGreen: {
-    color: '#00FF41',
-    fontFamily: 'Inter_700Bold',
-  },
-  mcpTermCyan: {
-    color: '#00EEFF',
-    fontFamily: 'Inter_700Bold',
-  },
-  mcpTermYellow: {
-    color: '#FFD600',
-    fontFamily: 'Inter_700Bold',
-  },
-  mcpTermWhite: {
-    color: '#E0FFE0',
-    fontFamily: 'Inter_500Medium',
-  },
-  mcpTermDim: {
-    color: '#1a4a1a',
-    fontFamily: 'Inter_400Regular',
-  },
-  // 2x3 button grid
-  mcpBtnGrid: {
+  // 2 × 3 button grid
+  hackBtnGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 9,
+    padding: 8,
+    gap: 7,
   },
-  mcpHackBtn: {
-    width: '31%',
+  hackBtn: {
+    width: '29%',
     flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 6,
-    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 8,
     borderWidth: 1,
-    gap: 5,
+    gap: 4,
     overflow: 'hidden',
     position: 'relative',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  mcpScanLine: {
+  hackBtnFlash: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.06,
-    backgroundColor: '#00FF41',
-    borderRadius: 10,
+    top: 0, left: 0, right: 0, bottom: 0,
+    borderRadius: 8,
   },
-  mcpHackBtnEmoji: {
-    fontSize: 30,
+  hackBtnEmoji: {
+    fontSize: 24,
   },
-  mcpHackBtnCodeRow: {
-    backgroundColor: '#000',
-    borderRadius: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: '#00FF4133',
-  },
-  mcpHackBtnCode: {
-    fontSize: 9,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 1.2,
-  },
-  mcpHackBtnName: {
+  hackBtnNum: {
     fontSize: 8,
-    fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 1.4,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.8,
   },
-  mcpHackBtnFlash: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    borderRadius: 10,
+  hackBtnLabel: {
+    fontSize: 7,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 1.0,
   },
   // Status bar
-  mcpStatusBar: {
+  hackStatusRow: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderTopWidth: 1,
+    borderTopColor: '#00FF4115',
+    backgroundColor: '#010A01',
+  },
+  hackStatusTxt: {
+    fontSize: 8,
+    fontFamily: 'Inter_500Medium',
+    letterSpacing: 0.8,
+  },
+  // Minimized chip
+  hackMinChip: {
+    position: 'absolute',
+    zIndex: 9000,
+    borderRadius: 20,
+    backgroundColor: '#020C02',
+    borderWidth: 1,
+    borderColor: '#00FF4144',
+    shadowColor: '#00FF41',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
+    elevation: 16,
+  },
+  hackMinTouch: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: '#030F03',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#00FF4118',
+    paddingVertical: 7,
+    gap: 6,
   },
-  mcpStatusDot: {
+  hackMinEmoji: {
+    fontSize: 18,
+  },
+  hackMinLabel: {
     color: '#00FF41',
-    fontSize: 8,
-  },
-  mcpStatusText: {
-    color: '#00FF41',
-    fontSize: 9,
-    fontFamily: 'Inter_500Medium',
-    letterSpacing: 1.1,
-    flex: 1,
-  },
-  // Close button
-  mcpCloseBtn: {
-    marginTop: 2,
-    paddingVertical: 12,
-    borderRadius: 10,
-    alignItems: 'center',
-    backgroundColor: '#030F03',
-    borderWidth: 1,
-    borderColor: '#FF000033',
-  },
-  mcpCloseBtnText: {
-    color: '#FF4444',
-    fontSize: 13,
-    fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 1.2,
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.5,
   },
 });
