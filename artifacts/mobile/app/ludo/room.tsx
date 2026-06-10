@@ -25,6 +25,7 @@ import {
   PlayerStatus,
   cancelRoomStart,
   castExitVote,
+  joinGameRoom,
   setRoomInGame,
   setRoomStarting,
   subscribeToGameRoom,
@@ -262,6 +263,28 @@ export default function RoomLobbyScreen() {
     ]).start();
     return unsub;
   }, [roomId]);
+
+  // Ensure the current user is always recorded in memberIds when they open this room.
+  // This covers the "direct link / notification tap → room.tsx" path where joinGameRoom
+  // may not have been called yet, so Active Rooms visibility works for all participants.
+  useEffect(() => {
+    if (!roomId || !user || !room) return;
+    const alreadyMember = (room.memberIds ?? []).includes(user.uid);
+    if (!alreadyMember && room.players[user.uid]) {
+      // Player is in the players map but not yet in memberIds — backfill it
+      const prof = room.players[user.uid];
+      joinGameRoom(roomId, user.uid, {
+        userId: user.uid,
+        name: prof.name,
+        photo: prof.photo,
+        username: '',
+        bio: '',
+        qrCode: '',
+        email: '',
+        createdAt: Date.now(),
+      }).catch(console.warn);
+    }
+  }, [roomId, user?.uid, room?.memberIds, room?.players]);
 
   // ── Status machine: ready → starting → in_game ──────────────────
   useEffect(() => {

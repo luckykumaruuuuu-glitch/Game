@@ -1,0 +1,160 @@
+FIX ONLINE ROOM UI LEAKING OUTSIDE GAME SCREEN
+
+CURRENT BUG
+
+Online Room features are leaking into the Ludo section even after the user exits the match.
+
+Example:
+
+User leaves the Online Friend match.
+
+User returns to:
+
+- Ludo Home
+- Ludo Main Screen
+- Online Friend Menu
+
+But room-related UI is still visible.
+
+This is incorrect.
+
+================================
+
+ELEMENTS THAT MUST NOT LEAK
+
+================================
+
+- 👁 Watcher Icon
+- Room ID
+- Tool Button
+- Chat Button
+- Emoji System
+- Spectator UI
+- Floating Room Controls
+- Room Overlay Components
+
+================================
+
+REQUIRED BEHAVIOR
+
+================================
+
+These features must ONLY exist while user is inside:
+
+ACTIVE ONLINE FRIEND MATCH
+
+================================
+
+WHEN USER LEAVES MATCH
+
+================================
+
+Immediately:
+
+- Remove all room overlays
+- Remove all room widgets
+- Remove all room controls
+- Remove all room listeners
+- Remove all room UI states
+
+Do not keep them mounted.
+
+Do not keep them hidden.
+
+Fully unmount them.
+
+================================
+
+SCREEN VISIBILITY RULE
+
+================================
+
+IF CurrentScreen == LIVE_ONLINE_MATCH
+
+Show:
+
+✔ Room ID
+✔ Watchers
+✔ Tool Menu
+✔ Chat
+✔ Emoji Reactions
+
+ELSE
+
+Hide Everything
+
+================================
+
+DO NOT SHOW ON
+
+================================
+
+✖ Ludo Home Screen
+
+✖ Ludo Main Menu
+
+✖ Online Friend Home
+
+✖ Active Rooms Page
+
+✖ Invite Page
+
+✖ Room Join Page
+
+✖ Room Create Page
+
+✖ Offline Mode
+
+✖ AI Mode
+
+✖ Any non-game screen
+
+================================
+
+STATE CLEANUP
+
+================================
+
+When user exits match:
+
+Clear:
+
+roomUIState
+
+watcherState
+
+chatOverlayState
+
+emojiOverlayState
+
+toolMenuState
+
+spectatorState
+
+Prevent old room UI from rendering again.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+Inside Live Online Match:
+
+✔ All room features visible
+
+Outside Match:
+
+✔ No room features visible
+
+✔ No watcher icon
+
+✔ No room ID
+
+✔ No tool button
+
+✔ No chat system
+
+✔ No emoji system
+
+Only the actual Online Match screen should contain these features.

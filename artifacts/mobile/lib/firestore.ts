@@ -1054,6 +1054,7 @@ export interface GameRoom {
   roomStatus?: GameRoomStatus; // ACTIVE (default) | INACTIVE (expired by inactivity)
   players: Record<string, GameRoomPlayer>;
   playerIds: string[];        // flat array for array-contains queries
+  memberIds: string[];        // permanent record of ALL who joined (never removed); used for Active Rooms visibility
   createdAt: number;
   startingAt?: number;
   matchStartedAt?: number;    // set when status transitions to in_game
@@ -1087,6 +1088,7 @@ export async function createGameRoom(
       },
     },
     playerIds: [hostId],
+    memberIds: [hostId],
     createdAt: now,
     lastActivityAt: now,
   });
@@ -1107,6 +1109,7 @@ export async function joinGameRoom(
       joinedAt: Date.now(),
     },
     playerIds: arrayUnion(userId),
+    memberIds: arrayUnion(userId),
     lastActivityAt: Date.now(),
   });
 }
@@ -1289,40 +1292,84 @@ export function subscribeToUserActiveRooms(
   userId: string,
   callback: (rooms: GameRoom[]) => void
 ): () => void {
-  const q = query(
+  // Primary query: rooms where user is in memberIds (permanent membership record).
+  // memberIds is set at creation (hostId) and via arrayUnion on every joinGameRoom call.
+  // Falls back gracefully for legacy rooms that only have playerIds by running a second
+  // parallel query on playerIds and merging results client-side.
+  const memberQuery = query(
+    collection(db, "gameRooms"),
+    where("memberIds", "array-contains", userId),
+    limit(50)
+  );
+  const playerQuery = query(
     collection(db, "gameRooms"),
     where("playerIds", "array-contains", userId),
-    limit(30)
+    limit(50)
   );
-  return onSnapshot(
-    q,
-    (snap) => {
-      const now = Date.now();
-      const all = snap.docs.map((d) => ({ roomId: d.id, ...d.data() } as GameRoom));
 
-      // Lazily expire any room whose lastActivityAt is beyond INACTIVITY_MS.
-      // The first subscribing client to notice will write the status change,
-      // which propagates to all listeners via Firestore realtime.
-      all.forEach((r) => {
-        if (r.roomStatus === "INACTIVE" || r.status === "finished") return;
+  let memberResults: GameRoom[] = [];
+  let playerResults: GameRoom[] = [];
+  let memberUnsub: (() => void) | null = null;
+  let playerUnsub: (() => void) | null = null;
+  let memberReady = false;
+  let playerReady = false;
+
+  function emit() {
+    if (!memberReady || !playerReady) return;
+    const now = Date.now();
+
+    // Merge deduped by roomId — memberIds is authoritative, playerIds is fallback
+    const byId = new Map<string, GameRoom>();
+    [...playerResults, ...memberResults].forEach((r) => byId.set(r.roomId, r));
+    const all = Array.from(byId.values());
+
+    // Lazily expire rooms beyond inactivity threshold
+    all.forEach((r) => {
+      if (r.roomStatus === "INACTIVE" || r.status === "finished") return;
+      const lastActivity = r.lastActivityAt ?? r.createdAt;
+      if (now - lastActivity > INACTIVITY_MS) {
+        markRoomInactive(r.roomId).catch(console.warn);
+      }
+    });
+
+    // Show rooms that are:
+    //   • not finished / not INACTIVE
+    //   • had activity within the last ROOM_EXPIRY_MS (24h), using lastActivityAt not createdAt
+    const rooms = all
+      .filter((r) => {
+        if (r.status === "finished" || r.roomStatus === "INACTIVE") return false;
         const lastActivity = r.lastActivityAt ?? r.createdAt;
-        if (now - lastActivity > INACTIVITY_MS) {
-          markRoomInactive(r.roomId).catch(console.warn);
-        }
-      });
+        return now - lastActivity < ROOM_EXPIRY_MS;
+      })
+      .sort((a, b) => (b.lastActivityAt ?? b.createdAt) - (a.lastActivityAt ?? a.createdAt));
 
-      const rooms = all
-        .filter(
-          (r) =>
-            r.status !== "finished" &&
-            r.roomStatus !== "INACTIVE" &&
-            now - r.createdAt < ROOM_EXPIRY_MS
-        )
-        .sort((a, b) => (b.lastActivityAt ?? b.createdAt) - (a.lastActivityAt ?? a.createdAt));
-      callback(rooms);
+    callback(rooms);
+  }
+
+  memberUnsub = onSnapshot(
+    memberQuery,
+    (snap) => {
+      memberResults = snap.docs.map((d) => ({ roomId: d.id, ...d.data() } as GameRoom));
+      memberReady = true;
+      emit();
     },
-    () => callback([])
+    () => { memberReady = true; emit(); }
   );
+
+  playerUnsub = onSnapshot(
+    playerQuery,
+    (snap) => {
+      playerResults = snap.docs.map((d) => ({ roomId: d.id, ...d.data() } as GameRoom));
+      playerReady = true;
+      emit();
+    },
+    () => { playerReady = true; emit(); }
+  );
+
+  return () => {
+    memberUnsub?.();
+    playerUnsub?.();
+  };
 }
 
 /**
@@ -1443,20 +1490,28 @@ export async function castExitVote(
 }
 
 export async function cleanupExpiredRooms(userId: string): Promise<void> {
-  const q = query(
-    collection(db, "gameRooms"),
-    where("playerIds", "array-contains", userId),
-    limit(20)
-  );
-  const snap = await getDocs(q);
   const now = Date.now();
-  const expired = snap.docs.filter((d) => {
-    const data = d.data();
-    return data.status !== "finished" && (now - data.createdAt) > ROOM_EXPIRY_MS;
+
+  // Query both memberIds and playerIds to catch legacy rooms
+  const [memberSnap, playerSnap] = await Promise.all([
+    getDocs(query(collection(db, "gameRooms"), where("memberIds", "array-contains", userId), limit(20))),
+    getDocs(query(collection(db, "gameRooms"), where("playerIds", "array-contains", userId), limit(20))),
+  ]);
+
+  // Deduplicate by roomId
+  const byId = new Map<string, { ref: ReturnType<typeof doc>; data: Record<string, unknown> }>();
+  [...playerSnap.docs, ...memberSnap.docs].forEach((d) => {
+    if (!byId.has(d.id)) byId.set(d.id, { ref: d.ref as ReturnType<typeof doc>, data: d.data() as Record<string, unknown> });
   });
+
+  const expired = Array.from(byId.values()).filter(({ data }) => {
+    const lastActivity = (data.lastActivityAt ?? data.createdAt) as number;
+    return data.status !== "finished" && (now - lastActivity) > ROOM_EXPIRY_MS;
+  });
+
   await Promise.all(
-    expired.map((d) =>
-      updateDoc(d.ref, { status: "finished", expiredAt: now })
+    expired.map(({ ref }) =>
+      updateDoc(ref, { status: "finished", roomStatus: "INACTIVE", expiredAt: now })
     )
   );
 }

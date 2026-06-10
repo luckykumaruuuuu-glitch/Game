@@ -1,0 +1,195 @@
+UPDATE LIVE MATCH CHAT MESSAGE DESIGN
+
+IMPORTANT CHANGE
+
+Do NOT use random message colors.
+
+Use the player's Ludo color.
+
+================================
+
+PLAYER COLOR MAPPING
+
+================================
+
+Red Player
+
+Message Card:
+Red Theme
+
+Name:
+Red Color
+
+Glow:
+Red Glow
+
+================================
+
+Green Player
+
+Message Card:
+Green Theme
+
+Name:
+Green Color
+
+Glow:
+Green Glow
+
+================================
+
+Yellow Player
+
+Message Card:
+Yellow Theme
+
+Name:
+Yellow Color
+
+Glow:
+Yellow Glow
+
+================================
+
+Blue Player
+
+Message Card:
+Blue Theme
+
+Name:
+Blue Color
+
+Glow:
+Blue Glow
+
+================================
+
+MESSAGE FORMAT
+
+================================
+
+Show:
+
+Profile Picture
+
+Player Name
+
+Message
+
+Example:
+
+🔴 Rahul
+
+Nice Move!
+
+🟢 Aman
+
+Good Luck!
+
+🔵 GamerX
+
+😎
+
+================================
+
+ANIMATION
+
+================================
+
+Message appears from top area.
+
+Smooth floating movement.
+
+Slowly drifts downward.
+
+Before reaching bottom controls:
+
+- Fade Out
+- Disappear automatically
+
+================================
+
+MESSAGE STYLE
+
+================================
+
+Message card color must match the player's token color.
+
+Red Player:
+Red Card
+
+Green Player:
+Green Card
+
+Yellow Player:
+Yellow Card
+
+Blue Player:
+Blue Card
+
+================================
+
+VISUAL EFFECTS
+
+================================
+
+Use:
+
+- Color Glow
+- Soft Shadow
+- Glass Effect
+- Floating Animation
+
+The message should feel attached to the player's Ludo identity.
+
+================================
+
+REALTIME RULE
+
+================================
+
+All players see messages.
+
+All spectators see messages.
+
+Realtime synchronization required.
+
+================================
+
+EXAMPLE
+
+================================
+
+If Red player sends:
+
+"Nice Move"
+
+Show:
+
+Red-themed floating message.
+
+If Green player sends:
+
+"😂"
+
+Show:
+
+Green-themed floating message.
+
+If Blue player sends:
+
+"Good Game"
+
+Show:
+
+Blue-themed floating message.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+Every message instantly tells users which player sent it.
+
+Without reading the name, players can recognize the sender by color alone.
