@@ -27,6 +27,7 @@ import {
   UserPresence,
   UserProfile,
   getGameRoom,
+  getGameRoomByShortCode,
   joinRoomAsSpectator,
   sendGameInvite,
   subscribeToFriends,
@@ -570,22 +571,33 @@ export default function OnlineFriendScreen() {
   const [roomError, setRoomError] = useState('');
 
   async function handleWatchRoom() {
-    const id = roomInput.trim().toUpperCase();
-    if (!id) { setRoomError('Please enter a Room ID'); return; }
+    const input = roomInput.trim().toUpperCase();
+    if (!input) { setRoomError('Please enter a Room ID'); return; }
     setRoomLoading(true);
     setRoomError('');
     try {
-      const room = await getGameRoom(id);
-      if (!room) { setRoomError('Room not found'); setRoomLoading(false); return; }
+      // Resolve: short code (≤6 chars) uses suffix search; longer input tries
+      // direct full-ID lookup first, then falls back to short-code search.
+      let room = null;
+      if (input.length <= 6) {
+        room = await getGameRoomByShortCode(input);
+      } else {
+        room = await getGameRoom(input);
+        if (!room) room = await getGameRoomByShortCode(input.slice(-6));
+      }
+
+      if (!room) { setRoomError('Room not found. Check the ID and try again.'); setRoomLoading(false); return; }
       if (room.roomStatus === 'INACTIVE') { setRoomError('This room is no longer active'); setRoomLoading(false); return; }
       if (room.status === 'finished') { setRoomError('Match has ended'); setRoomLoading(false); return; }
       if (room.status !== 'in_game') { setRoomError('Match has not started yet'); setRoomLoading(false); return; }
+
+      const fullRoomId = room.roomId;
       if (user?.uid) {
-        await joinRoomAsSpectator(id, user.uid, profile?.name || 'Spectator', profile?.photo || undefined);
+        await joinRoomAsSpectator(fullRoomId, user.uid, profile?.name || 'Spectator', profile?.photo || undefined);
       }
       setShowRoomModal(false);
       setRoomInput('');
-      router.push(`/ludo/spectator?roomId=${id}` as any);
+      router.push(`/ludo/spectator?roomId=${fullRoomId}` as any);
     } catch {
       setRoomError('Something went wrong. Try again.');
     } finally {

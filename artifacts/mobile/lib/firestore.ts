@@ -1099,6 +1099,7 @@ export async function createGameRoom(
   const now = Date.now();
   await setDoc(doc(db, "gameRooms", roomId), {
     roomId,
+    shortCode: roomId.slice(-6).toUpperCase(),
     hostId,
     hostName: hostProfile.name,
     gameMode,
@@ -1118,6 +1119,45 @@ export async function createGameRoom(
     createdAt: now,
     lastActivityAt: now,
   });
+}
+
+/**
+ * Resolve a 6-char short code to a full GameRoom.
+ * First tries the `shortCode` field index (fast, works for rooms created after
+ * this update).  Falls back to a client-side suffix scan of active/in-game rooms
+ * so that rooms created before the shortCode field was added still work.
+ */
+export async function getGameRoomByShortCode(
+  shortCode: string
+): Promise<GameRoom | null> {
+  const code = shortCode.trim().toUpperCase();
+
+  // 1. Fast path — query by stored shortCode field
+  const q = query(
+    collection(db, "gameRooms"),
+    where("shortCode", "==", code),
+    where("status", "in", ["waiting", "starting", "in_game"])
+  );
+  const snap = await getDocs(q);
+  if (!snap.empty) {
+    const d = snap.docs[0];
+    return { roomId: d.id, ...d.data() } as GameRoom;
+  }
+
+  // 2. Fallback — scan all non-inactive rooms and match suffix (covers old rooms)
+  const fallbackQ = query(
+    collection(db, "gameRooms"),
+    where("roomStatus", "==", "ACTIVE"),
+    where("status", "in", ["waiting", "starting", "in_game"])
+  );
+  const fallbackSnap = await getDocs(fallbackQ);
+  for (const d of fallbackSnap.docs) {
+    if (d.id.slice(-6).toUpperCase() === code) {
+      return { roomId: d.id, ...d.data() } as GameRoom;
+    }
+  }
+
+  return null;
 }
 
 export async function joinGameRoom(
