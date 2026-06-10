@@ -14,7 +14,25 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
-import { GameRoom, subscribeToUserActiveRooms, cleanupExpiredRooms } from '@/lib/firestore';
+import { useLudo } from '@/context/LudoContext';
+import { GameRoom, GameRoomPlayer, subscribeToUserActiveRooms, cleanupExpiredRooms } from '@/lib/firestore';
+
+// Must match HUMAN_PREFERRED_POSITIONS in room.tsx and the game HTML bundle
+const HUMAN_PREFERRED_POSITIONS = [2, 0, 1, 3];
+
+function buildQuickStartId(gameMode: 2 | 3 | 4): string {
+  if (gameMode === 4) return 'qs,4,0';
+  const humanColors = HUMAN_PREFERRED_POSITIONS.slice(0, gameMode).join(',');
+  return `qs,${gameMode},0,${humanColors}`;
+}
+
+function buildNamesByPlayerIndex(sortedPlayers: GameRoomPlayer[], gameMode: 2 | 3 | 4): string[] {
+  const names = ['', '', '', ''];
+  sortedPlayers.slice(0, gameMode).forEach((player, i) => {
+    names[HUMAN_PREFERRED_POSITIONS[i]] = player.name || '';
+  });
+  return names;
+}
 
 function timeAgo(ts: number): string {
   const diff = Date.now() - ts;
@@ -45,6 +63,7 @@ export default function ActiveGamesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user } = useAuth();
+  const { startOnlineGame } = useLudo();
 
   const [rooms, setRooms] = useState<GameRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,6 +82,34 @@ export default function ActiveGamesScreen() {
 
   function handleResume(room: GameRoom) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // For in_game rooms: skip the waiting room entirely — launch directly into the game
+    if (room.status === 'in_game' && Platform.OS !== 'web' && user) {
+      const sortedPlayers = Object.values(room.players).sort((a, b) => a.joinedAt - b.joinedAt);
+      const quickStartId = buildQuickStartId(room.gameMode);
+      const namesByPlayerIndex = buildNamesByPlayerIndex(sortedPlayers, room.gameMode);
+      const myJoinIndex = sortedPlayers.findIndex((p) => p.userId === user.uid);
+      const myPlayerIndex = myJoinIndex >= 0 ? HUMAN_PREFERRED_POSITIONS[myJoinIndex] : 0;
+      const playerIndexMap: Record<string, number> = {};
+      sortedPlayers.slice(0, room.gameMode).forEach((p, i) => {
+        playerIndexMap[p.userId] = HUMAN_PREFERRED_POSITIONS[i];
+      });
+      startOnlineGame(
+        quickStartId,
+        namesByPlayerIndex,
+        room.roomId,
+        myPlayerIndex,
+        user.uid,
+        room.gameState,
+        user.uid === room.hostId,
+        playerIndexMap,
+        room.gameMode
+      );
+      router.back();
+      return;
+    }
+
+    // For non-in_game rooms (waiting/ready/starting): open the room lobby
     router.push({ pathname: '/ludo/room', params: { id: room.roomId } } as any);
   }
 
