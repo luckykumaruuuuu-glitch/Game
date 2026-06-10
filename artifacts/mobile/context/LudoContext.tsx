@@ -548,7 +548,7 @@ function LudoNativeOverlay({
     <View
       style={[
         styles.overlay,
-        { backgroundColor: bgColor },
+        { backgroundColor: bgColor, paddingTop: insets.top },
         isVisible ? styles.overlayVisible : styles.overlayHidden,
       ]}
       pointerEvents={isVisible ? 'auto' : 'none'}
