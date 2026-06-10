@@ -1,0 +1,196 @@
+ONLINE ROOM TOOL MENU + ROOM SHARE FIX
+
+CURRENT BUG
+
+The following elements are appearing outside the live game:
+
+- Watcher Icon (👁)
+- Room ID
+- Room Features
+- Future Tool Features
+
+This is incorrect.
+
+================================
+
+STRICT VISIBILITY RULE
+
+================================
+
+These features must ONLY exist when:
+
+User is INSIDE an active Online Friend room.
+
+If user exits the room:
+
+Immediately hide all room-related UI.
+
+Do not show them anywhere else.
+
+================================
+
+SHOW ONLY INSIDE LIVE ONLINE MATCH
+
+================================
+
+Show:
+
+- 👁 Watcher Counter
+- Room ID
+- Tool Button
+- Spectator Features
+- Room Share Features
+
+ONLY while the match screen is open.
+
+================================
+
+HIDE COMPLETELY
+
+================================
+
+Hide from:
+
+- Home Screen
+- Online Friend Menu
+- Room List
+- Active Rooms Page
+- Invite Page
+- Any screen outside gameplay
+
+================================
+
+TOOL BUTTON
+
+================================
+
+Inside live match only:
+
+Show a small Tool icon in the top-right area.
+
+Example:
+
+🛠
+
+or
+
+⚙️ style gaming tool icon
+
+Use a gaming-themed icon.
+
+Not Android default settings.
+
+================================
+
+TOOL MENU
+
+================================
+
+When Tool button is clicked:
+
+Open a glassmorphism popup menu.
+
+Blur background.
+
+Show available room functions.
+
+For now add only:
+
+1. Share Room
+
+Future features will be added later.
+
+================================
+
+SHARE ROOM FUNCTION
+
+================================
+
+When Share Room is clicked:
+
+Open in-app friend selection list.
+
+Show:
+
+- Online Friends
+- Offline Friends
+
+Allow selecting friends.
+
+================================
+
+GAMING INVITATION MESSAGE
+
+================================
+
+Do NOT send plain text.
+
+Create a gaming-style invitation card.
+
+Example:
+
+🎮 LIVE MATCH INVITATION
+
+Lucky invited you to watch a live Ludo match.
+
+Room ID: ABC123
+
+👁 Watch Live Match
+
+================================
+
+ONE-TAP WATCH
+
+================================
+
+When recipient clicks the invitation:
+
+Do NOT ask for Room ID.
+
+Do NOT show Room ID input.
+
+Open spectator mode automatically.
+
+Join directly using the room reference stored in the invitation.
+
+================================
+
+SPECTATOR RULE
+
+================================
+
+Recipient can:
+
+✔ Watch match
+
+Recipient cannot:
+
+✖ Roll dice
+
+✖ Move tokens
+
+✖ Join gameplay
+
+================================
+
+IMPORTANT
+
+================================
+
+This feature is ONLY for Online Friend rooms.
+
+It must never appear outside a live online match.
+
+================================
+
+DO NOT MODIFY
+
+================================
+
+- Gameplay
+- Turn system
+- Dice system
+- Chat system
+- Watcher system
+
+Only add Tool Menu and Room Share functionality.

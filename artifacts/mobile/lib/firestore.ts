@@ -137,6 +137,7 @@ export interface Notification {
   title: string;
   body: string;
   fromUserId?: string;
+  roomId?: string;
   read: boolean;
   createdAt: number;
 }
@@ -735,7 +736,7 @@ export function subscribeToChatClearedAt(
 
 async function createNotification(
   userId: string,
-  data: Pick<Notification, "type" | "title" | "body" | "fromUserId">
+  data: Pick<Notification, "type" | "title" | "body" | "fromUserId"> & { roomId?: string }
 ): Promise<void> {
   await addDoc(collection(db, "notifications"), {
     userId,
@@ -743,6 +744,7 @@ async function createNotification(
     title: data.title,
     body: data.body,
     fromUserId: data.fromUserId ?? null,
+    roomId: data.roomId ?? null,
     read: false,
     createdAt: Date.now(),
   });
@@ -939,6 +941,25 @@ export async function respondToGameInvite(
   await updateDoc(doc(db, "gameInvites", inviteId), {
     status: accept ? "accepted" : "declined",
   });
+}
+
+export async function sendSpectatorInvite(
+  fromUserId: string,
+  fromName: string,
+  toUserIds: string[],
+  roomId: string
+): Promise<void> {
+  await Promise.all(
+    toUserIds.map((receiverId) =>
+      createNotification(receiverId, {
+        type: "game_invite",
+        title: "🎮 LIVE MATCH INVITATION",
+        body: `${fromName} invited you to watch a live Ludo match! Tap to join as spectator.`,
+        fromUserId: fromUserId,
+        roomId: roomId,
+      })
+    )
+  );
 }
 
 // ─── Game Rooms ───────────────────────────────────────────────────────────────

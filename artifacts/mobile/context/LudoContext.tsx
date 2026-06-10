@@ -4,7 +4,7 @@ import React, {
 import {
   View, Pressable, StyleSheet, Platform,
   StatusBar, ActivityIndicator, Text, TouchableOpacity,
-  AppState, Modal,
+  AppState, Modal, Image, ScrollView,
 } from 'react-native';
 import { playWebClickSound } from '@/lib/webSound';
 import { router } from 'expo-router';
@@ -21,10 +21,15 @@ import {
   markPlayerRejoin,
   castExitVote,
   checkAndExpireRoomIfInactive,
+  subscribeToFriends,
+  subscribeToFriendsPresence,
+  sendSpectatorInvite,
   GameAction,
   SavedGameState,
   GameRoomPlayer,
   PlayerStatus,
+  UserProfile,
+  UserPresence,
 } from '@/lib/firestore';
 import { LUDO_GAME_HTML } from '@/lib/ludo/ludo-html';
 
@@ -181,6 +186,15 @@ function LudoNativeOverlay({
   const isQueueDrainingRef = useRef(false);
   const queueSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Tool Menu + Share Room state
+  const [toolMenuOpen, setToolMenuOpen] = useState(false);
+  const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [presence, setPresence] = useState<Record<string, UserPresence>>({});
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
+  const [inviteSending, setInviteSending] = useState(false);
+  const [inviteSent, setInviteSent] = useState<Set<string>>(new Set());
+
   // Offline pass-and-play player count modal (fallback for postMessage path)
   const [showOfflineModal, setShowOfflineModal] = useState(false);
 
@@ -260,6 +274,20 @@ function LudoNativeOverlay({
   }, []);
 
   useEffect(() => { resolvedThemeRef.current = resolvedTheme; }, [resolvedTheme]);
+
+  // Load friends + presence when inside an online match
+  useEffect(() => {
+    if (!mpConfig || !user) { setFriends([]); setPresence({}); return; }
+    const unsub = subscribeToFriends(user.uid, setFriends);
+    return () => { unsub(); setFriends([]); setPresence({}); };
+  }, [mpConfig?.roomId, user?.uid]);
+
+  useEffect(() => {
+    if (!friends.length) { setPresence({}); return; }
+    const ids = friends.map(f => f.userId);
+    const unsub = subscribeToFriendsPresence(ids, setPresence);
+    return () => { unsub(); };
+  }, [friends.map(f => f.userId).join(',')]);
 
   // Subscribe to remote game actions via Firebase when a multiplayer session is active.
   useEffect(() => {
@@ -618,6 +646,206 @@ function LudoNativeOverlay({
           <Ionicons name="chevron-back" size={20} color={isDark ? '#FFFFFF' : '#1a1410'} />
         </Pressable>
       )}
+
+      {/* Tool button — only inside live online match */}
+      {isVisible && mpConfig && (
+        <TouchableOpacity
+          style={[styles.toolBtn, { top: insets.top + 10 }]}
+          onPress={() => setToolMenuOpen(true)}
+          activeOpacity={0.8}
+          hitSlop={10}
+        >
+          <Text style={styles.toolBtnIcon}>🛠️</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* ── TOOL MENU modal — glassmorphism popup ── */}
+      <Modal
+        visible={toolMenuOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setToolMenuOpen(false)}
+      >
+        <Pressable
+          style={styles.toolMenuBackdrop}
+          onPress={() => setToolMenuOpen(false)}
+        >
+          <Pressable style={styles.toolMenuCard} onPress={() => {}}>
+            <View style={styles.toolMenuHandle} />
+            <Text style={styles.toolMenuTitle}>⚡ Room Tools</Text>
+            <TouchableOpacity
+              style={styles.toolMenuItem}
+              activeOpacity={0.75}
+              onPress={() => {
+                setToolMenuOpen(false);
+                setInviteSent(new Set());
+                setSelectedFriends(new Set());
+                setTimeout(() => setShareMenuOpen(true), 150);
+              }}
+            >
+              <Text style={styles.toolMenuItemIcon}>📨</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toolMenuItemLabel}>Share Room</Text>
+                <Text style={styles.toolMenuItemSub}>Invite friends to watch live</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── SHARE ROOM / Friend Picker modal ── */}
+      <Modal
+        visible={shareMenuOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShareMenuOpen(false)}
+      >
+        <Pressable
+          style={styles.toolMenuBackdrop}
+          onPress={() => setShareMenuOpen(false)}
+        >
+          <Pressable style={styles.shareCard} onPress={() => {}}>
+            <View style={styles.toolMenuHandle} />
+            <Text style={styles.toolMenuTitle}>📨 Invite to Watch Live</Text>
+            <Text style={styles.shareSubtitle}>Select friends to send a spectator invite</Text>
+
+            {friends.length === 0 ? (
+              <View style={styles.shareEmptyBox}>
+                <Text style={styles.shareEmptyText}>No friends yet. Add friends to invite them!</Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.friendList}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Online friends first */}
+                {friends
+                  .slice()
+                  .sort((a, b) => {
+                    const aOnline = presence[a.userId]?.online ? 1 : 0;
+                    const bOnline = presence[b.userId]?.online ? 1 : 0;
+                    return bOnline - aOnline;
+                  })
+                  .map((friend) => {
+                    const isOnline = presence[friend.userId]?.online ?? false;
+                    const isSelected = selectedFriends.has(friend.userId);
+                    const wasSent = inviteSent.has(friend.userId);
+                    return (
+                      <TouchableOpacity
+                        key={friend.userId}
+                        style={[
+                          styles.friendRow,
+                          isSelected && styles.friendRowSelected,
+                          wasSent && styles.friendRowSent,
+                        ]}
+                        activeOpacity={0.75}
+                        disabled={wasSent}
+                        onPress={() => {
+                          setSelectedFriends(prev => {
+                            const next = new Set(prev);
+                            if (next.has(friend.userId)) next.delete(friend.userId);
+                            else next.add(friend.userId);
+                            return next;
+                          });
+                        }}
+                      >
+                        <View style={styles.friendAvatarWrap}>
+                          {friend.photo ? (
+                            <Image
+                              source={{ uri: friend.photo }}
+                              style={styles.friendAvatar}
+                            />
+                          ) : (
+                            <View style={[styles.friendAvatar, styles.friendAvatarPlaceholder]}>
+                              <Text style={{ color: '#fff', fontSize: 16, fontFamily: 'Inter_700Bold' }}>
+                                {(friend.name || friend.username || '?')[0].toUpperCase()}
+                              </Text>
+                            </View>
+                          )}
+                          <View style={[
+                            styles.presenceDot,
+                            { backgroundColor: isOnline ? '#22C55E' : '#6B7280' },
+                          ]} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.friendName} numberOfLines={1}>
+                            {friend.name || friend.username}
+                          </Text>
+                          <Text style={styles.friendStatus}>
+                            {wasSent ? '✅ Invite sent' : isOnline ? '🟢 Online' : '⚫ Offline'}
+                          </Text>
+                        </View>
+                        {wasSent ? (
+                          <View style={styles.sentBadge}>
+                            <Text style={styles.sentBadgeText}>Sent</Text>
+                          </View>
+                        ) : isSelected ? (
+                          <View style={styles.checkCircle}>
+                            <Feather name="check" size={14} color="#fff" />
+                          </View>
+                        ) : (
+                          <View style={styles.uncheckCircle} />
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+              </ScrollView>
+            )}
+
+            {/* Gaming-style invite card preview */}
+            {selectedFriends.size > 0 && (
+              <View style={styles.inviteCardPreview}>
+                <Text style={styles.inviteCardTitle}>🎮 LIVE MATCH INVITATION</Text>
+                <Text style={styles.inviteCardBody}>
+                  {user?.displayName || 'A player'} invited you to watch a live Ludo match.
+                </Text>
+                <Text style={styles.inviteCardRoom}>Room · {mpConfig?.roomId?.slice(-6).toUpperCase()}</Text>
+                <Text style={styles.inviteCardCta}>👁 Watch Live Match</Text>
+              </View>
+            )}
+
+            <TouchableOpacity
+              style={[
+                styles.sendInviteBtn,
+                (selectedFriends.size === 0 || inviteSending) && styles.sendInviteBtnDisabled,
+              ]}
+              activeOpacity={0.8}
+              disabled={selectedFriends.size === 0 || inviteSending}
+              onPress={async () => {
+                if (!mpConfig || !user) return;
+                setInviteSending(true);
+                try {
+                  await sendSpectatorInvite(
+                    user.uid,
+                    user.displayName || 'A player',
+                    Array.from(selectedFriends),
+                    mpConfig.roomId
+                  );
+                  setInviteSent(prev => {
+                    const next = new Set(prev);
+                    selectedFriends.forEach(id => next.add(id));
+                    return next;
+                  });
+                  setSelectedFriends(new Set());
+                } catch (e) {
+                  console.warn('[ShareRoom] invite failed', e);
+                } finally {
+                  setInviteSending(false);
+                }
+              }}
+            >
+              <Text style={styles.sendInviteBtnText}>
+                {inviteSending
+                  ? 'Sending...'
+                  : selectedFriends.size === 0
+                    ? 'Select friends to invite'
+                    : `Send Invite to ${selectedFriends.size} friend${selectedFriends.size > 1 ? 's' : ''}`}
+              </Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Move history log — shown during online games, floats above debug bar */}
       {isVisible && mpConfig && moveLog.length > 0 && (
@@ -1052,5 +1280,250 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.55)',
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
+  },
+
+  // ── Tool Button ──────────────────────────────────────────────────────────────
+  toolBtn: {
+    position: 'absolute',
+    right: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(15,10,30,0.72)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 200,
+  },
+  toolBtnIcon: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+
+  // ── Tool Menu card ───────────────────────────────────────────────────────────
+  toolMenuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.65)',
+    justifyContent: 'flex-end',
+  },
+  toolMenuCard: {
+    backgroundColor: 'rgba(14,8,28,0.97)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.25)',
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 10,
+    gap: 14,
+  },
+  toolMenuHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignSelf: 'center',
+    marginBottom: 6,
+  },
+  toolMenuTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.3,
+  },
+  toolMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139,92,246,0.12)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.22)',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 14,
+  },
+  toolMenuItemIcon: {
+    fontSize: 22,
+  },
+  toolMenuItemLabel: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  toolMenuItemSub: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+
+  // ── Share Room / Friend Picker ───────────────────────────────────────────────
+  shareCard: {
+    backgroundColor: 'rgba(10,6,22,0.98)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.25)',
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 10,
+    maxHeight: '85%',
+    gap: 12,
+  },
+  shareSubtitle: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    marginTop: -6,
+  },
+  shareEmptyBox: {
+    paddingVertical: 30,
+    alignItems: 'center',
+  },
+  shareEmptyText: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+  },
+  friendList: {
+    maxHeight: 280,
+  },
+  friendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    gap: 12,
+  },
+  friendRowSelected: {
+    borderColor: 'rgba(139,92,246,0.55)',
+    backgroundColor: 'rgba(139,92,246,0.10)',
+  },
+  friendRowSent: {
+    borderColor: 'rgba(34,197,94,0.35)',
+    backgroundColor: 'rgba(34,197,94,0.06)',
+    opacity: 0.75,
+  },
+  friendAvatarWrap: {
+    position: 'relative',
+  },
+  friendAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: '#3730A3',
+  },
+  friendAvatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presenceDot: {
+    position: 'absolute',
+    bottom: 1,
+    right: 1,
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'rgba(10,6,22,0.98)',
+  },
+  friendName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  friendStatus: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 1,
+  },
+  checkCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  uncheckCircle: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  sentBadge: {
+    backgroundColor: 'rgba(34,197,94,0.15)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(34,197,94,0.35)',
+  },
+  sentBadgeText: {
+    color: '#22C55E',
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
+  },
+
+  // ── Invite card preview ──────────────────────────────────────────────────────
+  inviteCardPreview: {
+    backgroundColor: 'rgba(139,92,246,0.10)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.35)',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    gap: 4,
+  },
+  inviteCardTitle: {
+    color: '#F59E0B',
+    fontSize: 13,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.5,
+  },
+  inviteCardBody: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+  },
+  inviteCardRoom: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 11,
+    fontFamily: 'Inter_500Medium',
+    letterSpacing: 0.3,
+  },
+  inviteCardCta: {
+    color: '#8B5CF6',
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    marginTop: 2,
+  },
+
+  // ── Send Invite button ───────────────────────────────────────────────────────
+  sendInviteBtn: {
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  sendInviteBtnDisabled: {
+    backgroundColor: 'rgba(139,92,246,0.3)',
+  },
+  sendInviteBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.2,
   },
 });

@@ -73,8 +73,12 @@ export default function NotificationsScreen() {
       router.push("/friend-requests");
     } else if (notif.type === "message" && notif.fromUserId) {
       router.push(`/chat/${notif.fromUserId}`);
-    } else if (notif.type === "game_invite" && notif.fromUserId) {
-      router.push("/ludo");
+    } else if (notif.type === "game_invite") {
+      if (notif.roomId) {
+        router.push(`/ludo/spectator?roomId=${notif.roomId}` as any);
+      } else {
+        router.push("/ludo");
+      }
     } else if (notif.fromUserId) {
       router.push(`/user/${notif.fromUserId}`);
     }
