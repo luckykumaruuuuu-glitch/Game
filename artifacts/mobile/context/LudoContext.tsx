@@ -315,12 +315,20 @@ function LudoNativeOverlay({
   const [secretKeyActivated, setSecretKeyActivated] = useState(false);
   const [secretKeySuccess, setSecretKeySuccess] = useState(false);
 
+  // Monster Control Panel state
+  const [monsterPanelOpen, setMonsterPanelOpen] = useState(false);
+
   // Monster floating animation
   const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
   const monsterFloat = useRef(new Animated.Value(0)).current;
+
+  // Tap-vs-drag detection: PanResponder only claims gesture on real movement
+  // so TouchableOpacity inside handles taps cleanly.
   const monsterPanResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponder: () => false,
+      onMoveShouldSetPanResponder: (_, gs) =>
+        Math.abs(gs.dx) > 5 || Math.abs(gs.dy) > 5,
       onPanResponderGrant: () => { monsterPos.extractOffset(); },
       onPanResponderMove: Animated.event(
         [null, { dx: monsterPos.x, dy: monsterPos.y }],
@@ -343,7 +351,7 @@ function LudoNativeOverlay({
     return () => loop.stop();
   }, [secretKeyActivated]);
 
-  // Reset secret key state when leaving the online match
+  // Reset ALL secret key + monster state when leaving the online match
   useEffect(() => {
     if (!mpConfig) {
       setSecretKeyActivated(false);
@@ -351,6 +359,8 @@ function LudoNativeOverlay({
       setSecretKeyInput('');
       setSecretKeyError('');
       setSecretKeySuccess(false);
+      setMonsterPanelOpen(false);
+      monsterPos.setValue({ x: 20, y: 300 });
     }
   }, [mpConfig]);
 
@@ -1054,6 +1064,57 @@ function LudoNativeOverlay({
         </Pressable>
       </Modal>
 
+      {/* ── MONSTER CONTROL PANEL modal ── */}
+      <Modal
+        visible={monsterPanelOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMonsterPanelOpen(false)}
+      >
+        <Pressable style={styles.mcpBackdrop} onPress={() => setMonsterPanelOpen(false)}>
+          <Pressable style={styles.mcpCard} onPress={() => {}}>
+            <View style={styles.mcpHandle} />
+
+            {/* Header */}
+            <View style={styles.mcpHeader}>
+              <Text style={styles.mcpMonsterEmoji}>👾</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.mcpTitle}>MONSTER CONTROL PANEL</Text>
+                <Text style={styles.mcpSub}>Secret access — exclusive features</Text>
+              </View>
+            </View>
+
+            <View style={styles.mcpDivider} />
+
+            <Text style={styles.mcpSlotsLabel}>RESERVED SLOTS</Text>
+
+            {/* 6 placeholder slots */}
+            {[1, 2, 3, 4, 5, 6].map((slot) => (
+              <View key={slot} style={styles.mcpSlot}>
+                <View style={styles.mcpSlotBadge}>
+                  <Text style={styles.mcpSlotBadgeText}>{slot}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mcpSlotLabel}>Reserved Slot {slot}</Text>
+                  <Text style={styles.mcpSlotSub}>Coming in a future update</Text>
+                </View>
+                <View style={styles.mcpSlotLock}>
+                  <Text style={styles.mcpSlotLockIcon}>🔒</Text>
+                </View>
+              </View>
+            ))}
+
+            <TouchableOpacity
+              style={styles.mcpCloseBtn}
+              activeOpacity={0.75}
+              onPress={() => setMonsterPanelOpen(false)}
+            >
+              <Text style={styles.mcpCloseBtnText}>Close Panel</Text>
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* ── SHARE ROOM / Friend Picker modal ── */}
       <Modal
         visible={shareMenuOpen}
@@ -1430,8 +1491,14 @@ function LudoNativeOverlay({
           ]}
           {...monsterPanResponder.panHandlers}
         >
-          <View style={styles.monsterGlow} />
-          <Text style={styles.monsterEmoji}>👾</Text>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setMonsterPanelOpen(true)}
+            style={styles.monsterTouchable}
+          >
+            <View style={styles.monsterGlow} />
+            <Text style={styles.monsterEmoji}>👾</Text>
+          </TouchableOpacity>
         </Animated.View>
       )}
 
@@ -2513,27 +2580,158 @@ const styles = StyleSheet.create({
   monsterFloat: {
     position: 'absolute',
     zIndex: 9000,
-    width: 60,
-    height: 60,
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monsterTouchable: {
+    width: 64,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
   },
   monsterGlow: {
     position: 'absolute',
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(139,92,246,0.25)',
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(139,92,246,0.28)',
     shadowColor: '#7C3AED',
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.85,
+    shadowRadius: 14,
+    elevation: 10,
   },
   monsterEmoji: {
     fontSize: 36,
     textShadowColor: 'rgba(139,92,246,0.8)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 10,
+  },
+
+  // ── Monster Control Panel ──────────────────────────────────────────────────
+  mcpBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.80)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  mcpCard: {
+    width: '100%',
+    backgroundColor: 'rgba(6,3,16,0.99)',
+    borderRadius: 26,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.35)',
+    paddingHorizontal: 20,
+    paddingVertical: 22,
+    gap: 12,
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.4,
+    shadowRadius: 20,
+    elevation: 14,
+  },
+  mcpHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(139,92,246,0.30)',
+    alignSelf: 'center',
+    marginBottom: 4,
+  },
+  mcpHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  mcpMonsterEmoji: {
+    fontSize: 38,
+  },
+  mcpTitle: {
+    color: '#C4B5FD',
+    fontSize: 14,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.8,
+  },
+  mcpSub: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  mcpDivider: {
+    height: 1,
+    backgroundColor: 'rgba(139,92,246,0.18)',
+    marginVertical: 2,
+  },
+  mcpSlotsLabel: {
+    color: 'rgba(196,181,253,0.50)',
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 2,
+    marginBottom: 2,
+  },
+  mcpSlot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(139,92,246,0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.14)',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  mcpSlotBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(139,92,246,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.30)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mcpSlotBadgeText: {
+    color: '#A78BFA',
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+  },
+  mcpSlotLabel: {
+    color: 'rgba(255,255,255,0.65)',
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  mcpSlotSub: {
+    color: 'rgba(255,255,255,0.28)',
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 1,
+  },
+  mcpSlotLock: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mcpSlotLockIcon: {
+    fontSize: 14,
+  },
+  mcpCloseBtn: {
+    marginTop: 4,
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: 'rgba(139,92,246,0.14)',
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.30)',
+  },
+  mcpCloseBtnText: {
+    color: '#C4B5FD',
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.3,
   },
 });
