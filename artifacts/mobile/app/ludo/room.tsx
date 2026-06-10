@@ -33,7 +33,7 @@ import {
 } from '@/lib/firestore';
 
 function shortCode(roomId: string): string {
-  return roomId.slice(0, 6).toUpperCase();
+  return roomId.slice(-6).toUpperCase();
 }
 
 const MODE_EMOJI: Record<number, string> = { 2: '👤', 3: '👥', 4: '👨‍👩‍👧‍👦' };
