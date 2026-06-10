@@ -5,7 +5,7 @@ import {
   View, Pressable, StyleSheet, Platform,
   StatusBar, ActivityIndicator, Text, TouchableOpacity,
   AppState, Modal, Image, ScrollView,
-  Animated, TextInput, KeyboardAvoidingView,
+  Animated, TextInput, KeyboardAvoidingView, PanResponder,
 } from 'react-native';
 import { playWebClickSound } from '@/lib/webSound';
 import { router } from 'expo-router';
@@ -307,6 +307,67 @@ function LudoNativeOverlay({
 
   // Offline pass-and-play player count modal (fallback for postMessage path)
   const [showOfflineModal, setShowOfflineModal] = useState(false);
+
+  // ── Secret Key system ──────────────────────────────────────────────────────
+  const [secretKeyModalOpen, setSecretKeyModalOpen] = useState(false);
+  const [secretKeyInput, setSecretKeyInput] = useState('');
+  const [secretKeyError, setSecretKeyError] = useState('');
+  const [secretKeyActivated, setSecretKeyActivated] = useState(false);
+  const [secretKeySuccess, setSecretKeySuccess] = useState(false);
+
+  // Monster floating animation
+  const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
+  const monsterFloat = useRef(new Animated.Value(0)).current;
+  const monsterPanResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => { monsterPos.extractOffset(); },
+      onPanResponderMove: Animated.event(
+        [null, { dx: monsterPos.x, dy: monsterPos.y }],
+        { useNativeDriver: false }
+      ),
+      onPanResponderRelease: () => { monsterPos.flattenOffset(); },
+    })
+  ).current;
+
+  // Start/stop float loop based on activation
+  useEffect(() => {
+    if (!secretKeyActivated) { monsterFloat.stopAnimation(); monsterFloat.setValue(0); return; }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(monsterFloat, { toValue: -12, duration: 900, useNativeDriver: true }),
+        Animated.timing(monsterFloat, { toValue: 0, duration: 900, useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [secretKeyActivated]);
+
+  // Reset secret key state when leaving the online match
+  useEffect(() => {
+    if (!mpConfig) {
+      setSecretKeyActivated(false);
+      setSecretKeyModalOpen(false);
+      setSecretKeyInput('');
+      setSecretKeyError('');
+      setSecretKeySuccess(false);
+    }
+  }, [mpConfig]);
+
+  function handleSecretKeyConfirm() {
+    if (secretKeyInput.toUpperCase().trim() === '7X1CM4') {
+      setSecretKeyError('');
+      setSecretKeySuccess(true);
+      setTimeout(() => {
+        setSecretKeySuccess(false);
+        setSecretKeyModalOpen(false);
+        setSecretKeyInput('');
+        setSecretKeyActivated(true);
+      }, 1400);
+    } else {
+      setSecretKeyError('Invalid Secret Key');
+    }
+  }
 
   // Helper to compute next non-kicked player index
   function nextActiveIndex(from: number, total: number): number {
@@ -896,6 +957,99 @@ function LudoNativeOverlay({
               </View>
               <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.4)" />
             </TouchableOpacity>
+
+            {/* Secret Key — premium red option */}
+            <TouchableOpacity
+              style={styles.secretKeyMenuItem}
+              activeOpacity={0.75}
+              onPress={() => {
+                setToolMenuOpen(false);
+                setSecretKeyInput('');
+                setSecretKeyError('');
+                setSecretKeySuccess(false);
+                setTimeout(() => setSecretKeyModalOpen(true), 150);
+              }}
+            >
+              <Text style={styles.secretKeyMenuIcon}>🔐</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.secretKeyMenuLabel}>
+                  Secret Key{secretKeyActivated ? ' ✓' : ''}
+                </Text>
+                <Text style={styles.secretKeyMenuSub}>
+                  {secretKeyActivated ? 'Activated' : 'Enter access code'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={16} color="rgba(239,68,68,0.5)" />
+            </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── SECRET KEY modal ── */}
+      <Modal
+        visible={secretKeyModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { setSecretKeyModalOpen(false); setSecretKeyError(''); setSecretKeySuccess(false); }}
+      >
+        <Pressable style={styles.skBackdrop} onPress={() => { setSecretKeyModalOpen(false); setSecretKeyError(''); setSecretKeySuccess(false); }}>
+          <Pressable style={styles.skCard} onPress={() => {}}>
+            <View style={styles.skHandle} />
+
+            {secretKeySuccess ? (
+              <View style={styles.skSuccessBox}>
+                <Text style={styles.skSuccessIcon}>👾</Text>
+                <Text style={styles.skSuccessTitle}>Secret Key Activated</Text>
+                <Text style={styles.skSuccessSub}>Welcome to the inner circle</Text>
+              </View>
+            ) : (
+              <>
+                <View style={styles.skHeader}>
+                  <Text style={styles.skLockIcon}>🔐</Text>
+                  <View>
+                    <Text style={styles.skTitle}>Secret Key</Text>
+                    <Text style={styles.skSub}>Enter your exclusive access code</Text>
+                  </View>
+                </View>
+
+                <View style={styles.skDivider} />
+
+                <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+                  <TextInput
+                    style={[styles.skInput, secretKeyError ? styles.skInputError : null]}
+                    placeholder="Enter code…"
+                    placeholderTextColor="rgba(255,255,255,0.25)"
+                    value={secretKeyInput}
+                    onChangeText={(t) => { setSecretKeyInput(t); setSecretKeyError(''); }}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                    maxLength={10}
+                    onSubmitEditing={handleSecretKeyConfirm}
+                    returnKeyType="done"
+                  />
+                  {secretKeyError ? (
+                    <Text style={styles.skErrorText}>{secretKeyError}</Text>
+                  ) : null}
+                </KeyboardAvoidingView>
+
+                <View style={styles.skBtnRow}>
+                  <TouchableOpacity
+                    style={styles.skCancelBtn}
+                    activeOpacity={0.75}
+                    onPress={() => { setSecretKeyModalOpen(false); setSecretKeyError(''); setSecretKeyInput(''); }}
+                  >
+                    <Text style={styles.skCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.skConfirmBtn}
+                    activeOpacity={0.75}
+                    onPress={handleSecretKeyConfirm}
+                  >
+                    <Text style={styles.skConfirmText}>Confirm</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -1259,6 +1413,26 @@ function LudoNativeOverlay({
             );
           })}
         </View>
+      )}
+
+      {/* ── FLOATING MONSTER ICON — visible only during active online match after Secret Key activation ── */}
+      {isVisible && mpConfig && ludoScreen === 'game' && secretKeyActivated && (
+        <Animated.View
+          style={[
+            styles.monsterFloat,
+            {
+              transform: [
+                { translateX: monsterPos.x },
+                { translateY: monsterPos.y },
+                { translateY: monsterFloat },
+              ],
+            },
+          ]}
+          {...monsterPanResponder.panHandlers}
+        >
+          <View style={styles.monsterGlow} />
+          <Text style={styles.monsterEmoji}>👾</Text>
+        </Animated.View>
       )}
 
       {/* EXIT players voting panel — shown during online games on game board only */}
@@ -2173,5 +2347,193 @@ const styles = StyleSheet.create({
     color: 'rgba(245,158,11,0.8)',
     fontSize: 11,
     fontFamily: 'Inter_600SemiBold',
+  },
+
+  // ── Secret Key menu item ───────────────────────────────────────────────────
+  secretKeyMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(239,68,68,0.07)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.20)',
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    gap: 12,
+  },
+  secretKeyMenuIcon: {
+    fontSize: 18,
+  },
+  secretKeyMenuLabel: {
+    color: '#EF4444',
+    fontSize: 13,
+    fontFamily: 'Inter_600SemiBold',
+    letterSpacing: 0.2,
+  },
+  secretKeyMenuSub: {
+    color: 'rgba(239,68,68,0.55)',
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 1,
+  },
+
+  // ── Secret Key modal ───────────────────────────────────────────────────────
+  skBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 28,
+  },
+  skCard: {
+    width: '100%',
+    backgroundColor: 'rgba(10,4,20,0.98)',
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.30)',
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    gap: 16,
+    shadowColor: '#EF4444',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  skHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(239,68,68,0.25)',
+    alignSelf: 'center',
+    marginBottom: 2,
+  },
+  skHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  skLockIcon: {
+    fontSize: 32,
+  },
+  skTitle: {
+    color: '#EF4444',
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.3,
+  },
+  skSub: {
+    color: 'rgba(255,255,255,0.40)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  skDivider: {
+    height: 1,
+    backgroundColor: 'rgba(239,68,68,0.15)',
+  },
+  skInput: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.25)',
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 4,
+    textAlign: 'center',
+  },
+  skInputError: {
+    borderColor: '#EF4444',
+    backgroundColor: 'rgba(239,68,68,0.08)',
+  },
+  skErrorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  skBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  skCancelBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  skCancelText: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  skConfirmBtn: {
+    flex: 1,
+    paddingVertical: 13,
+    borderRadius: 14,
+    alignItems: 'center',
+    backgroundColor: 'rgba(239,68,68,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.45)',
+  },
+  skConfirmText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontFamily: 'Inter_700Bold',
+  },
+  skSuccessBox: {
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 16,
+  },
+  skSuccessIcon: {
+    fontSize: 56,
+  },
+  skSuccessTitle: {
+    color: '#22C55E',
+    fontSize: 18,
+    fontFamily: 'Inter_700Bold',
+    textAlign: 'center',
+  },
+  skSuccessSub: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+  },
+
+  // ── Floating Monster Icon ──────────────────────────────────────────────────
+  monsterFloat: {
+    position: 'absolute',
+    zIndex: 9000,
+    width: 60,
+    height: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monsterGlow: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(139,92,246,0.25)',
+    shadowColor: '#7C3AED',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  monsterEmoji: {
+    fontSize: 36,
+    textShadowColor: 'rgba(139,92,246,0.8)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 10,
   },
 });
