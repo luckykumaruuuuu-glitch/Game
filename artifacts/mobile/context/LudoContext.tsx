@@ -1074,8 +1074,8 @@ function LudoNativeOverlay({
         </Pressable>
       </Modal>
 
-      {/* ── Floating Chat Messages (over game board, no interaction block) ── */}
-      {isVisible && mpConfig && floatingMsgs.length > 0 && (
+      {/* ── Floating Chat Messages (over game board only) ── */}
+      {isVisible && mpConfig && ludoScreen === 'game' && floatingMsgs.length > 0 && (
         <View
           style={[styles.floatingMsgPanel, { top: insets.top + 56 }]}
           pointerEvents="none"
@@ -1090,8 +1090,8 @@ function LudoNativeOverlay({
         </View>
       )}
 
-      {/* Move history log — shown during online games, floats above debug bar */}
-      {isVisible && mpConfig && moveLog.length > 0 && (
+      {/* Move history log — shown during online games on game board only */}
+      {isVisible && mpConfig && ludoScreen === 'game' && moveLog.length > 0 && (
         <View style={[styles.moveLogContainer, { bottom: insets.bottom + 52 }]}>
           {moveLog.map((entry) => {
             const color = MP_COLORS[entry.playerIndex];
@@ -1109,8 +1109,8 @@ function LudoNativeOverlay({
         </View>
       )}
 
-      {/* EXIT players voting panel — shown during online games when someone disconnects */}
-      {isVisible && mpConfig && exitPlayers.length > 0 && (
+      {/* EXIT players voting panel — shown during online games on game board only */}
+      {isVisible && mpConfig && ludoScreen === 'game' && exitPlayers.length > 0 && (
         <View style={[styles.exitPanel, { bottom: insets.bottom + 56 }]}>
           <Text style={styles.exitPanelTitle}>⚠ Player(s) Disconnected</Text>
           {exitPlayers.map(ep => (
