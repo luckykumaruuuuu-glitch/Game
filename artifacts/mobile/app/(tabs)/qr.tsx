@@ -1,4 +1,5 @@
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
+import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Sharing from "expo-sharing";
@@ -6,6 +7,7 @@ import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
+  ScrollView,
   Share,
   StyleSheet,
   Text,
@@ -20,15 +22,25 @@ import { ThemedBackground } from "@/components/ThemedBackground";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
+/**
+ * Returns the full HTTPS public-profile URL for a given Firebase userId.
+ * - On web (browser): reads window.location.origin at runtime — always the correct domain, no env var needed.
+ * - On native (Expo Go): uses EXPO_PUBLIC_DOMAIN injected by Metro at bundle compile time.
+ *
+ * The resulting URL must start with https:// and contain /profile/{userId}.
+ * Example: https://abc123.pike.replit.dev/profile/xKfJABC9xyz
+ */
 function getProfileUrl(userId: string): string {
-  // On web: use the actual current browser origin (always correct, no env var needed)
+  // Web runtime: window.location.origin is always the exact current domain
   if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
     return `${window.location.origin}/profile/${userId}`;
   }
-  // On native (Expo Go): use the dev domain env var injected at Metro build time
+  // Native: Metro substitutes EXPO_PUBLIC_DOMAIN with the actual domain string at build time
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
-  if (domain) return `https://${domain}/profile/${userId}`;
-  // Absolute fallback — should never reach here in production
+  if (domain) {
+    return `https://${domain}/profile/${userId}`;
+  }
+  // Should never reach here — EXPO_PUBLIC_DOMAIN must be set in the dev script
   return `https://leludo.app/profile/${userId}`;
 }
 
@@ -38,6 +50,9 @@ export default function QRScreen() {
   const { user, profile } = useAuth();
   const cardRef = useRef<View>(null);
   const [capturing, setCapturing] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const profileUrl = user?.uid ? getProfileUrl(user.uid) : null;
 
   async function handleShare() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -57,7 +72,7 @@ export default function QRScreen() {
         });
       } else {
         await Share.share({
-          message: `Add me on LeLudo! View my profile: ${user?.uid ? getProfileUrl(user.uid) : ""}\nOr find me as @${profile?.username ?? ""}`,
+          message: `Add me on LeLudo! View my profile: ${profileUrl ?? ""}\nOr find me as @${profile?.username ?? ""}`,
           title: "My LeLudo Profile",
         });
       }
@@ -68,11 +83,23 @@ export default function QRScreen() {
     }
   }
 
+  async function handleCopyLink() {
+    if (!profileUrl) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await Clipboard.setStringAsync(profileUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  }
+
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
   return (
     <ThemedBackground>
-      <View style={[styles.inner, { paddingTop: topPad + 20, paddingBottom: insets.bottom + 24 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.inner, { paddingTop: topPad + 20, paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={[styles.title, { color: colors.foreground }]}>My QR Code</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
           Share your gaming profile card
@@ -125,12 +152,12 @@ export default function QRScreen() {
               @{profile?.username ?? ""}
             </Text>
 
-            {/* QR Code */}
+            {/* QR Code — encodes the full /profile/{userId} URL */}
             <View style={styles.qrContainer}>
               <View style={styles.qrBg}>
-                {user?.uid ? (
+                {profileUrl ? (
                   <QRCode
-                    value={getProfileUrl(user.uid)}
+                    value={profileUrl}
                     size={168}
                     color="#1a053a"
                     backgroundColor="white"
@@ -159,37 +186,60 @@ export default function QRScreen() {
           </LinearGradient>
         </View>
 
-        {/* Share Button */}
-        <TouchableOpacity
-          style={[styles.shareBtn, { backgroundColor: colors.primary, opacity: capturing ? 0.7 : 1 }]}
-          onPress={handleShare}
-          activeOpacity={0.8}
-          disabled={capturing}
-        >
-          {capturing ? (
-            <ActivityIndicator size="small" color="#fff" />
-          ) : (
-            <Feather name="share-2" size={18} color="#fff" />
-          )}
-          <Text style={styles.shareBtnText}>
-            {capturing ? "Generating Card..." : "Share QR Card"}
-          </Text>
-        </TouchableOpacity>
+        {/* Profile URL display — shows exactly what the QR encodes */}
+        {profileUrl ? (
+          <View style={[styles.urlBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Feather name="link" size={13} color={colors.mutedForeground} style={{ marginTop: 1 }} />
+            <Text style={[styles.urlText, { color: colors.mutedForeground }]} numberOfLines={2} selectable>
+              {profileUrl}
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Action buttons */}
+        <View style={styles.btnRow}>
+          <TouchableOpacity
+            style={[styles.shareBtn, { backgroundColor: colors.primary, opacity: capturing ? 0.7 : 1, flex: 1 }]}
+            onPress={handleShare}
+            activeOpacity={0.8}
+            disabled={capturing}
+          >
+            {capturing ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Feather name="share-2" size={18} color="#fff" />
+            )}
+            <Text style={styles.shareBtnText}>
+              {capturing ? "Generating..." : "Share Card"}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.copyBtn, { backgroundColor: copied ? "#16a34a" : colors.card, borderColor: copied ? "#16a34a" : colors.border }]}
+            onPress={handleCopyLink}
+            activeOpacity={0.8}
+            disabled={!profileUrl}
+          >
+            <Feather name={copied ? "check" : "copy"} size={18} color={copied ? "#fff" : colors.foreground} />
+            <Text style={[styles.copyBtnText, { color: copied ? "#fff" : colors.foreground }]}>
+              {copied ? "Copied!" : "Copy Link"}
+            </Text>
+          </TouchableOpacity>
+        </View>
 
         <View style={[styles.hint, { borderColor: colors.border, backgroundColor: colors.card }]}>
           <Feather name="info" size={14} color={colors.mutedForeground} />
           <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-            Works with Google Lens, iPhone Camera, and any QR scanner. Opens your public profile in a browser, with a button to download LeLudo.
+            Scan with Google Lens, iPhone Camera, or any QR scanner — opens your public profile directly, no login needed.
           </Text>
         </View>
-      </View>
+      </ScrollView>
     </ThemedBackground>
   );
 }
 
 const styles = StyleSheet.create({
   inner: {
-    flex: 1,
     paddingHorizontal: 24,
     alignItems: "center",
     gap: 18,
@@ -354,18 +404,50 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(124,58,237,0.8)",
   },
 
-  /* Share button */
+  /* URL display */
+  urlBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: StyleSheet.hairlineWidth,
+    width: "100%",
+  },
+  urlText: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    flex: 1,
+    lineHeight: 16,
+  },
+
+  /* Buttons row */
+  btnRow: {
+    flexDirection: "row",
+    gap: 10,
+    width: "100%",
+  },
   shareBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingVertical: 15,
-    paddingHorizontal: 36,
+    paddingHorizontal: 20,
     borderRadius: 16,
-    width: "100%",
     justifyContent: "center",
   },
-  shareBtnText: { color: "#fff", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  shareBtnText: { color: "#fff", fontSize: 15, fontFamily: "Inter_600SemiBold" },
+  copyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 16,
+    borderWidth: 1,
+    justifyContent: "center",
+  },
+  copyBtnText: { fontSize: 15, fontFamily: "Inter_600SemiBold" },
 
   /* Hint */
   hint: {
