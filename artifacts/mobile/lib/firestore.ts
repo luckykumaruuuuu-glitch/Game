@@ -1071,6 +1071,13 @@ export interface SavedGameState {
 
 export type GameRoomStatus = 'ACTIVE' | 'INACTIVE';
 
+export interface SpectatorSlot {
+  userId: string;
+  name: string;
+  photo: string;
+  joinedAt: number;
+}
+
 export interface GameRoom {
   roomId: string;
   hostId: string;
@@ -1081,6 +1088,7 @@ export interface GameRoom {
   players: Record<string, GameRoomPlayer>;
   playerIds: string[];        // flat array for array-contains queries
   memberIds: string[];        // permanent record of ALL who joined (never removed); used for Active Rooms visibility
+  spectators?: Record<string, SpectatorSlot>; // live watchers — keyed by userId
   createdAt: number;
   startingAt?: number;
   matchStartedAt?: number;    // set when status transitions to in_game

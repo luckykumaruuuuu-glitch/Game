@@ -30,6 +30,7 @@ import {
   GameAction,
   SavedGameState,
   GameRoomPlayer,
+  SpectatorSlot,
   PlayerStatus,
   UserProfile,
   UserPresence,
@@ -276,6 +277,8 @@ function LudoNativeOverlay({
   // Tool Menu + Share Room state
   const [toolMenuOpen, setToolMenuOpen] = useState(false);
   const [shareMenuOpen, setShareMenuOpen] = useState(false);
+  const [watchersOpen, setWatchersOpen] = useState(false);
+  const [spectators, setSpectators] = useState<SpectatorSlot[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [presence, setPresence] = useState<Record<string, UserPresence>>({});
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
@@ -420,6 +423,11 @@ function LudoNativeOverlay({
     if (!mpConfig) return;
     const unsub = subscribeToGameRoom(mpConfig.roomId, (room) => {
       if (!room) return;
+
+      // ── SPECTATORS live sync ───────────────────────────────────────────────
+      setSpectators(
+        Object.values(room.spectators ?? {}).sort((a, b) => a.joinedAt - b.joinedAt)
+      );
 
       // ── EXIT / KICKED player tracking ─────────────────────────────────────
       const players = Object.values(room.players) as GameRoomPlayer[];
@@ -782,6 +790,11 @@ function LudoNativeOverlay({
           hitSlop={10}
         >
           <Text style={styles.toolBtnIcon}>🛠️</Text>
+          {spectators.length > 0 && (
+            <View style={styles.toolBtnBadge}>
+              <Text style={styles.toolBtnBadgeText}>{spectators.length}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       )}
 
@@ -828,6 +841,30 @@ function LudoNativeOverlay({
               <View style={{ flex: 1 }}>
                 <Text style={styles.toolMenuItemLabel}>Friend Chat</Text>
                 <Text style={styles.toolMenuItemSub}>Chat with players & spectators</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.toolMenuItem}
+              activeOpacity={0.75}
+              onPress={() => {
+                setToolMenuOpen(false);
+                setTimeout(() => setWatchersOpen(true), 150);
+              }}
+            >
+              <Text style={styles.toolMenuItemIcon}>👁️</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toolMenuItemLabel}>
+                  Watching
+                  {spectators.length > 0 ? ` · ${spectators.length}` : ''}
+                </Text>
+                <Text style={styles.toolMenuItemSub}>
+                  {spectators.length === 0
+                    ? 'No one is watching yet'
+                    : spectators.length === 1
+                    ? '1 person watching live'
+                    : `${spectators.length} people watching live`}
+                </Text>
               </View>
               <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.4)" />
             </TouchableOpacity>
@@ -994,6 +1031,83 @@ function LudoNativeOverlay({
                     : `Send Invite to ${selectedFriends.size} friend${selectedFriends.size > 1 ? 's' : ''}`}
               </Text>
             </TouchableOpacity>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* ── WATCHERS Panel modal ── */}
+      <Modal
+        visible={watchersOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setWatchersOpen(false)}
+      >
+        <Pressable
+          style={styles.toolMenuBackdrop}
+          onPress={() => setWatchersOpen(false)}
+        >
+          <Pressable style={styles.watchersCard} onPress={() => {}}>
+            <View style={styles.toolMenuHandle} />
+
+            {/* Header */}
+            <View style={styles.watchersHeader}>
+              <View style={styles.watchersEyeBadge}>
+                <Text style={{ fontSize: 18 }}>👁️</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toolMenuTitle}>Watching Now</Text>
+                <Text style={styles.watchersSubtitle}>
+                  {spectators.length === 0
+                    ? 'No spectators yet'
+                    : spectators.length === 1
+                    ? '1 person watching this match'
+                    : `${spectators.length} people watching this match`}
+                </Text>
+              </View>
+              <View style={styles.watchersCountBubble}>
+                <Text style={styles.watchersCountBubbleText}>{spectators.length}</Text>
+              </View>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.watchersDivider} />
+
+            {/* Spectator list */}
+            {spectators.length === 0 ? (
+              <View style={styles.watchersEmptyWrap}>
+                <Text style={styles.watchersEmptyIcon}>🎭</Text>
+                <Text style={styles.watchersEmptyText}>Share the Room ID to let friends watch live</Text>
+              </View>
+            ) : (
+              <ScrollView
+                style={styles.watchersList}
+                showsVerticalScrollIndicator={false}
+              >
+                {spectators.map((sp, idx) => (
+                  <View key={sp.userId} style={styles.watcherRow}>
+                    {/* Avatar */}
+                    {sp.photo ? (
+                      <Image source={{ uri: sp.photo }} style={styles.watcherAvatar} />
+                    ) : (
+                      <View style={[styles.watcherAvatar, styles.watcherAvatarFallback]}>
+                        <Text style={styles.watcherAvatarInitial}>
+                          {(sp.name || '?')[0].toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
+                    {/* Name + index */}
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.watcherName} numberOfLines={1}>{sp.name || 'Spectator'}</Text>
+                      <Text style={styles.watcherStatus}>👁️ Watching live</Text>
+                    </View>
+                    {/* Sequence number */}
+                    <View style={styles.watcherIndexBadge}>
+                      <Text style={styles.watcherIndexText}>#{idx + 1}</Text>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
           </Pressable>
         </Pressable>
       </Modal>
@@ -1886,5 +2000,150 @@ const styles = StyleSheet.create({
   },
   chatSendBtnDisabled: {
     backgroundColor: 'rgba(139,92,246,0.3)',
+  },
+
+  // ── Tool button badge ─────────────────────────────────────────────────────────
+  toolBtnBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#F59E0B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(10,6,22,0.9)',
+  },
+  toolBtnBadgeText: {
+    color: '#000',
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    lineHeight: 13,
+  },
+
+  // ── Watchers panel ────────────────────────────────────────────────────────────
+  watchersCard: {
+    backgroundColor: 'rgba(14,8,28,0.97)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+    paddingHorizontal: 20,
+    paddingBottom: 36,
+    paddingTop: 10,
+    gap: 14,
+    maxHeight: '75%',
+  },
+  watchersHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  watchersEyeBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(245,158,11,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  watchersSubtitle: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  watchersCountBubble: {
+    minWidth: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(245,158,11,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  watchersCountBubbleText: {
+    color: '#F59E0B',
+    fontSize: 16,
+    fontFamily: 'Inter_700Bold',
+  },
+  watchersDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    marginHorizontal: -4,
+    marginTop: -4,
+  },
+  watchersList: {
+    maxHeight: 340,
+  },
+  watchersEmptyWrap: {
+    paddingVertical: 32,
+    alignItems: 'center',
+    gap: 10,
+  },
+  watchersEmptyIcon: {
+    fontSize: 36,
+  },
+  watchersEmptyText: {
+    color: 'rgba(255,255,255,0.35)',
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+  },
+  watcherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  watcherAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  watcherAvatarFallback: {
+    backgroundColor: 'rgba(245,158,11,0.18)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  watcherAvatarInitial: {
+    color: '#F59E0B',
+    fontSize: 17,
+    fontFamily: 'Inter_700Bold',
+  },
+  watcherName: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter_600SemiBold',
+  },
+  watcherStatus: {
+    color: 'rgba(255,255,255,0.40)',
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    marginTop: 2,
+  },
+  watcherIndexBadge: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+    backgroundColor: 'rgba(245,158,11,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+  },
+  watcherIndexText: {
+    color: 'rgba(245,158,11,0.8)',
+    fontSize: 11,
+    fontFamily: 'Inter_600SemiBold',
   },
 });
