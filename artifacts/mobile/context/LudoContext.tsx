@@ -8,6 +8,7 @@ import {
   Animated, TextInput, KeyboardAvoidingView, PanResponder,
 } from 'react-native';
 import { playWebClickSound } from '@/lib/webSound';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -237,6 +238,16 @@ const floatTextStyle = {
   fontFamily: 'Inter_500Medium' as const,
 };
 
+const MCP_SLOTS = [
+  { id: 'crown',   emoji: '👑', name: 'Crown',   shortName: 'CROWN',   desc: 'Royal King · Luxury Power Mode',       feature: 'Dynasty Mode',  color: '#FFD700', border: '#B8860B', glow: 'rgba(255,215,0,0.22)',   gradient: ['#1f1600', '#2a1d00', '#1a1000'] as [string,string,string] },
+  { id: 'flame',   emoji: '🔥', name: 'Flame',   shortName: 'FLAME',   desc: 'Fire Surge · Heat Wave Active',        feature: 'Blaze Rush',    color: '#FF5500', border: '#CC3300', glow: 'rgba(255,85,0,0.22)',    gradient: ['#200800', '#2a0d00', '#1a0500'] as [string,string,string] },
+  { id: 'thunder', emoji: '⚡', name: 'Thunder', shortName: 'THUNDER', desc: 'Electric Storm · Voltage Surge',       feature: 'Shock Wave',    color: '#00AAFF', border: '#0077BB', glow: 'rgba(0,170,255,0.22)',   gradient: ['#00091f', '#000d28', '#000614'] as [string,string,string] },
+  { id: 'diamond', emoji: '💎', name: 'Diamond', shortName: 'DIAMOND', desc: 'Crystal Glass · Prismatic Energy',     feature: 'Prism Shield',  color: '#00DDDD', border: '#009999', glow: 'rgba(0,221,221,0.22)',   gradient: ['#001a1a', '#002222', '#001212'] as [string,string,string] },
+  { id: 'dragon',  emoji: '🐉', name: 'Dragon',  shortName: 'DRAGON',  desc: 'Ancient Beast · Mythical Force',       feature: 'Scale Armor',   color: '#00CC44', border: '#007730', glow: 'rgba(0,204,68,0.22)',    gradient: ['#001a07', '#002210', '#001205'] as [string,string,string] },
+  { id: 'shadow',  emoji: '☠️', name: 'Shadow',  shortName: 'SHADOW',  desc: 'Dark Phantom · Stealth Protocol',      feature: 'Void Strike',   color: '#9933FF', border: '#6600BB', glow: 'rgba(153,51,255,0.22)',  gradient: ['#0d0014', '#130022', '#09000f'] as [string,string,string] },
+] as const;
+type McpSlotId = typeof MCP_SLOTS[number]['id'];
+
 function LudoNativeOverlay({
   isVisible,
   onHide,
@@ -317,6 +328,7 @@ function LudoNativeOverlay({
 
   // Monster Control Panel state
   const [monsterPanelOpen, setMonsterPanelOpen] = useState(false);
+  const [mcpActiveSlot, setMcpActiveSlot] = useState<McpSlotId>('crown');
 
   // Monster floating animation
   const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
@@ -1068,7 +1080,7 @@ function LudoNativeOverlay({
       <Modal
         visible={monsterPanelOpen}
         transparent
-        animationType="fade"
+        animationType="slide"
         onRequestClose={() => setMonsterPanelOpen(false)}
       >
         <Pressable style={styles.mcpBackdrop} onPress={() => setMonsterPanelOpen(false)}>
@@ -1077,39 +1089,91 @@ function LudoNativeOverlay({
 
             {/* Header */}
             <View style={styles.mcpHeader}>
-              <Text style={styles.mcpMonsterEmoji}>👾</Text>
+              <View style={styles.mcpHeaderBadge}>
+                <Text style={styles.mcpHeaderBadgeIcon}>⚔️</Text>
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.mcpTitle}>MONSTER CONTROL PANEL</Text>
-                <Text style={styles.mcpSub}>Secret access — exclusive features</Text>
+                <Text style={styles.mcpTitle}>MONSTER CONTROL</Text>
+                <Text style={styles.mcpSub}>Secret Gaming Dashboard · 6 Power Slots</Text>
               </View>
             </View>
 
-            <View style={styles.mcpDivider} />
+            {/* ── Tab bar ── */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.mcpTabBarContent}
+              style={styles.mcpTabBar}
+            >
+              {MCP_SLOTS.map((slot) => {
+                const active = mcpActiveSlot === slot.id;
+                return (
+                  <TouchableOpacity
+                    key={slot.id}
+                    style={[
+                      styles.mcpTab,
+                      active ? { borderBottomColor: slot.color, borderBottomWidth: 2 } : null,
+                    ]}
+                    onPress={() => setMcpActiveSlot(slot.id as McpSlotId)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={active ? styles.mcpTabEmojiActive : styles.mcpTabEmoji}>
+                      {slot.emoji}
+                    </Text>
+                    <Text style={[styles.mcpTabLabel, { color: active ? slot.color : 'rgba(255,255,255,0.32)' }]}>
+                      {slot.shortName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
 
-            <Text style={styles.mcpSlotsLabel}>RESERVED SLOTS</Text>
+            {/* ── Active slot themed panel ── */}
+            {MCP_SLOTS.map((slot) => {
+              if (slot.id !== mcpActiveSlot) return null;
+              return (
+                <LinearGradient
+                  key={slot.id}
+                  colors={slot.gradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.mcpSlotPanel, { borderColor: slot.border }]}
+                >
+                  {/* Atmospheric glow blob */}
+                  <View style={[styles.mcpSlotGlowOrb, { backgroundColor: slot.glow }]} />
 
-            {/* 6 placeholder slots */}
-            {[1, 2, 3, 4, 5, 6].map((slot) => (
-              <View key={slot} style={styles.mcpSlot}>
-                <View style={styles.mcpSlotBadge}>
-                  <Text style={styles.mcpSlotBadgeText}>{slot}</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.mcpSlotLabel}>Reserved Slot {slot}</Text>
-                  <Text style={styles.mcpSlotSub}>Coming in a future update</Text>
-                </View>
-                <View style={styles.mcpSlotLock}>
-                  <Text style={styles.mcpSlotLockIcon}>🔒</Text>
-                </View>
-              </View>
-            ))}
+                  {/* Big emoji */}
+                  <Text style={styles.mcpSlotEmoji}>{slot.emoji}</Text>
 
+                  {/* Name + desc */}
+                  <Text style={[styles.mcpSlotName, { color: slot.color }]}>{slot.name} Slot</Text>
+                  <Text style={styles.mcpSlotDesc}>{slot.desc}</Text>
+
+                  {/* Feature badge */}
+                  <View style={[styles.mcpFeatureBadge, { borderColor: slot.border, backgroundColor: slot.glow }]}>
+                    <Text style={[styles.mcpFeatureText, { color: slot.color }]}>
+                      ⚡ {slot.feature} — Coming Soon
+                    </Text>
+                  </View>
+
+                  {/* Lock indicator */}
+                  <View style={[styles.mcpLockRow, { borderColor: slot.border + '55' }]}>
+                    <Text style={styles.mcpLockIcon}>🔐</Text>
+                    <Text style={[styles.mcpLockText, { color: slot.color + 'AA' }]}>
+                      Feature Slot Reserved · Future Update
+                    </Text>
+                  </View>
+                </LinearGradient>
+              );
+            })}
+
+            {/* Close */}
             <TouchableOpacity
               style={styles.mcpCloseBtn}
               activeOpacity={0.75}
               onPress={() => setMonsterPanelOpen(false)}
             >
-              <Text style={styles.mcpCloseBtnText}>Close Panel</Text>
+              <Text style={styles.mcpCloseBtnText}>✕  Close Panel</Text>
             </TouchableOpacity>
           </Pressable>
         </Pressable>
@@ -2613,118 +2677,174 @@ const styles = StyleSheet.create({
   // ── Monster Control Panel ──────────────────────────────────────────────────
   mcpBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.80)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.88)',
+    justifyContent: 'flex-end',
   },
   mcpCard: {
     width: '100%',
-    backgroundColor: 'rgba(6,3,16,0.99)',
-    borderRadius: 26,
-    borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.35)',
-    paddingHorizontal: 20,
-    paddingVertical: 22,
-    gap: 12,
+    backgroundColor: '#060312',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderColor: 'rgba(139,92,246,0.45)',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 28,
+    gap: 14,
     shadowColor: '#7C3AED',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 14,
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.55,
+    shadowRadius: 28,
+    elevation: 20,
   },
   mcpHandle: {
-    width: 40,
+    width: 44,
     height: 4,
     borderRadius: 2,
-    backgroundColor: 'rgba(139,92,246,0.30)',
+    backgroundColor: 'rgba(139,92,246,0.40)',
     alignSelf: 'center',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   mcpHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-  },
-  mcpMonsterEmoji: {
-    fontSize: 38,
-  },
-  mcpTitle: {
-    color: '#C4B5FD',
-    fontSize: 14,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 1.8,
-  },
-  mcpSub: {
-    color: 'rgba(255,255,255,0.35)',
-    fontSize: 11,
-    fontFamily: 'Inter_400Regular',
-    marginTop: 2,
-  },
-  mcpDivider: {
-    height: 1,
-    backgroundColor: 'rgba(139,92,246,0.18)',
-    marginVertical: 2,
-  },
-  mcpSlotsLabel: {
-    color: 'rgba(196,181,253,0.50)',
-    fontSize: 10,
-    fontFamily: 'Inter_700Bold',
-    letterSpacing: 2,
-    marginBottom: 2,
-  },
-  mcpSlot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(139,92,246,0.06)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.14)',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
     gap: 12,
   },
-  mcpSlotBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(139,92,246,0.18)',
+  mcpHeaderBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    backgroundColor: 'rgba(124,58,237,0.18)',
     borderWidth: 1,
-    borderColor: 'rgba(139,92,246,0.30)',
+    borderColor: 'rgba(124,58,237,0.50)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  mcpSlotBadgeText: {
-    color: '#A78BFA',
-    fontSize: 12,
+  mcpHeaderBadgeIcon: {
+    fontSize: 24,
+  },
+  mcpTitle: {
+    color: '#E9D5FF',
+    fontSize: 15,
     fontFamily: 'Inter_700Bold',
+    letterSpacing: 2.2,
   },
-  mcpSlotLabel: {
-    color: 'rgba(255,255,255,0.65)',
-    fontSize: 13,
-    fontFamily: 'Inter_600SemiBold',
-  },
-  mcpSlotSub: {
-    color: 'rgba(255,255,255,0.28)',
-    fontSize: 11,
+  mcpSub: {
+    color: 'rgba(255,255,255,0.32)',
+    fontSize: 10,
     fontFamily: 'Inter_400Regular',
-    marginTop: 1,
+    marginTop: 3,
+    letterSpacing: 0.3,
   },
-  mcpSlotLock: {
-    width: 28,
-    height: 28,
+  // Tab bar
+  mcpTabBar: {
+    flexGrow: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(139,92,246,0.18)',
+  },
+  mcpTabBarContent: {
+    gap: 2,
+  },
+  mcpTab: {
     alignItems: 'center',
+    paddingHorizontal: 11,
+    paddingBottom: 10,
+    paddingTop: 4,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+    minWidth: 54,
+  },
+  mcpTabEmoji: {
+    fontSize: 22,
+    marginBottom: 3,
+  },
+  mcpTabEmojiActive: {
+    fontSize: 27,
+    marginBottom: 3,
+  },
+  mcpTabLabel: {
+    fontSize: 8,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.1,
+  },
+  // Active slot panel
+  mcpSlotPanel: {
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingVertical: 22,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    gap: 10,
+    overflow: 'hidden',
+    position: 'relative',
+    minHeight: 196,
     justifyContent: 'center',
   },
-  mcpSlotLockIcon: {
-    fontSize: 14,
+  mcpSlotGlowOrb: {
+    position: 'absolute',
+    top: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
   },
-  mcpCloseBtn: {
-    marginTop: 4,
-    paddingVertical: 13,
-    borderRadius: 14,
+  mcpSlotEmoji: {
+    fontSize: 54,
+    textShadowColor: 'rgba(255,255,255,0.25)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 14,
+    marginBottom: 2,
+  },
+  mcpSlotName: {
+    fontSize: 22,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.8,
+    textAlign: 'center',
+  },
+  mcpSlotDesc: {
+    color: 'rgba(255,255,255,0.45)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  mcpFeatureBadge: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  mcpFeatureText: {
+    fontSize: 11,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.7,
+  },
+  mcpLockRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(139,92,246,0.14)',
+    gap: 6,
+    marginTop: 2,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  mcpLockIcon: {
+    fontSize: 12,
+  },
+  mcpLockText: {
+    fontSize: 10,
+    fontFamily: 'Inter_500Medium',
+    letterSpacing: 0.3,
+  },
+  // Close button
+  mcpCloseBtn: {
+    marginTop: 2,
+    paddingVertical: 13,
+    borderRadius: 16,
+    alignItems: 'center',
+    backgroundColor: 'rgba(139,92,246,0.10)',
     borderWidth: 1,
     borderColor: 'rgba(139,92,246,0.30)',
   },
@@ -2732,6 +2852,6 @@ const styles = StyleSheet.create({
     color: '#C4B5FD',
     fontSize: 14,
     fontFamily: 'Inter_600SemiBold',
-    letterSpacing: 0.3,
+    letterSpacing: 0.8,
   },
 });
