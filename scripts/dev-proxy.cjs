@@ -45,7 +45,7 @@ function proxyTo(req, res, targetPort) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.url && req.url.startsWith('/api')) {
+  if (req.url && (req.url.startsWith('/api') || req.url.startsWith('/profile'))) {
     proxyTo(req, res, API_PORT);
   } else {
     proxyTo(req, res, EXPO_PORT);

@@ -41,12 +41,28 @@ function NativeScanner() {
   const [scanned, setScanned] = useState(false);
   const cooldown = useRef(false);
 
+  const extractUserId = (data: string): string | null => {
+    try {
+      // New format: https://domain/profile/{userId}
+      const url = new URL(data);
+      const match = url.pathname.match(/^\/profile\/([a-zA-Z0-9_-]{1,128})$/);
+      if (match) return match[1];
+    } catch {
+      // Not a URL — fall through
+    }
+    // Old format: bare Firebase UID (28 chars, alphanumeric)
+    if (/^[a-zA-Z0-9]{20,128}$/.test(data.trim())) return data.trim();
+    return null;
+  };
+
   const handleScan = useCallback(({ data }: { data: string }) => {
     if (cooldown.current) return;
+    const userId = extractUserId(data);
+    if (!userId) return;
     cooldown.current = true;
     setScanned(true);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.push(`/user/${data}`);
+    router.push(`/user/${userId}`);
     setTimeout(() => {
       cooldown.current = false;
       setScanned(false);

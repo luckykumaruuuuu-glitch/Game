@@ -20,6 +20,12 @@ import { ThemedBackground } from "@/components/ThemedBackground";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
+function getProfileUrl(userId: string): string {
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}/profile/${userId}`;
+  return `https://leludo.app/profile/${userId}`;
+}
+
 export default function QRScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -45,7 +51,7 @@ export default function QRScreen() {
         });
       } else {
         await Share.share({
-          message: `Add me on LeLudo! Scan my QR or find me as ${profile?.username ?? user?.uid}`,
+          message: `Add me on LeLudo! View my profile: ${user?.uid ? getProfileUrl(user.uid) : ""}\nOr find me as @${profile?.username ?? ""}`,
           title: "My LeLudo Profile",
         });
       }
@@ -118,7 +124,7 @@ export default function QRScreen() {
               <View style={styles.qrBg}>
                 {user?.uid ? (
                   <QRCode
-                    value={user.uid}
+                    value={getProfileUrl(user.uid)}
                     size={168}
                     color="#1a053a"
                     backgroundColor="white"
@@ -167,7 +173,7 @@ export default function QRScreen() {
         <View style={[styles.hint, { borderColor: colors.border, backgroundColor: colors.card }]}>
           <Feather name="info" size={14} color={colors.mutedForeground} />
           <Text style={[styles.hintText, { color: colors.mutedForeground }]}>
-            Shares your profile card as an image. Anyone who scans the QR can view your public profile.
+            Works with Google Lens, iPhone Camera, and any QR scanner. Opens your public profile in a browser, with a button to download LeLudo.
           </Text>
         </View>
       </View>
