@@ -81,9 +81,20 @@ function buildStartGameJS(
   const restoreCall = savedGameState && typeof myPlayerIndex === 'number'
     ? `setTimeout(function(){if(typeof window._restoreGameState==='function'){window._restoreGameState(${JSON.stringify(savedGameState)});}},1600);`
     : '';
+  // Always reset _mp before START_GAME so a previous online session never
+  // bleeds into an offline or new-online game. _initMultiplayer (called
+  // 800 ms later for online games only) will re-enable it with fresh state.
+  const mpReset =
+    `if(window._mp){` +
+      `window._mp.enabled=false;` +
+      `window._mp.myPlayerIndex=-1;` +
+      `window._mp.applyingRemote=false;` +
+      `window._mp.lastSentSeq=0;` +
+    `}`;
   return (
     `(function(){` +
       `try{` +
+        mpReset +
         `var fn=window._ludoDispatch||window.dispatch;` +
         `if(typeof fn==='function'){` +
           `fn({type:'START_GAME',quickStartId:${JSON.stringify(quickStartId)},namesByPlayerIndex:${JSON.stringify(namesByPlayerIndex)}});` +
