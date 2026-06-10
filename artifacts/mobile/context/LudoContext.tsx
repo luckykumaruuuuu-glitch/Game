@@ -619,18 +619,6 @@ function LudoNativeOverlay({
         </Pressable>
       )}
 
-      {/* Room ID label — top-right, display only, never blocks gameplay */}
-      {isVisible && mpConfig && (
-        <View
-          style={[styles.roomIdLabel, { top: insets.top + 10 }]}
-          pointerEvents="none"
-        >
-          <Text style={styles.roomIdText}>
-            Room ID: {mpConfig.roomId}
-          </Text>
-        </View>
-      )}
-
       {/* Move history log — shown during online games, floats above debug bar */}
       {isVisible && mpConfig && moveLog.length > 0 && (
         <View style={[styles.moveLogContainer, { bottom: insets.bottom + 52 }]}>
@@ -647,25 +635,6 @@ function LudoNativeOverlay({
               </Text>
             );
           })}
-        </View>
-      )}
-
-      {/* Multiplayer debug bar — shown during online games */}
-      {isVisible && mpConfig && (
-        <View style={[styles.mpDebug, { bottom: insets.bottom + 6 }]}>
-          <Text style={styles.mpDebugText}>
-            {'UID:' + mpConfig.userId.slice(-8) +
-             '  ·  ' +
-             (MP_COLORS[mpConfig.myPlayerIndex]?.emoji ?? '⬜') + ' Me:' +
-             (MP_COLORS[mpConfig.myPlayerIndex]?.name ?? '?') +
-             '(P' + mpConfig.myPlayerIndex + ')' +
-             '  ·  Turn:' +
-             (debugTurn >= 0
-               ? ((MP_COLORS[debugTurn]?.emoji ?? '⬜') + (MP_COLORS[debugTurn]?.name ?? '?') + '(P' + debugTurn + ')')
-               : '…') +
-             '  ·  ' +
-             (debugTurn === mpConfig.myPlayerIndex ? '✓ MY TURN' : '⏳ waiting')}
-          </Text>
         </View>
       )}
 

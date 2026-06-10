@@ -8405,59 +8405,16 @@ window._initMultiplayer = function(myPlayerIndex) {
   setTimeout(_applyCornerLayout, 1500);
   // ── End corner panel layout synchronization ────────────────────────────────
 
-  // ── Debug overlay (temporary) ─────────────────────────────────────────────
-  // Shows ownership info for identifying incorrect mapping during testing.
-  // Displays: My color · Current turn · My turn? · Selected token owner
-  var _DBG_COLOR_NAMES = ['Yellow', 'Green', 'Red', 'Blue'];
-  var _DBG_COLOR_HEX   = ['#f5c518', '#22c55e', '#ef4444', '#3b82f6'];
-  var _dbgEl = document.getElementById('_mp_dbg_overlay');
-  if (!_dbgEl) {
-    _dbgEl = document.createElement('div');
-    _dbgEl.id = '_mp_dbg_overlay';
-    _dbgEl.style.cssText = [
-      'position:fixed', 'bottom:0', 'left:0', 'right:0',
-      'background:rgba(0,0,0,0.82)', 'color:#fff',
-      'font:bold 11px/1.7 monospace', 'padding:4px 10px',
-      'z-index:99999', 'pointer-events:none', 'text-align:center',
-      'border-top:1px solid rgba(255,255,255,0.15)',
-    ].join(';');
-    document.body.appendChild(_dbgEl);
-  }
-  var _dbgLastTokenOwner = '—';
-  // Intercept token clicks to track selected token owner for debug display.
-  var _dbgOrigClick = document.body.onclick || null;
+  // Intercept token clicks (used for game logic).
   document.body.addEventListener('click', function(e) {
     var el = e.target;
     for (var depth = 0; depth < 6 && el && el !== document.body; depth++, el = el.parentElement) {
       var m = el.id && el.id.match(/^p-(\d+)-(\d+)$/);
       if (m) {
-        var tpi = parseInt(m[1], 10);
-        _dbgLastTokenOwner = (_DBG_COLOR_NAMES[tpi] || 'P' + tpi) + ' (P' + tpi + ')';
         break;
       }
     }
   }, true);
-  setInterval(function() {
-    var el = document.getElementById('_mp_dbg_overlay');
-    if (!el || !_mp.enabled) return;
-    var myPI  = _mp.myPlayerIndex;
-    var curPI = (typeof state !== 'undefined' && state) ? state.currentPlayerIndex : -1;
-    var myTurn = (myPI === curPI);
-    var myColor  = _DBG_COLOR_HEX[myPI]  || '#fff';
-    var curColor = _DBG_COLOR_HEX[curPI] || '#aaa';
-    el.innerHTML =
-      'Me: <span style="color:' + myColor + '">' + (_DBG_COLOR_NAMES[myPI] || 'P' + myPI) + '</span>' +
-      '&nbsp;|&nbsp;' +
-      'Turn: <span style="color:' + curColor + '">' + (_DBG_COLOR_NAMES[curPI] || 'P' + curPI) + '</span>' +
-      '&nbsp;|&nbsp;' +
-      'Clicked: <span style="color:#e2e8f0">' + _dbgLastTokenOwner + '</span>' +
-      '&nbsp;|&nbsp;' +
-      (myTurn
-        ? '<span style="color:#4ade80;font-weight:bold">YOUR TURN</span>'
-        : '<span style="color:#facc15">waiting…</span>');
-  }, 350);
-  // ── End debug overlay ──────────────────────────────────────────────────────
-
   var readyMsg = JSON.stringify({ type: 'mpReady', myPlayerIndex: myPlayerIndex, currentPlayerIndex: state.currentPlayerIndex });
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(readyMsg);
 };
