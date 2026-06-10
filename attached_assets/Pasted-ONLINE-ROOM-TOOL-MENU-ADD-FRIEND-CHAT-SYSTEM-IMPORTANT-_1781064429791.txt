@@ -1,0 +1,236 @@
+ONLINE ROOM TOOL MENU - ADD FRIEND CHAT SYSTEM
+
+IMPORTANT
+
+This feature must ONLY work inside an active Online Friend room.
+
+Do NOT show this feature anywhere else.
+
+================================
+
+TOOL MENU STRUCTURE
+
+================================
+
+Inside Live Online Match:
+
+Top Right:
+
+Tool Icon
+
+When Tool Icon is clicked:
+
+Open Tool Menu.
+
+Menu Items:
+
+1. Share Room
+2. Friend Chat
+
+================================
+
+VISIBILITY RULE
+
+================================
+
+Show Tool Menu ONLY inside:
+
+✔ Active Online Friend Match
+
+Hide from:
+
+✖ Home Screen
+✖ Offline Mode
+✖ AI Mode
+✖ Local Multiplayer
+✖ Room List
+✖ Invite Screen
+✖ Any non-game screen
+
+================================
+
+FRIEND CHAT OPTION
+
+================================
+
+When user clicks:
+
+Friend Chat
+
+Open a premium gaming popup.
+
+Use:
+
+- Glassmorphism
+- Blur background
+- Smooth animation
+
+================================
+
+CHAT LAYOUT
+
+================================
+
+Bottom Area:
+
+[ Message Input Field ]
+
+[ Send Button ]
+
+[ Emoji Button ]
+
+================================
+
+EMOJI BUTTON
+
+================================
+
+When Emoji button is pressed:
+
+Open Emoji Panel.
+
+Available Emojis:
+
+😜
+😭
+❤️
+🤔
+😅
+😁
+😍
+👌
+😎
+🥵
+🥶
+😈
+
+================================
+
+EMOJI REACTION BEHAVIOR
+
+================================
+
+When an emoji is sent:
+
+Show ONLY emoji.
+
+Do NOT show message bubble.
+
+Animation:
+
+1. Emoji appears near top area
+2. Slight pop animation
+3. Smooth floating movement
+4. Move downward slightly
+5. Stay visible for 1-2 seconds
+6. Fade out automatically
+
+Emoji should feel like a gaming reaction.
+
+Make emoji larger than text messages.
+
+================================
+
+TEXT MESSAGE BEHAVIOR
+
+================================
+
+When a text message is sent:
+
+Show:
+
+Player Name + Message
+
+Example:
+
+Lucky: Nice Move!
+
+Rahul: 😄
+
+================================
+
+MESSAGE ANIMATION
+
+================================
+
+Messages appear from upper area.
+
+Move downward slowly.
+
+Do NOT reach the keyboard area.
+
+Before reaching the bottom controls:
+
+- Fade out
+- Disappear automatically
+
+Display time:
+
+Around 8-10 seconds
+
+================================
+
+REALTIME RULE
+
+================================
+
+Messages and emojis must be visible to:
+
+✔ All players
+
+✔ All spectators
+
+Realtime synchronization required.
+
+================================
+
+ANTI-SPAM
+
+================================
+
+Text:
+
+1 message every 2 seconds.
+
+Emoji:
+
+1 reaction every 1 second.
+
+================================
+
+UI RULE
+
+================================
+
+Do NOT cover:
+
+- Ludo Board
+- Dice
+- Tokens
+- Turn Controls
+
+Keep gameplay visible.
+
+================================
+
+DO NOT MODIFY
+
+================================
+
+- Gameplay
+- Turn System
+- Dice System
+- Room System
+- Spectator System
+
+Only add:
+
+✔ Friend Chat Option
+
+✔ Emoji Panel
+
+✔ Realtime Message Display
+
+✔ Realtime Emoji Reactions
+
+inside Tool Menu.

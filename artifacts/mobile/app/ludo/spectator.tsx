@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Animated,
   Platform,
   Pressable,
   StatusBar,
@@ -17,6 +18,8 @@ import {
   GameRoomPlayer,
   leaveRoomAsSpectator,
   subscribeToGameRoom,
+  subscribeToRoomMessages,
+  RoomMessage,
 } from '@/lib/firestore';
 import { LUDO_GAME_HTML } from '@/lib/ludo/ludo-html';
 
@@ -40,6 +43,79 @@ function buildNamesByPlayerIndex(
     names[HUMAN_PREFERRED_POSITIONS[i]] = player.name || '';
   });
   return names;
+}
+
+const spectatorFloatPanel = {
+  position: 'absolute' as const,
+  left: 12,
+  zIndex: 150,
+  gap: 4,
+  maxWidth: 220,
+};
+
+const CHAT_FLOAT_STYLE = {
+  backgroundColor: 'rgba(6,4,18,0.80)',
+  borderRadius: 14,
+  paddingHorizontal: 11,
+  paddingVertical: 7,
+  borderWidth: 1,
+  borderColor: 'rgba(139,92,246,0.30)',
+} as const;
+
+type FloatingMsg = { id: string; text: string; senderName: string; type: 'text' | 'emoji' };
+
+function FloatingChatMessage({ msg, onDone }: { msg: FloatingMsg; onDone: (id: string) => void }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(msg.type === 'emoji' ? 0.3 : 0.85)).current;
+
+  useEffect(() => {
+    if (msg.type === 'emoji') {
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+          Animated.spring(scale, { toValue: 1, friction: 5, tension: 100, useNativeDriver: true }),
+        ]),
+        Animated.delay(1000),
+        Animated.parallel([
+          Animated.timing(translateY, { toValue: 50, duration: 900, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0, duration: 900, useNativeDriver: true }),
+        ]),
+      ]).start(() => onDone(msg.id));
+    } else {
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 260, useNativeDriver: true }),
+        ]),
+        Animated.delay(7500),
+        Animated.parallel([
+          Animated.timing(translateY, { toValue: 30, duration: 1200, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0, duration: 1200, useNativeDriver: true }),
+        ]),
+      ]).start(() => onDone(msg.id));
+    }
+  }, []);
+
+  if (msg.type === 'emoji') {
+    return (
+      <Animated.Text style={{ fontSize: 44, opacity, transform: [{ scale }, { translateY }], marginBottom: 6 }}>
+        {msg.text}
+      </Animated.Text>
+    );
+  }
+  return (
+    <Animated.View style={{ opacity, transform: [{ scale }, { translateY }], marginBottom: 6, maxWidth: 210 }}>
+      <View style={CHAT_FLOAT_STYLE}>
+        <Text style={{ color: '#F59E0B', fontSize: 10, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }} numberOfLines={1}>
+          {msg.senderName}
+        </Text>
+        <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+          {msg.text}
+        </Text>
+      </View>
+    </Animated.View>
+  );
 }
 
 // Transparent overlay injected into WebView to block all user interaction.
@@ -87,6 +163,7 @@ export default function SpectatorScreen() {
   const [room, setRoom] = useState<GameRoom | null>(null);
   const [loading, setLoading] = useState(true);
   const [webLoaded, setWebLoaded] = useState(false);
+  const [floatingMsgs, setFloatingMsgs] = useState<FloatingMsg[]>([]);
 
   // Subscribe to room in realtime
   useEffect(() => {
@@ -97,6 +174,24 @@ export default function SpectatorScreen() {
       setLoading(false);
     });
     return unsub;
+  }, [roomId]);
+
+  // Subscribe to live room chat
+  useEffect(() => {
+    if (!roomId) return;
+    const startTime = Date.now();
+    const unsub = subscribeToRoomMessages(roomId, startTime, (newMsgs) => {
+      newMsgs.forEach(msg => {
+        const floating: FloatingMsg = {
+          id: `${msg.createdAt}-${msg.senderId}-${Math.random()}`,
+          text: msg.text,
+          senderName: msg.senderName,
+          type: msg.type,
+        };
+        setFloatingMsgs(prev => [...prev.slice(-4), floating]);
+      });
+    });
+    return () => { unsub(); setFloatingMsgs([]); };
   }, [roomId]);
 
   // When WebView finishes loading, start game in read-only spectator mode
@@ -289,6 +384,22 @@ export default function SpectatorScreen() {
           originWhitelist={['*']}
           onMessage={() => {}}
         />
+      )}
+
+      {/* ── Floating Chat Messages (over board, no interaction block) ── */}
+      {floatingMsgs.length > 0 && (
+        <View
+          style={[spectatorFloatPanel, { top: insets.top + 56 }]}
+          pointerEvents="none"
+        >
+          {floatingMsgs.map(msg => (
+            <FloatingChatMessage
+              key={msg.id}
+              msg={msg}
+              onDone={(id) => setFloatingMsgs(prev => prev.filter(m => m.id !== id))}
+            />
+          ))}
+        </View>
       )}
 
       {/* ── Player Chips (bottom bar) ───────────────────────────────── */}

@@ -1,0 +1,181 @@
+FIX ACTIVE ROOM VISIBILITY AND REJOIN ISSUE
+
+CURRENT BUG
+
+Example:
+
+1. Player A creates a room.
+2. Player B joins the room.
+3. Match starts.
+4. Both players leave the room screen.
+5. Room is still ACTIVE (10-minute timeout has NOT expired).
+
+Problem:
+
+Player A can still see the room in Active Rooms.
+
+But Player B cannot see the same active room in Active Rooms.
+
+As a result:
+
+- Player B cannot rejoin.
+- Player B thinks room disappeared.
+- Room is still active in Firebase.
+
+================================
+
+EXPECTED BEHAVIOR
+
+================================
+
+If a room is ACTIVE and has not expired:
+
+All room members must be able to see it.
+
+================================
+
+ACTIVE ROOM RULE
+
+================================
+
+For 10 minutes after the last activity:
+
+Room remains ACTIVE.
+
+During this period:
+
+✔ Room creator can see it.
+✔ Joined players can see it.
+✔ Reconnect users can see it.
+
+================================
+
+REJOIN SYSTEM
+
+================================
+
+If a player previously joined the room:
+
+Store room membership.
+
+Example:
+
+roomMembers:
+[
+PlayerA,
+PlayerB
+]
+
+When Player B opens Active Rooms:
+
+Show rooms where:
+
+- User is creator
+  OR
+- User is a room member
+
+================================
+
+FIREBASE QUERY FIX
+
+================================
+
+Do NOT filter Active Rooms by creator only.
+
+Current bug likely:
+
+creatorId == currentUserId
+
+This is incorrect.
+
+Instead show:
+
+ACTIVE rooms where:
+
+currentUserId belongs to roomMembers
+
+OR
+
+currentUserId == creatorId
+
+================================
+
+ACTIVE ROOM DISPLAY
+
+================================
+
+Player A Active Rooms:
+
+✔ Room Visible
+
+Player B Active Rooms:
+
+✔ Same Room Visible
+
+================================
+
+ROOM EXPIRY RULE
+
+================================
+
+Only remove room when:
+
+CurrentTime - lastActivityAt > 10 minutes
+
+If room is still active:
+
+Keep visible for all members.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+Room Created
+
+↓
+
+Players Join
+
+↓
+
+Players Leave Screen
+
+↓
+
+Room Still Active
+
+↓
+
+All Previous Participants Can See Room
+
+↓
+
+Any Participant Can Rejoin
+
+↓
+
+After 10 Minutes Of Inactivity
+
+↓
+
+Room Expires
+
+↓
+
+Removed For Everyone
+
+================================
+
+DO NOT CHANGE
+
+================================
+
+- Gameplay
+- Turn System
+- Dice System
+- Spectator System
+- Room Expiry Logic
+
+Only fix Active Room visibility and rejoin permissions.

@@ -5,6 +5,7 @@ import {
   View, Pressable, StyleSheet, Platform,
   StatusBar, ActivityIndicator, Text, TouchableOpacity,
   AppState, Modal, Image, ScrollView,
+  Animated, TextInput, KeyboardAvoidingView,
 } from 'react-native';
 import { playWebClickSound } from '@/lib/webSound';
 import { router } from 'expo-router';
@@ -24,12 +25,15 @@ import {
   subscribeToFriends,
   subscribeToFriendsPresence,
   sendSpectatorInvite,
+  sendRoomMessage,
+  subscribeToRoomMessages,
   GameAction,
   SavedGameState,
   GameRoomPlayer,
   PlayerStatus,
   UserProfile,
   UserPresence,
+  RoomMessage,
 } from '@/lib/firestore';
 import { LUDO_GAME_HTML } from '@/lib/ludo/ludo-html';
 
@@ -138,6 +142,89 @@ const MP_COLORS = [
   { name: 'Blue',   emoji: '🔵' },
 ];
 
+const CHAT_EMOJIS = ['😜','😭','❤️','🤔','😅','😁','😍','👌','😎','🥵','🥶','😈'];
+
+type FloatingMsg = {
+  id: string;
+  text: string;
+  senderName: string;
+  type: 'text' | 'emoji';
+};
+
+function FloatingChatMessage({ msg, onDone }: { msg: FloatingMsg; onDone: (id: string) => void }) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(msg.type === 'emoji' ? 0.3 : 0.85)).current;
+
+  useEffect(() => {
+    if (msg.type === 'emoji') {
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 1, duration: 180, useNativeDriver: true }),
+          Animated.spring(scale, { toValue: 1, friction: 5, tension: 100, useNativeDriver: true }),
+        ]),
+        Animated.delay(1000),
+        Animated.parallel([
+          Animated.timing(translateY, { toValue: 50, duration: 900, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0, duration: 900, useNativeDriver: true }),
+        ]),
+      ]).start(() => onDone(msg.id));
+    } else {
+      Animated.sequence([
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 1, duration: 260, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 260, useNativeDriver: true }),
+        ]),
+        Animated.delay(7500),
+        Animated.parallel([
+          Animated.timing(translateY, { toValue: 30, duration: 1200, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0, duration: 1200, useNativeDriver: true }),
+        ]),
+      ]).start(() => onDone(msg.id));
+    }
+  }, []);
+
+  if (msg.type === 'emoji') {
+    return (
+      <Animated.Text
+        style={{ fontSize: 44, opacity, transform: [{ scale }, { translateY }], marginBottom: 6 }}
+      >
+        {msg.text}
+      </Animated.Text>
+    );
+  }
+  return (
+    <Animated.View
+      style={{ opacity, transform: [{ scale }, { translateY }], marginBottom: 6, maxWidth: 210 }}
+    >
+      <View style={floatMsgStyle}>
+        <Text style={floatNameStyle} numberOfLines={1}>{msg.senderName}</Text>
+        <Text style={floatTextStyle}>{msg.text}</Text>
+      </View>
+    </Animated.View>
+  );
+}
+
+const floatMsgStyle = {
+  backgroundColor: 'rgba(6,4,18,0.80)',
+  borderRadius: 14,
+  paddingHorizontal: 11,
+  paddingVertical: 7,
+  borderWidth: 1,
+  borderColor: 'rgba(139,92,246,0.30)',
+} as const;
+const floatNameStyle = {
+  color: '#F59E0B',
+  fontSize: 10,
+  fontFamily: 'Inter_600SemiBold' as const,
+  marginBottom: 2,
+};
+const floatTextStyle = {
+  color: '#FFFFFF',
+  fontSize: 13,
+  fontFamily: 'Inter_500Medium' as const,
+};
+
 function LudoNativeOverlay({
   isVisible,
   onHide,
@@ -194,6 +281,14 @@ function LudoNativeOverlay({
   const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
   const [inviteSending, setInviteSending] = useState(false);
   const [inviteSent, setInviteSent] = useState<Set<string>>(new Set());
+
+  // Friend Chat state
+  const [chatOpen, setChatOpen] = useState(false);
+  const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
+  const [chatInput, setChatInput] = useState('');
+  const [floatingMsgs, setFloatingMsgs] = useState<FloatingMsg[]>([]);
+  const lastTextSentRef = useRef(0);
+  const lastEmojiSentRef = useRef(0);
 
   // Offline pass-and-play player count modal (fallback for postMessage path)
   const [showOfflineModal, setShowOfflineModal] = useState(false);
@@ -288,6 +383,37 @@ function LudoNativeOverlay({
     const unsub = subscribeToFriendsPresence(ids, setPresence);
     return () => { unsub(); };
   }, [friends.map(f => f.userId).join(',')]);
+
+  // Subscribe to room live chat when inside an online match
+  useEffect(() => {
+    if (!mpConfig) { setFloatingMsgs([]); return; }
+    const startTime = Date.now();
+    const unsub = subscribeToRoomMessages(mpConfig.roomId, startTime, (newMsgs) => {
+      newMsgs.forEach(msg => {
+        const floating: FloatingMsg = {
+          id: `${msg.createdAt}-${msg.senderId}-${Math.random()}`,
+          text: msg.text,
+          senderName: msg.senderName,
+          type: msg.type,
+        };
+        setFloatingMsgs(prev => [...prev.slice(-4), floating]);
+      });
+    });
+    return () => { unsub(); setFloatingMsgs([]); };
+  }, [mpConfig?.roomId]);
+
+  // Helper: send text chat message
+  async function handleSendChatText() {
+    const text = chatInput.trim();
+    if (!text || !mpConfig || !user) return;
+    const now = Date.now();
+    if (now - lastTextSentRef.current < 2000) return;
+    lastTextSentRef.current = now;
+    setChatInput('');
+    try {
+      await sendRoomMessage(mpConfig.roomId, user.uid, user.displayName || 'Player', text, 'text');
+    } catch (e) { console.warn('[Chat] send failed', e); }
+  }
 
   // Subscribe to remote game actions via Firebase when a multiplayer session is active.
   useEffect(() => {
@@ -690,6 +816,21 @@ function LudoNativeOverlay({
               </View>
               <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.4)" />
             </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.toolMenuItem}
+              activeOpacity={0.75}
+              onPress={() => {
+                setToolMenuOpen(false);
+                setTimeout(() => { setChatInput(''); setEmojiPanelOpen(false); setChatOpen(true); }, 150);
+              }}
+            >
+              <Text style={styles.toolMenuItemIcon}>💬</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toolMenuItemLabel}>Friend Chat</Text>
+                <Text style={styles.toolMenuItemSub}>Chat with players & spectators</Text>
+              </View>
+              <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.4)" />
+            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
@@ -846,6 +987,108 @@ function LudoNativeOverlay({
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* ── FRIEND CHAT Modal ── */}
+      <Modal
+        visible={chatOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => { setChatOpen(false); setEmojiPanelOpen(false); }}
+      >
+        <Pressable
+          style={styles.toolMenuBackdrop}
+          onPress={() => { setChatOpen(false); setEmojiPanelOpen(false); }}
+        >
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={{ width: '100%' }}
+          >
+            <Pressable style={styles.chatCard} onPress={() => {}}>
+              <View style={styles.toolMenuHandle} />
+              <Text style={styles.toolMenuTitle}>💬 Live Chat</Text>
+              <Text style={styles.chatSub}>Visible to all players &amp; spectators in real-time</Text>
+
+              {/* Emoji reaction panel */}
+              {emojiPanelOpen && (
+                <View style={styles.emojiPanel}>
+                  {CHAT_EMOJIS.map((emoji) => (
+                    <TouchableOpacity
+                      key={emoji}
+                      style={styles.emojiBtn}
+                      activeOpacity={0.7}
+                      onPress={async () => {
+                        const now = Date.now();
+                        if (now - lastEmojiSentRef.current < 1000) return;
+                        if (!mpConfig || !user) return;
+                        lastEmojiSentRef.current = now;
+                        setEmojiPanelOpen(false);
+                        try {
+                          await sendRoomMessage(
+                            mpConfig.roomId, user.uid,
+                            user.displayName || 'Player',
+                            emoji, 'emoji'
+                          );
+                        } catch (e) { console.warn('[Chat] emoji failed', e); }
+                      }}
+                    >
+                      <Text style={styles.emojiBtnText}>{emoji}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+
+              {/* Message input row */}
+              <View style={styles.chatInputRow}>
+                <TouchableOpacity
+                  style={styles.chatEmojiToggle}
+                  onPress={() => setEmojiPanelOpen(v => !v)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 24 }}>😊</Text>
+                </TouchableOpacity>
+                <TextInput
+                  style={styles.chatTextInput}
+                  value={chatInput}
+                  onChangeText={setChatInput}
+                  placeholder="Say something..."
+                  placeholderTextColor="rgba(255,255,255,0.28)"
+                  maxLength={120}
+                  returnKeyType="send"
+                  onSubmitEditing={handleSendChatText}
+                  blurOnSubmit={false}
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.chatSendBtn,
+                    !chatInput.trim() && styles.chatSendBtnDisabled,
+                  ]}
+                  disabled={!chatInput.trim()}
+                  onPress={handleSendChatText}
+                  activeOpacity={0.8}
+                >
+                  <Feather name="send" size={17} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </Pressable>
+          </KeyboardAvoidingView>
+        </Pressable>
+      </Modal>
+
+      {/* ── Floating Chat Messages (over game board, no interaction block) ── */}
+      {isVisible && mpConfig && floatingMsgs.length > 0 && (
+        <View
+          style={[styles.floatingMsgPanel, { top: insets.top + 56 }]}
+          pointerEvents="none"
+        >
+          {floatingMsgs.map(msg => (
+            <FloatingChatMessage
+              key={msg.id}
+              msg={msg}
+              onDone={(id) => setFloatingMsgs(prev => prev.filter(m => m.id !== id))}
+            />
+          ))}
+        </View>
+      )}
 
       {/* Move history log — shown during online games, floats above debug bar */}
       {isVisible && mpConfig && moveLog.length > 0 && (
@@ -1525,5 +1768,90 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontFamily: 'Inter_600SemiBold',
     letterSpacing: 0.2,
+  },
+
+  // ── Floating Chat Messages ────────────────────────────────────────────────────
+  floatingMsgPanel: {
+    position: 'absolute',
+    left: 12,
+    zIndex: 150,
+    gap: 4,
+    maxWidth: 220,
+  },
+
+  // ── Friend Chat Modal ─────────────────────────────────────────────────────────
+  chatCard: {
+    backgroundColor: 'rgba(10,6,22,0.98)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.25)',
+    paddingHorizontal: 18,
+    paddingBottom: 36,
+    paddingTop: 10,
+    gap: 12,
+  },
+  chatSub: {
+    color: 'rgba(255,255,255,0.38)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    marginTop: -6,
+  },
+  emojiPanel: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.15)',
+  },
+  emojiBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.07)',
+  },
+  emojiBtnText: {
+    fontSize: 26,
+  },
+  chatInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.22)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  chatEmojiToggle: {
+    width: 38,
+    height: 38,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatTextInput: {
+    flex: 1,
+    height: 40,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter_400Regular',
+    paddingVertical: 0,
+  },
+  chatSendBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#8B5CF6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatSendBtnDisabled: {
+    backgroundColor: 'rgba(139,92,246,0.3)',
   },
 });

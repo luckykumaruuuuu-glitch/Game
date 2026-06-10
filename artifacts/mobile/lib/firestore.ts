@@ -943,6 +943,54 @@ export async function respondToGameInvite(
   });
 }
 
+// ─── Room Live Chat ───────────────────────────────────────────────────────────
+
+export interface RoomMessage {
+  msgId: string;
+  type: 'text' | 'emoji';
+  text: string;
+  senderId: string;
+  senderName: string;
+  createdAt: number;
+}
+
+export async function sendRoomMessage(
+  roomId: string,
+  senderId: string,
+  senderName: string,
+  text: string,
+  type: 'text' | 'emoji'
+): Promise<void> {
+  await addDoc(collection(db, "gameRooms", roomId, "chat"), {
+    type,
+    text,
+    senderId,
+    senderName,
+    createdAt: Date.now(),
+  });
+}
+
+export function subscribeToRoomMessages(
+  roomId: string,
+  sinceTimestamp: number,
+  callback: (newMessages: RoomMessage[]) => void
+): () => void {
+  const q = query(
+    collection(db, "gameRooms", roomId, "chat"),
+    orderBy("createdAt", "asc"),
+    limit(200)
+  );
+  let isFirst = true;
+  return onSnapshot(q, (snap) => {
+    if (isFirst) { isFirst = false; return; }
+    const added = snap.docChanges()
+      .filter(c => c.type === 'added')
+      .map(c => ({ msgId: c.doc.id, ...c.doc.data() } as RoomMessage))
+      .filter(msg => msg.createdAt >= sinceTimestamp);
+    if (added.length > 0) callback(added);
+  }, () => {});
+}
+
 export async function sendSpectatorInvite(
   fromUserId: string,
   fromName: string,
