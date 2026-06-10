@@ -8179,7 +8179,15 @@ window._applyRemoteAction = function(action) {
       // resolves so the local subscribe listener does NOT post mpTurn to React Native
       // (the actor's device already wrote the turn to Firebase — we must not race it).
       if (rollResult && typeof rollResult.then === 'function') {
-        rollResult.then(function() { _setApplyingRemote(false); }).catch(function() { _setApplyingRemote(false); });
+        rollResult.then(function() {
+          _setApplyingRemote(false);
+          var doneMsg = JSON.stringify({ type: 'mpActionDone' });
+          if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
+        }).catch(function() {
+          _setApplyingRemote(false);
+          var doneMsg = JSON.stringify({ type: 'mpActionDone' });
+          if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
+        });
       } else {
         // If rollDice returned undefined (canRoll still failed), apply value directly.
         if (_externalDiceValue !== null) {
@@ -8193,6 +8201,8 @@ window._applyRemoteAction = function(action) {
           } catch(e2) { console.warn('[MP] forced dice apply error', String(e2)); }
         }
         _setApplyingRemote(false);
+        var doneMsg = JSON.stringify({ type: 'mpActionDone' });
+        if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
       }
     } else if (action.action === 'SELECT_TOKEN') {
       // ── Auto-heal for token move ──────────────────────────────────────────
@@ -8222,9 +8232,19 @@ window._applyRemoteAction = function(action) {
       // selectToken is async (animation). Keep applyingRemote=true until it resolves
       // so the subscribe listener does NOT post mpTurn from this (non-actor) device.
       if (selResult && typeof selResult.then === 'function') {
-        selResult.then(function() { _setApplyingRemote(false); }).catch(function() { _setApplyingRemote(false); });
+        selResult.then(function() {
+          _setApplyingRemote(false);
+          var doneMsg = JSON.stringify({ type: 'mpActionDone' });
+          if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
+        }).catch(function() {
+          _setApplyingRemote(false);
+          var doneMsg = JSON.stringify({ type: 'mpActionDone' });
+          if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
+        });
       } else {
         _setApplyingRemote(false);
+        var doneMsg = JSON.stringify({ type: 'mpActionDone' });
+        if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
       }
       // Emit move log so React Native can display the history entry.
       var moveLogMsg = JSON.stringify({
@@ -8249,23 +8269,25 @@ window._applyRemoteAction = function(action) {
 // reports a different currentTurnPlayerIndex than what the local engine has.
 window._setTurnPlayer = function(playerIndex) {
   if (typeof playerIndex !== 'number') return;
+  // Skip during remote action animation — the action's TURN_ADVANCED will advance the turn.
+  // Injecting _setTurnPlayer mid-animation causes premature UI updates (moveDice /
+  // updateCornerWidgets) that visually conflict with the running animation, producing
+  // jitter and cut-short effects.
+  if (_mp.applyingRemote) return;
   try {
     if (state.currentPlayerIndex !== playerIndex) {
       console.warn('[MP] _setTurnPlayer: correcting currentPlayerIndex from ' + state.currentPlayerIndex + ' to ' + playerIndex);
       // Direct state mutation — DO NOT emit TURN_ADVANCED here.
-      // The TURN_ADVANCED reducer uses event.nextPlayerIndex, not event.currentPlayerIndex.
-      // Emitting TURN_ADVANCED with currentPlayerIndex sets state.currentPlayerIndex = undefined,
-      // which permanently blocks all dice rolls (undefined !== any myPlayerIndex).
       state.currentPlayerIndex = playerIndex;
       state.phase = 'AWAITING_ROLL';
       state.movableTokenIndexes = [];
       try { moveDice(); } catch(e) {}
       try { updateCornerWidgets(); } catch(e2) {}
-      // Only notify React Native when we actually corrected the engine state.
-      // Emitting mpTurn unconditionally (even when state was already correct)
-      // caused React Native to call writeCurrentTurn → Firebase → subscription
-      // → _setTurnPlayer again → infinite write loop.
-      var msg = JSON.stringify({ type: 'mpTurn', currentPlayerIndex: playerIndex });
+      // Post mpTurnSync (not mpTurn) so React Native updates local turn tracking
+      // WITHOUT writing back to Firebase — this turn value came FROM Firebase already.
+      // Using mpTurn here caused a double-write: B received Firebase turn → _setTurnPlayer
+      // → mpTurn → writeCurrentTurn → 2nd Firebase write → 2nd snapshot → flicker loop.
+      var msg = JSON.stringify({ type: 'mpTurnSync', currentPlayerIndex: playerIndex });
       if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg);
     }
   } catch(e) { console.warn('[MP] _setTurnPlayer error', String(e)); }

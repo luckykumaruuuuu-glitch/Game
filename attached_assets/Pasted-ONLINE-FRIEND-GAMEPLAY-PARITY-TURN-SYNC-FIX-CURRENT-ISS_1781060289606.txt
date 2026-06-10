@@ -1,0 +1,226 @@
+ONLINE FRIEND GAMEPLAY PARITY + TURN SYNC FIX
+
+CURRENT ISSUE
+
+The Online Friend gameplay does not behave exactly like Offline Mode and AI Mode.
+
+Offline and AI modes feel smooth, responsive and visually correct.
+
+Online Friend mode feels different and has multiple issues.
+
+================================
+
+ISSUE 1: BOARD EFFECTS NOT MATCHING
+
+================================
+
+In Offline Mode and AI Mode:
+
+- Dice animations are smooth
+- Token movement animations are smooth
+- Selection highlights work correctly
+- Token effects play correctly
+- Kill effects play correctly
+- Win effects play correctly
+- Turn change effects play correctly
+
+In Online Friend mode:
+
+Some of these effects are missing, delayed or inconsistent.
+
+================================
+
+REQUIRED FIX
+
+================================
+
+Use the EXACT SAME board logic and visual effects used by:
+
+- Offline Mode
+- AI Mode
+
+Online mode must not use simplified animations.
+
+All board effects must behave identically.
+
+================================
+
+ISSUE 2: TURN SWITCHING IS JITTERY
+
+================================
+
+Current behavior:
+
+Turn changes repeatedly.
+
+Example:
+
+Player A Turn
+→ Player B Turn
+→ Player A Turn
+→ Player B Turn
+
+Rapid flickering occurs.
+
+Sometimes turn UI appears to switch multiple times.
+
+================================
+
+ROOT CAUSE TO CHECK
+
+================================
+
+Check for:
+
+1. Duplicate Firebase listeners
+
+2. Multiple turn updates being written
+
+3. Local state fighting server state
+
+4. Turn updates firing more than once
+
+5. Snapshot listeners triggering duplicate renders
+
+================================
+
+REQUIRED FIX
+
+================================
+
+Single Source Of Truth:
+
+Only Firebase room state controls turns.
+
+Players must NEVER independently decide whose turn it is.
+
+Use:
+
+currentTurnPlayerId
+
+stored in room state.
+
+All clients read the same value.
+
+================================
+
+TURN FLOW
+
+================================
+
+Player A completes move
+
+↓
+
+Server validates move
+
+↓
+
+Server updates currentTurnPlayerId
+
+↓
+
+All clients receive update
+
+↓
+
+Turn changes ONCE
+
+================================
+
+DO NOT
+
+================================
+
+- Change turn locally before Firebase confirmation
+- Trigger multiple turn updates
+- Trigger turn updates from animation callbacks
+
+================================
+
+ISSUE 3: LAGGY TURN TRANSITIONS
+
+================================
+
+Current behavior:
+
+Turn changes feel delayed.
+
+Animations stutter.
+
+UI freezes briefly.
+
+================================
+
+REQUIRED FIX
+
+================================
+
+Gameplay state and animation state must be separated.
+
+Firebase updates:
+
+- Game state only
+
+Local device handles:
+
+- Animations
+- Effects
+- Highlights
+- Transitions
+
+Do not wait for Firebase to animate.
+
+================================
+
+PERFORMANCE REQUIREMENTS
+
+================================
+
+Prevent:
+
+- Multiple re-renders
+- Duplicate listeners
+- Duplicate state updates
+- Unnecessary board redraws
+
+Memoize board components where possible.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+Online Friend mode should feel identical to Offline Mode.
+
+✔ Same board effects
+
+✔ Same token movement feel
+
+✔ Same dice feel
+
+✔ Same kill effects
+
+✔ Same turn effects
+
+✔ Smooth turn transitions
+
+✔ No flickering
+
+✔ No repeated turn switching
+
+✔ No lag spikes
+
+================================
+
+DO NOT CHANGE
+
+================================
+
+- Room system
+- Spectator system
+- Chat system
+- Watcher system
+
+Only fix gameplay synchronization, board effects and turn stability.

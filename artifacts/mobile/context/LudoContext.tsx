@@ -174,6 +174,13 @@ function LudoNativeOverlay({
   // Debounce timer for game state saves
   const saveStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Remote action queue — ensures ROLL_DICE and SELECT_TOKEN animations play
+  // sequentially, never in parallel. Parallel injection caused dice animation to
+  // be cut short by an immediately-following SELECT_TOKEN (main board-effects issue).
+  const remoteActionQueueRef = useRef<GameAction[]>([]);
+  const isQueueDrainingRef = useRef(false);
+  const queueSafetyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Offline pass-and-play player count modal (fallback for postMessage path)
   const [showOfflineModal, setShowOfflineModal] = useState(false);
 
@@ -194,12 +201,52 @@ function LudoNativeOverlay({
     lastWrittenSeqRef.current = 0;
     lastKnownTurnRef.current = -1;
     kickedIndicesRef.current = new Set();
+    remoteActionQueueRef.current = [];
+    isQueueDrainingRef.current = false;
+    if (queueSafetyTimerRef.current) {
+      clearTimeout(queueSafetyTimerRef.current);
+      queueSafetyTimerRef.current = null;
+    }
     mpConfigRef.current = cfg;
     setMpConfig(cfg);
     setDebugTurn(-1);
     setMoveLog([]);
     setExitPlayers([]);
     setWinnerInfo(null);
+  }
+
+  // Drain one action from the remote action queue into the WebView.
+  // Only called after the previous action's mpActionDone arrives (or safety timeout).
+  function drainRemoteActionQueue() {
+    if (remoteActionQueueRef.current.length === 0) {
+      isQueueDrainingRef.current = false;
+      return;
+    }
+    isQueueDrainingRef.current = true;
+    const action = remoteActionQueueRef.current.shift()!;
+    const js =
+      `(function(){try{` +
+        `if(typeof window._applyRemoteAction==='function'){` +
+          `window._applyRemoteAction(${JSON.stringify(action)});` +
+        `}` +
+      `}catch(e){console.warn('[MP queue]',String(e));}` +
+      `})();true;`;
+    webViewRef.current?.injectJavaScript(js);
+    // Safety: if mpActionDone never arrives (e.g. synchronous dispatch path),
+    // auto-drain after 12 s (slightly longer than the 10 s applyingRemote safety timer).
+    if (queueSafetyTimerRef.current) clearTimeout(queueSafetyTimerRef.current);
+    queueSafetyTimerRef.current = setTimeout(() => {
+      console.warn('[MP] Queue safety drain triggered');
+      queueSafetyTimerRef.current = null;
+      drainRemoteActionQueue();
+    }, 12000);
+  }
+
+  function enqueueRemoteAction(action: GameAction) {
+    remoteActionQueueRef.current.push(action);
+    if (!isQueueDrainingRef.current) {
+      drainRemoteActionQueue();
+    }
   }
 
   useEffect(() => {
@@ -275,37 +322,49 @@ function LudoNativeOverlay({
           return;
         }
 
+        // Determine if a new remote action is about to be relayed from this
+        // same snapshot. When an action IS relayed, _applyRemoteAction will run
+        // the full animation pipeline (ROLL_DICE → dice anim, SELECT_TOKEN →
+        // token anim → TURN_ADVANCED). Injecting _setTurnPlayer in parallel would
+        // fire moveDice()/updateCornerWidgets() mid-animation → visual jitter.
+        // Only inject _setTurnPlayer when there is NO new action to relay
+        // (missed-update correction / reconnect scenario).
+        const hasPendingAction =
+          !!room.lastAction &&
+          room.lastAction.seq > lastSeenSeqRef.current &&
+          room.lastAction.actorId !== mpConfig.userId;
+
         if (fbTurn !== lastKnownTurnRef.current) {
+          // Always update the ref first so we never double-inject for the same value.
           lastKnownTurnRef.current = fbTurn;
-          // Always inject _setTurnPlayer — even for own turn — so if the local
-          // engine's currentPlayerIndex is out of sync (reconnect, state restore,
-          // etc.) it gets corrected and the active player can roll/move.
-          // _setTurnPlayer is a no-op when state is already correct.
-          const syncJs =
-            `(function(){try{` +
-              `if(typeof window._setTurnPlayer==='function'){` +
-                `window._setTurnPlayer(${fbTurn});` +
-              `}` +
-            `}catch(e){console.warn('[MP turn sync]',String(e));}` +
-            `})();true;`;
-          setTimeout(() => { webViewRef.current?.injectJavaScript(syncJs); }, 80);
+
+          if (!hasPendingAction) {
+            // No action to relay — inject _setTurnPlayer to correct any state drift
+            // (reconnect / missed TURN_ADVANCED). _setTurnPlayer now has an
+            // applyingRemote guard so it is safe even if called while animating.
+            const syncJs =
+              `(function(){try{` +
+                `if(typeof window._setTurnPlayer==='function'){` +
+                  `window._setTurnPlayer(${fbTurn});` +
+                `}` +
+              `}catch(e){console.warn('[MP turn sync]',String(e));}` +
+              `})();true;`;
+            setTimeout(() => { webViewRef.current?.injectJavaScript(syncJs); }, 80);
+          }
         }
       }
 
       // ── lastAction relay ──────────────────────────────────────────────────
+      // Actions are enqueued and applied one at a time. Each _applyRemoteAction
+      // call posts mpActionDone when its animation completes, which drains the
+      // next item. This prevents ROLL_DICE and SELECT_TOKEN from running in
+      // parallel, which was the root cause of cut-short dice animations.
       if (!room.lastAction) return;
       const action = room.lastAction;
       if (action.seq <= lastSeenSeqRef.current) return;
       lastSeenSeqRef.current = action.seq;
       if (action.actorId === mpConfig.userId) return;
-      const js =
-        `(function(){try{` +
-          `if(typeof window._applyRemoteAction==='function'){` +
-            `window._applyRemoteAction(${JSON.stringify(action)});` +
-          `}` +
-        `}catch(e){console.warn('[MP]',String(e));}` +
-        `})();true;`;
-      setTimeout(() => { webViewRef.current?.injectJavaScript(js); }, 50);
+      enqueueRemoteAction(action);
     });
     return unsub;
   }, [mpConfig]);
@@ -424,6 +483,9 @@ function LudoNativeOverlay({
           console.warn('[MP] writeGameAction failed', e)
         );
       } else if (data?.type === 'mpTurn' || data?.type === 'mpReady' || data?.type === 'mpRestored') {
+        // mpTurn fires from TURN_ADVANCED / GAME_STARTED on the ACTOR's device only.
+        // (non-actor's subscribe listener is suppressed by applyingRemote=true)
+        // This is the authoritative signal to write currentTurnPlayerIndex to Firebase.
         if (typeof data.currentPlayerIndex === 'number') {
           setDebugTurn(data.currentPlayerIndex);
           lastKnownTurnRef.current = data.currentPlayerIndex;
@@ -435,6 +497,24 @@ function LudoNativeOverlay({
             );
           }
         }
+      } else if (data?.type === 'mpTurnSync') {
+        // mpTurnSync fires from _setTurnPlayer (Firebase correction, not a local action).
+        // Only update local tracking — do NOT write to Firebase.
+        // (The turn value came from Firebase; writing it back would cause a second
+        //  snapshot → potential flicker loop.)
+        if (typeof data.currentPlayerIndex === 'number') {
+          setDebugTurn(data.currentPlayerIndex);
+          lastKnownTurnRef.current = data.currentPlayerIndex;
+        }
+      } else if (data?.type === 'mpActionDone') {
+        // Remote action animation completed — drain next queued action.
+        // Clear the safety timer and process the next item (with a small gap
+        // so the game engine UI has time to settle between actions).
+        if (queueSafetyTimerRef.current) {
+          clearTimeout(queueSafetyTimerRef.current);
+          queueSafetyTimerRef.current = null;
+        }
+        setTimeout(() => drainRemoteActionQueue(), 80);
       } else if (data?.type === 'mpMoveLog') {
         const entry: MoveLogEntry = {
           id: Date.now(),

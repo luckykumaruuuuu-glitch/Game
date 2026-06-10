@@ -1,3 +1,4 @@
 - [Project overview](project-overview.md) — Ludo gaming app (React Native/Expo mobile + Express API + Firebase); Firebase is intentional and should not be replaced.
 - [Metro pnpm monorepo fix](metro-pnpm-fix.md) — Expo Metro can't resolve bundle URLs without a .pnpm symlink in the mobile package's node_modules.
 - [Expo parallel start cache fix](expo-parallel-cache-fix.md) — Two simultaneous expo starts race on ~/.expo/native-modules-cache; pre-create dir in start-dev.sh.
+- [Online MP turn sync & board effects](online-mp-turn-sync.md) — 3 root causes of turn flicker + missing animations; action queue + mpTurnSync + applyingRemote guard fixed all.
