@@ -8299,11 +8299,14 @@ window._setTurnPlayer = function(playerIndex) {
 window._initMultiplayer = function(myPlayerIndex) {
   _mp.enabled = true;
   _mp.myPlayerIndex = myPlayerIndex;
-  // Disable assist auto-moves — in online play humans control everything manually.
+  // Disable auto-roll only — humans tap the dice in online play.
+  // autoMoveOutOfHome and autoMoveSingleOption are kept enabled so:
+  //   • rolling a 6 with all tokens at home auto-releases a token (same as offline)
+  //   • having only one movable token auto-selects it (quality-of-life)
+  // Both flags route through _mpDispatch which enforces turn ownership and
+  // sends the SELECT_TOKEN action to Firestore — remote players see the move.
   try {
     _origDispatch({ type: 'SET_ASSIST_FLAG', flag: 'autoRollDice', value: false });
-    _origDispatch({ type: 'SET_ASSIST_FLAG', flag: 'autoMoveSingleOption', value: false });
-    _origDispatch({ type: 'SET_ASSIST_FLAG', flag: 'autoMoveOutOfHome', value: false });
   } catch(e) {}
 
   // ── Board orientation fix ─────────────────────────────────────────────────
