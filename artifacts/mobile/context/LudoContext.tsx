@@ -6,6 +6,7 @@ import {
   StatusBar, ActivityIndicator, Text, TouchableOpacity,
   AppState, Modal,
 } from 'react-native';
+import { playWebClickSound } from '@/lib/webSound';
 import { router } from 'expo-router';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -707,6 +708,10 @@ export function LudoProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const playSound = useCallback(() => {
+    if (Platform.OS === 'web') {
+      playWebClickSound();
+      return;
+    }
     injectJSRef.current?.(
       '(function(){try{if(typeof window._playClickSound==="function"){window._playClickSound();}}catch(e){}})();true;'
     );
