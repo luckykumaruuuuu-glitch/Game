@@ -18,7 +18,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { LudoProvider } from "@/context/LudoContext";
 import { NotificationProvider } from "@/context/NotificationContext";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider, useTheme } from "@/context/ThemeContext";
+import { useColors } from "@/hooks/useColors";
 
 if (Platform.OS !== "web") {
   SplashScreen.preventAutoHideAsync();
@@ -46,18 +47,31 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function RootLayoutNav() {
+  const colors = useColors();
+  const bg = colors.background;
+
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
         animationDuration: 250,
+        contentStyle: { backgroundColor: bg },
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ animation: "none" }} />
-      <Stack.Screen name="(auth)" options={{ animation: "fade" }} />
-      <Stack.Screen name="+not-found" />
+      <Stack.Screen name="(tabs)" options={{ animation: "none", contentStyle: { backgroundColor: bg } }} />
+      <Stack.Screen name="(auth)" options={{ animation: "fade", contentStyle: { backgroundColor: bg } }} />
+      <Stack.Screen name="+not-found" options={{ contentStyle: { backgroundColor: bg } }} />
     </Stack>
+  );
+}
+
+function ThemedGestureRoot({ children }: { children: React.ReactNode }) {
+  const colors = useColors();
+  return (
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
+      {children}
+    </GestureHandlerRootView>
   );
 }
 
@@ -69,8 +83,6 @@ export default function RootLayout() {
     Inter_700Bold,
   });
 
-  // Safety timeout: if fonts neither load nor error within 1.5 seconds
-  // (can happen on slow networks/web preview), unblock the app immediately.
   const [fontTimeout, setFontTimeout] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setFontTimeout(true), 1500);
@@ -96,11 +108,11 @@ export default function RootLayout() {
   }
 
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{ backgroundColor: "#09090B" }}>
       <ThemeProvider>
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
-            <GestureHandlerRootView style={{ flex: 1 }}>
+            <ThemedGestureRoot>
               <KeyboardProvider>
                 <AuthProvider>
                   <LudoProvider>
@@ -112,7 +124,7 @@ export default function RootLayout() {
                   </LudoProvider>
                 </AuthProvider>
               </KeyboardProvider>
-            </GestureHandlerRootView>
+            </ThemedGestureRoot>
           </QueryClientProvider>
         </ErrorBoundary>
       </ThemeProvider>

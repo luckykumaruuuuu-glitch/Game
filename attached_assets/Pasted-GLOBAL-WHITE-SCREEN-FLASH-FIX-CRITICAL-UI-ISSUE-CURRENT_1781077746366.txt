@@ -1,0 +1,218 @@
+GLOBAL WHITE SCREEN FLASH FIX
+
+CRITICAL UI ISSUE
+
+================================
+
+CURRENT PROBLEM
+
+================================
+
+When navigating between screens:
+
+- Opening a section
+- Returning from a section
+- Entering game screens
+- Leaving game screens
+
+A white or blank screen briefly appears.
+
+After that the actual screen loads.
+
+This creates an unprofessional experience.
+
+================================
+
+REQUIRED BEHAVIOR
+
+================================
+
+Users should NEVER see:
+
+- White screen
+- Blank screen
+- Flash screen
+- Empty background
+
+during navigation.
+
+================================
+
+INVESTIGATE
+
+================================
+
+1. Navigation Transitions
+
+Check:
+
+React Navigation
+
+Expo Router
+
+Stack Navigators
+
+Tab Navigators
+
+Screen transitions
+
+================================
+
+2. Root Background Color
+
+Verify:
+
+App root container
+
+Navigation container
+
+SafeAreaView
+
+Screen wrappers
+
+All use the app theme background color.
+
+Do NOT use default white background.
+
+================================
+
+3. Loading States
+
+Check all loading screens.
+
+Do not render:
+
+backgroundColor: white
+
+Do not render blank containers.
+
+Use app theme background.
+
+================================
+
+4. Screen Mounting
+
+Prevent unnecessary:
+
+- Unmount
+- Remount
+- Re-render
+
+when switching screens.
+
+================================
+
+5. Game Screens
+
+Check:
+
+- Ludo Screen
+- Online Match
+- Offline Match
+- AI Match
+
+Game board background must render immediately.
+
+Do not show empty canvas before board loads.
+
+================================
+
+6. Image Loading
+
+Profile images
+
+Background images
+
+Board assets
+
+must use placeholders.
+
+Do not show blank screen while assets load.
+
+================================
+
+7. Splash-Like Flicker
+
+Check if navigation temporarily returns null.
+
+Example:
+
+if (!data) return null;
+
+Avoid rendering blank views.
+
+================================
+
+8. Theme Consistency
+
+All screens should use:
+
+same app background
+
+same theme color
+
+during transitions.
+
+================================
+
+EXPECTED RESULT
+
+================================
+
+Opening Screen:
+
+Current Screen
+
+↓
+
+Smooth Transition
+
+↓
+
+New Screen
+
+No white flash.
+
+No blank frame.
+
+No flicker.
+
+================================
+
+BACK NAVIGATION
+
+================================
+
+Current Screen
+
+↓
+
+Smooth Transition
+
+↓
+
+Previous Screen
+
+No white flash.
+
+No empty screen.
+
+================================
+
+APPLY GLOBALLY
+
+================================
+
+Fix throughout:
+
+- Entire App
+- Ludo Section
+- Online Mode
+- Offline Mode
+- AI Mode
+- Profile
+- Friends
+- Chat
+- Settings
+
+Remove all white-screen flashes globally.
