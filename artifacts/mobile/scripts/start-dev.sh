@@ -103,4 +103,4 @@ fi
 # Without it, Metro binds to 0.0.0.0 so Replit can reach it.
 cd "$MOBILE_ROOT"
 export EXPO_NO_DOCTOR=1
-exec $EXPO_CMD start --port "${PORT:-8081}"
+exec $EXPO_CMD start --port "${PORT:-8081}" --clear

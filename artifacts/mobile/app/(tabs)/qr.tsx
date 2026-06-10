@@ -21,8 +21,14 @@ import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 function getProfileUrl(userId: string): string {
+  // On web: use the actual current browser origin (always correct, no env var needed)
+  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}/profile/${userId}`;
+  }
+  // On native (Expo Go): use the dev domain env var injected at Metro build time
   const domain = process.env.EXPO_PUBLIC_DOMAIN;
   if (domain) return `https://${domain}/profile/${userId}`;
+  // Absolute fallback — should never reach here in production
   return `https://leludo.app/profile/${userId}`;
 }
 
