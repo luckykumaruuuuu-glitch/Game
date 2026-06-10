@@ -35,7 +35,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (loading) return;
     const inAuth = segments[0] === "(auth)";
-    if (!user && !inAuth) {
+    const inPublicProfile = segments[0] === "profile";
+    if (!user && !inAuth && !inPublicProfile) {
       router.replace("/(auth)/login");
     } else if (user && inAuth) {
       router.replace("/(tabs)");
@@ -61,6 +62,7 @@ function RootLayoutNav() {
     >
       <Stack.Screen name="(tabs)" options={{ animation: "none", contentStyle: { backgroundColor: bg } }} />
       <Stack.Screen name="(auth)" options={{ animation: "fade", contentStyle: { backgroundColor: bg } }} />
+      <Stack.Screen name="profile" options={{ animation: "fade", contentStyle: { backgroundColor: bg } }} />
       <Stack.Screen name="+not-found" options={{ contentStyle: { backgroundColor: bg } }} />
     </Stack>
   );
