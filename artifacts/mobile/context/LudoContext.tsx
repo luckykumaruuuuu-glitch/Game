@@ -854,8 +854,8 @@ function LudoNativeOverlay({
             {/* Room ID chip — always visible at top of share sheet */}
             {mpConfig?.roomId ? (
               <View style={styles.roomIdChip}>
-                <Text style={styles.roomIdChipLabel}>ROOM ID</Text>
-                <Text style={styles.roomIdChipValue}>
+                <Text style={[styles.roomIdChipLabel, { color: isDark ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.45)' }]}>ROOM ID</Text>
+                <Text style={[styles.roomIdChipValue, { color: isDark ? '#C4B5FD' : '#6D28D9' }]}>
                   {mpConfig.roomId.slice(-6).toUpperCase()}
                 </Text>
               </View>
