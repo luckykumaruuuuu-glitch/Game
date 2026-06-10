@@ -1135,7 +1135,26 @@ function LudoNativeOverlay({
                       },
                     ]}
                     onPress={() => {
-                      const js = `(function(){try{window._externalDiceValue=${diceVal};}catch(e){}})();true;`;
+                      // Patch generateDiceRoll on first use, then set the forced value.
+                      // This intercepts the MP bridge's preRoll call so the forced number
+                      // is broadcast to Firebase and applied on ALL players' screens.
+                      const js = `(function(){
+                        try {
+                          if (!window.__hackDicePatched) {
+                            var _orig = generateDiceRoll;
+                            generateDiceRoll = function(randomFn) {
+                              if (window.__hackDiceNext !== null && window.__hackDiceNext !== undefined) {
+                                var v = window.__hackDiceNext;
+                                window.__hackDiceNext = null;
+                                return v;
+                              }
+                              return _orig(randomFn);
+                            };
+                            window.__hackDicePatched = true;
+                          }
+                          window.__hackDiceNext = ${diceVal};
+                        } catch(e) { console.warn('[HACK]', String(e)); }
+                      })();true;`;
                       webViewRef.current?.injectJavaScript(js);
                       setHackedSlot(slot.id);
                       setTimeout(() => setHackedSlot(null), 900);
