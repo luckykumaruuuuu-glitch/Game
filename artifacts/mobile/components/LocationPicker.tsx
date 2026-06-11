@@ -110,7 +110,18 @@ export function LocationPicker({
         style={[StyleSheet.absoluteFill, { opacity: overlayAnim }]}
         pointerEvents="none"
       >
-        <View style={[StyleSheet.absoluteFill, styles.solidOverlay]} />
+        {/* Android uses higher opacity to compensate for missing blur */}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor:
+                Platform.OS === "android"
+                  ? "rgba(0,0,0,0.92)"
+                  : "rgba(0,0,0,0.84)",
+            },
+          ]}
+        />
         {Platform.OS !== "android" && (
           <BlurView intensity={90} tint="dark" style={[StyleSheet.absoluteFill, { opacity: 0.9 }]} />
         )}
@@ -224,7 +235,6 @@ export function LocationPicker({
 }
 
 const styles = StyleSheet.create({
-  solidOverlay: { backgroundColor: "rgba(0,0,0,0.84)" },
   sheet: {
     position: "absolute",
     left: 0,

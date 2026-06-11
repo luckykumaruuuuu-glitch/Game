@@ -17,7 +17,7 @@ export function GlassCard({ children, style, intensity = 25, padding = 16 }: Gla
     return (
       <View
         style={[
-          styles.simpleCard,
+          styles.card,
           { backgroundColor: colors.card, borderColor: colors.border, padding },
           style,
         ]}
@@ -27,23 +27,18 @@ export function GlassCard({ children, style, intensity = 25, padding = 16 }: Gla
     );
   }
 
+  // iOS: keep BlurView for native depth, but ground it with a solid
+  // base layer so transparency matches the browser/Android appearance.
   return (
-    <View style={[styles.container, { borderColor: colors.border, padding }, style]}>
+    <View style={[styles.card, { borderColor: colors.border, padding }, style]}>
+      {/* Solid base — same colour as web/Android so the card is not see-through */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]} />
+      {/* BlurView at reduced opacity adds subtle iOS frosted-glass depth
+          without making the card appear transparent */}
       <BlurView
         intensity={intensity}
         tint={colors.isDark ? "dark" : "light"}
-        style={StyleSheet.absoluteFill}
-      />
-      <View
-        style={[
-          StyleSheet.absoluteFill,
-          styles.overlay,
-          {
-            backgroundColor: colors.isDark
-              ? "rgba(255,255,255,0.04)"
-              : "rgba(0,0,0,0.02)",
-          },
-        ]}
+        style={[StyleSheet.absoluteFill, styles.blurLayer]}
       />
       {children}
     </View>
@@ -51,16 +46,12 @@ export function GlassCard({ children, style, intensity = 25, padding = 16 }: Gla
 }
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     borderRadius: 20,
     overflow: "hidden",
     borderWidth: StyleSheet.hairlineWidth,
   },
-  overlay: {
-    borderRadius: 20,
-  },
-  simpleCard: {
-    borderRadius: 20,
-    borderWidth: StyleSheet.hairlineWidth,
+  blurLayer: {
+    opacity: 0.35,
   },
 });

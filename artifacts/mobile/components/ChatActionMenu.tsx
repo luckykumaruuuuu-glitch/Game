@@ -123,7 +123,18 @@ export function ChatActionMenu({
         style={[StyleSheet.absoluteFill, { opacity: overlayOpacity }]}
         pointerEvents="none"
       >
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.72)" }]} />
+        {/* Android uses higher opacity to compensate for missing blur */}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor:
+                Platform.OS === "android"
+                  ? "rgba(0,0,0,0.82)"
+                  : "rgba(0,0,0,0.72)",
+            },
+          ]}
+        />
         {Platform.OS !== "android" && (
           <BlurView intensity={90} tint="dark" style={[StyleSheet.absoluteFill, { opacity: 0.9 }]} />
         )}

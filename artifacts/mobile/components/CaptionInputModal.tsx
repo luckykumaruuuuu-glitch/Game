@@ -73,7 +73,14 @@ export function CaptionInputModal({
         {Platform.OS !== "android" && (
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
         )}
-        <View style={[StyleSheet.absoluteFill, styles.backdrop]} />
+        {/* Android uses higher opacity to compensate for missing blur */}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            styles.backdrop,
+            Platform.OS === "android" && { backgroundColor: "rgba(0,0,0,0.70)" },
+          ]}
+        />
 
         <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
           {/* Handle bar */}

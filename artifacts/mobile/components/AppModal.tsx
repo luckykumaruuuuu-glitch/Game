@@ -91,10 +91,21 @@ export function AppModal({ visible, onClose, children }: AppModalProps) {
         style={[StyleSheet.absoluteFill, { opacity: overlayOpacity }]}
         pointerEvents="none"
       >
-        {/* Solid dark — always rendered as base layer */}
-        <View style={[StyleSheet.absoluteFill, styles.solidOverlay]} />
+        {/* Solid dark — base layer. Android uses higher opacity to
+            compensate for missing blur layer; iOS/web get blur on top. */}
+        <View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor:
+                Platform.OS === "android"
+                  ? "rgba(0,0,0,0.92)"
+                  : "rgba(0,0,0,0.84)",
+            },
+          ]}
+        />
 
-        {/* Blur layer — iOS & web (Android transparent Modal can't blur) */}
+        {/* Blur layer — iOS & web only (Android transparent Modal can't blur) */}
         {Platform.OS !== "android" && (
           <BlurView
             intensity={90}
@@ -140,9 +151,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 28,
-  },
-  solidOverlay: {
-    backgroundColor: "rgba(0,0,0,0.84)",
   },
   blurLayer: {
     opacity: 0.85,
