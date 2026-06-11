@@ -343,6 +343,9 @@ function LudoNativeOverlay({
   // directly to the action before it reaches the WebView — avoids any
   // injectJavaScript timing races with _applyRemoteAction.
   const friendHackedDiceRef = useRef<number | null>(null);
+  // Carries the hacked value from ROLL_DICE processing to the subsequent
+  // SELECT_TOKEN so the token actually moves the hacked distance.
+  const pendingFriendSelectHackRef = useRef<number | null>(null);
 
   // Monster floating animation
   const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
@@ -524,33 +527,42 @@ function LudoNativeOverlay({
     isQueueDrainingRef.current = true;
     let action = remoteActionQueueRef.current.shift()!;
 
-    // ── Friend dice hack ──────────────────────────────────────────────────────
-    // When the user pre-selected a friend dice value, use the dedicated
-    // _applyHackedFriendRoll function instead of _applyRemoteAction.
-    // This function directly sets _externalDiceValue and calls _origDispatch
-    // so there is NO dependency on __hackFriendNextDice variable timing at all.
-    let hackedDice: number | null = null;
+    // ── Friend dice hack ─────────────────────────────────────────────────────
+    // The hack must override diceValue in BOTH actions:
+    //
+    //  ROLL_DICE  → overriding diceValue sets _externalDiceValue inside
+    //               _applyRemoteAction, so rollDice() uses it after the
+    //               animation and the dice face shows the hacked number.
+    //               We also save the value in pendingFriendSelectHackRef so
+    //               the next SELECT_TOKEN from this same round is covered.
+    //
+    //  SELECT_TOKEN → _applyRemoteAction does:
+    //                   state.currentDiceRoll = action.diceValue
+    //                 before calling _origDispatch(SELECT_TOKEN).
+    //                 selectToken() then calls
+    //                   getTokenNewPosition(oldPos, state.currentDiceRoll)
+    //                 so the token moves the HACKED number of spaces.
+    //                 Without this override the friend's real diceValue
+    //                 overwrites currentDiceRoll and the token moves the
+    //                 wrong distance regardless of what the dice shows.
     if (action.action === 'ROLL_DICE' && friendHackedDiceRef.current !== null) {
-      hackedDice = friendHackedDiceRef.current;
+      const hv = friendHackedDiceRef.current;
       friendHackedDiceRef.current = null;
+      pendingFriendSelectHackRef.current = hv;   // carry forward to SELECT_TOKEN
+      action = { ...action, diceValue: hv };
+    } else if (action.action === 'SELECT_TOKEN' && pendingFriendSelectHackRef.current !== null) {
+      const hv = pendingFriendSelectHackRef.current;
+      pendingFriendSelectHackRef.current = null;
+      action = { ...action, diceValue: hv };
     }
 
-    const js = hackedDice !== null
-      ? `(function(){try{` +
-          `if(typeof window._applyHackedFriendRoll==='function'){` +
-            `window._applyHackedFriendRoll(${action.playerIndex},${hackedDice});` +
-          `}else{` +
-            // Fallback if somehow the function isn't defined yet
-            `if(typeof window._applyRemoteAction==='function'){window._applyRemoteAction(${JSON.stringify({ ...action, diceValue: hackedDice })});}` +
-          `}` +
-        `}catch(e){console.warn('[MP queue hack]',String(e));}` +
-        `})();true;`
-      : `(function(){try{` +
-          `if(typeof window._applyRemoteAction==='function'){` +
-            `window._applyRemoteAction(${JSON.stringify(action)});` +
-          `}` +
-        `}catch(e){console.warn('[MP queue]',String(e));}` +
-        `})();true;`;
+    const js =
+      `(function(){try{` +
+        `if(typeof window._applyRemoteAction==='function'){` +
+          `window._applyRemoteAction(${JSON.stringify(action)});` +
+        `}` +
+      `}catch(e){console.warn('[MP queue]',String(e));}` +
+      `})();true;`;
     webViewRef.current?.injectJavaScript(js);
     // Safety: if mpActionDone never arrives (e.g. synchronous dispatch path),
     // auto-drain after 12 s (slightly longer than the 10 s applyingRemote safety timer).
