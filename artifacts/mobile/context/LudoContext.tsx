@@ -1038,7 +1038,7 @@ function LudoNativeOverlay({
           onPress={() => {
             setLudoScreen('home');
             onHide();
-            router.replace('/(tabs)' as any);
+            router.back();
           }}
           hitSlop={12}
         >

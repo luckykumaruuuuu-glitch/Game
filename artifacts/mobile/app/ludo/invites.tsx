@@ -99,7 +99,7 @@ export default function InvitesScreen() {
       await joinGameRoom(invite.roomId, user.uid, playerProfile);
 
       // Step 3: Navigate directly to lobby
-      router.replace({ pathname: '/ludo/room', params: { id: invite.roomId } } as any);
+      router.push({ pathname: '/ludo/room', params: { id: invite.roomId } } as any);
     } catch (e) {
       console.error('join room error:', (e as any)?.message || e);
     } finally {

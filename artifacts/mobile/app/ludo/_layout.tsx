@@ -4,12 +4,15 @@ import { useColors } from '@/hooks/useColors';
 
 export default function LudoLayout() {
   const colors = useColors();
+  const bg = colors.background;
   return (
     <Stack
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
-        contentStyle: { backgroundColor: colors.background },
+        animationDuration: 200,
+        contentStyle: { backgroundColor: bg },
+        freezeOnBlur: true,
       }}
     />
   );

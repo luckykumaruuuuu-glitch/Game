@@ -352,16 +352,16 @@ export default function RoomLobbyScreen() {
         } else {
           // Fallback: just open the game home screen
           showLudo();
-          router.replace('/(tabs)/ludo' as any);
+          router.back();
         }
       } else {
-        router.replace('/ludo' as any);
+        router.push('/ludo' as any);
       }
     } catch (e) {
       console.error('[launchGame] failed to start game:', e);
       hasNavigated.current = false;
       showLudo();
-      router.replace('/(tabs)/ludo' as any);
+      router.back();
     }
   }
 

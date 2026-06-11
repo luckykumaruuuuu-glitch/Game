@@ -184,7 +184,7 @@ export default function OfflineFriendScreen() {
               <TouchableOpacity
                 style={styles.switchBtn}
                 onPress={() => {
-                  router.replace('/ludo/online-friend' as any);
+                  router.push('/ludo/online-friend' as any);
                 }}
                 activeOpacity={0.8}
               >

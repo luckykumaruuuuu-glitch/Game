@@ -56,13 +56,15 @@ function RootLayoutNav() {
       screenOptions={{
         headerShown: false,
         animation: "slide_from_right",
-        animationDuration: 250,
+        animationDuration: 200,
         contentStyle: { backgroundColor: bg },
+        freezeOnBlur: true,
       }}
     >
       <Stack.Screen name="(tabs)" options={{ animation: "none", contentStyle: { backgroundColor: bg } }} />
-      <Stack.Screen name="(auth)" options={{ animation: "fade", contentStyle: { backgroundColor: bg } }} />
-      <Stack.Screen name="profile" options={{ animation: "fade", contentStyle: { backgroundColor: bg } }} />
+      <Stack.Screen name="(auth)" options={{ animation: "fade", animationDuration: 180, contentStyle: { backgroundColor: bg } }} />
+      <Stack.Screen name="ludo" options={{ animation: "slide_from_right", animationDuration: 200, contentStyle: { backgroundColor: bg } }} />
+      <Stack.Screen name="profile" options={{ animation: "fade", animationDuration: 180, contentStyle: { backgroundColor: bg } }} />
       <Stack.Screen name="+not-found" options={{ contentStyle: { backgroundColor: bg } }} />
     </Stack>
   );
