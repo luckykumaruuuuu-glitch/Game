@@ -2932,7 +2932,13 @@ function getMarkIndex(playerIndex, tokenPosition) {
 function isSafePosition(tokenPosition) {
   return SAFE_SQUARES.includes(tokenPosition) || tokenPosition > 50;
 }
+var __hackNextDice = null;
 function generateDiceRoll(randomFn = Math.random) {
+  if (__hackNextDice !== null && __hackNextDice !== undefined) {
+    var __v = __hackNextDice;
+    __hackNextDice = null;
+    return __v;
+  }
   const weights = [1, 2, 2, 1, 2, 2];
   const cumulativeWeights = weights.map(/* @__PURE__ */ ((sum) => (value) => sum += value)(0));
   const maxWeight = cumulativeWeights[cumulativeWeights.length - 1];
@@ -8592,6 +8598,9 @@ var Header = class extends HTMLElement {
   }
 };
 window.customElements.define("wc-settings", Header);
+window.__hackSetNextDice = function(val) {
+  __hackNextDice = (val >= 1 && val <= 6) ? val : null;
+};
 window._playClickSound = function() {
   try {
     if (typeof playClickSound === "function") {

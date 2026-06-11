@@ -1145,19 +1145,9 @@ function LudoNativeOverlay({
                   onPress={() => {
                     const js = `(function(){
                       try {
-                        if (!window.__hackDicePatched) {
-                          var _orig = generateDiceRoll;
-                          generateDiceRoll = function(randomFn) {
-                            if (window.__hackDiceNext !== null && window.__hackDiceNext !== undefined) {
-                              var v = window.__hackDiceNext;
-                              window.__hackDiceNext = null;
-                              return v;
-                            }
-                            return _orig(randomFn);
-                          };
-                          window.__hackDicePatched = true;
+                        if (typeof window.__hackSetNextDice === 'function') {
+                          window.__hackSetNextDice(${diceVal});
                         }
-                        window.__hackDiceNext = ${diceVal};
                       } catch(e) { console.warn('[HACK]', String(e)); }
                     })();true;`;
                     webViewRef.current?.injectJavaScript(js);
