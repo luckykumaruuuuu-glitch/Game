@@ -367,6 +367,9 @@ function LudoNativeOverlay({
     })
   ).current;
 
+  // Sliding pill animation for MY DICE / FRIEND DICE tab switcher (0 = MY, 110 = FRIEND)
+  const tabSlideAnim = useRef(new Animated.Value(0)).current;
+
   // Floating hack panel position + drag responder
   const hackPanelPos = useRef(new Animated.ValueXY({ x: 16, y: 80 })).current;
   const hackPanelPanResponder = useRef(
@@ -395,6 +398,16 @@ function LudoNativeOverlay({
     loop.start();
     return () => loop.stop();
   }, [secretKeyActivated]);
+
+  // Animate sliding pill when diceTab changes
+  useEffect(() => {
+    Animated.spring(tabSlideAnim, {
+      toValue: diceTab === 'my' ? 0 : 110,
+      useNativeDriver: true,
+      speed: 18,
+      bounciness: 10,
+    }).start();
+  }, [diceTab]);
 
   // Reset ALL secret key + monster state when leaving the online match
   useEffect(() => {
@@ -1243,23 +1256,26 @@ function LudoNativeOverlay({
             <Text style={styles.hackTermText}>{'> root@sys: INJECT MODE ACTIVE_'}</Text>
           </View>
 
-          {/* Tab bar — MY DICE / FRIEND DICE */}
+          {/* Tab bar — MY DICE / FRIEND DICE with sliding pill */}
           <View style={styles.hackTabBar}>
+            {/* Sliding pill background */}
+            <Animated.View
+              style={[
+                styles.hackTabPill,
+                diceTab === 'friend' ? styles.hackTabPillFriend : styles.hackTabPillMy,
+                { transform: [{ translateX: tabSlideAnim }] },
+              ]}
+            />
             <TouchableOpacity
-              activeOpacity={0.8}
-              style={[styles.hackTab, diceTab === 'my' && styles.hackTabActive]}
+              activeOpacity={0.85}
+              style={styles.hackTab}
               onPress={() => setDiceTab('my')}
             >
               <Text style={[styles.hackTabText, diceTab === 'my' && styles.hackTabTextActive]}>MY DICE</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              activeOpacity={0.8}
-              style={[
-                styles.hackTab,
-                styles.hackTabFriend,
-                diceTab === 'friend' && styles.hackTabFriendActive,
-                hackActivatedCount > 1 && { opacity: 0.4 },
-              ]}
+              activeOpacity={0.85}
+              style={[styles.hackTab, hackActivatedCount > 1 && { opacity: 0.4 }]}
               onPress={() => hackActivatedCount <= 1 && setDiceTab('friend')}
             >
               <Text style={[
@@ -2957,34 +2973,45 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.4,
   },
-  // Tab bar — MY DICE / FRIEND DICE switcher
+  // Tab bar — MY DICE / FRIEND DICE switcher with sliding pill
   hackTabBar: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#00FF4122',
-    backgroundColor: '#010A01',
+    marginHorizontal: 10,
+    marginVertical: 8,
+    backgroundColor: 'rgba(0,255,65,0.06)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#00FF4120',
+    overflow: 'hidden',
+    position: 'relative',
+    height: 30,
+  },
+  hackTabPill: {
+    position: 'absolute',
+    top: 2,
+    bottom: 2,
+    width: 106,
+    left: 2,
+    borderRadius: 16,
+  },
+  hackTabPillMy: {
+    backgroundColor: 'rgba(0,255,65,0.18)',
+    borderWidth: 1,
+    borderColor: '#00FF4155',
+  },
+  hackTabPillFriend: {
+    backgroundColor: 'rgba(255,68,68,0.18)',
+    borderWidth: 1,
+    borderColor: '#FF444455',
   },
   hackTab: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: 7,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  hackTabActive: {
-    borderBottomColor: '#00FF41',
-    backgroundColor: 'rgba(0,255,65,0.06)',
-  },
-  hackTabFriend: {
-    borderLeftWidth: 1,
-    borderLeftColor: '#00FF4115',
-  },
-  hackTabFriendActive: {
-    borderBottomColor: '#FF6666',
-    backgroundColor: 'rgba(255,68,68,0.06)',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   hackTabText: {
-    color: 'rgba(0,255,65,0.45)',
+    color: 'rgba(0,255,65,0.4)',
     fontSize: 8,
     fontFamily: 'Inter_700Bold',
     letterSpacing: 1.2,
@@ -2993,7 +3020,7 @@ const styles = StyleSheet.create({
     color: '#00FF41',
   },
   hackTabTextFriend: {
-    color: 'rgba(255,68,68,0.45)',
+    color: 'rgba(255,68,68,0.4)',
   },
   hackTabTextFriendActive: {
     color: '#FF6666',

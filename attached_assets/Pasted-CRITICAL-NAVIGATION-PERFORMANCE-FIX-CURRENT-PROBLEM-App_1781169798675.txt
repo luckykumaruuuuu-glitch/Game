@@ -1,0 +1,143 @@
+CRITICAL NAVIGATION + PERFORMANCE FIX
+
+CURRENT PROBLEM:
+
+App کے کسی بھی screen پر ہوں (Game Room, Online Friend, Offline Friend, Match Screen, Settings وغیرہ)، جب Android back button یا top-left back button دبایا جاتا ہے تو:
+
+❌ ایک step back نہیں جاتا
+
+❌ Direct Home Screen پر پہنچ جاتا ہے
+
+❌ Back animation کے دوران heavy lag/freeze آتا ہے
+
+❌ Transition smooth نہیں ہے
+
+❌ Game Room → Home Screen jump ہو جاتا ہے
+
+REQUIRED FIX:
+
+1. Proper Navigation Stack
+
+ہر screen navigation stack میں push ہو۔
+
+Example:
+
+Home
+→ Online Friend
+→ Room List
+→ Game Room
+→ Match Screen
+
+Back Press Result:
+
+Match Screen → Game Room
+
+Game Room → Room List
+
+Room List → Online Friend
+
+Online Friend → Home
+
+Direct Home jump ہرگز نہیں ہونا چاہیے۔
+
+---
+
+2. Android Hardware Back Fix
+
+Android hardware back button:
+
+- navigation.goBack()
+- previous screen پر واپس جائے
+- app exit نہ ہو
+- home پر jump نہ ہو
+
+---
+
+3. Top Left Back Button Fix
+
+Top-left back icon:
+
+- Same navigation stack follow کرے
+- Hardware back جیسا behavior ہو
+- کوئی custom reset navigation نہ ہو
+
+Check for:
+
+navigation.reset()
+navigation.replace()
+router.replace()
+router.dismissAll()
+
+اگر کہیں استعمال ہو رہے ہیں تو صرف goBack استعمال کرو۔
+
+---
+
+4. White Screen / Black Screen Fix
+
+Screen change کرتے وقت:
+
+❌ White flash نہ آئے
+
+❌ Black flash نہ آئے
+
+❌ Blank frame نہ آئے
+
+Next screen instantly render ہو۔
+
+---
+
+5. Lag Fix
+
+Investigate:
+
+- unnecessary re-renders
+- heavy useEffect loops
+- repeated Firebase listeners
+- duplicate subscriptions
+- unnecessary state updates
+- expensive animations
+
+Optimize all screens.
+
+---
+
+6. Game Room Optimization
+
+Image attached Game Room screen.
+
+When entering or leaving Game Room:
+
+- No lag
+- No freeze
+- No delay
+- No screen jump
+
+Transitions must be smooth.
+
+---
+
+7. Performance Target
+
+App behavior should feel:
+
+✔ Native Android App
+✔ Instant navigation
+✔ Smooth transitions
+✔ Stable FPS
+✔ No noticeable lag
+
+---
+
+EXPECTED RESULT
+
+Back button = one step back only
+
+No direct Home Screen jump
+
+No white screen
+
+No black screen
+
+No lag during navigation
+
+Entire app navigation must be smooth and stack-based.
