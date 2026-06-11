@@ -13,10 +13,9 @@ function _getApiBase(): string {
 }
 
 export type UpdateStatus =
-  | "checking"        // initial check running
-  | "ok"              // all layers passed
-  | "update_required" // version < minimum or force flag set
-  | "offline_locked"; // network down — entry denied
+  | "checking"        // initial check in progress
+  | "ok"              // all checks passed — allow entry
+  | "update_required"; // version too old — block entry
 
 export interface UpdateState {
   status: UpdateStatus;
@@ -41,19 +40,24 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
 
     async function run() {
+      console.log("[UpdateProvider] Running version check, APP_VERSION =", APP_VERSION);
       const apiBase = _getApiBase();
       const result = await runVersionCheck(APP_VERSION, apiBase);
       if (cancelled) return;
 
-      if (result.outcome === "ok") {
-        setState({ status: "ok", versionConfig: null, installedVersion: APP_VERSION });
-      } else if (result.outcome === "update_required") {
-        setState({ status: "update_required", versionConfig: result.config, installedVersion: APP_VERSION });
-      } else {
-        // offline_locked — network failed; deny entry regardless of prior state
+      console.log("[UpdateProvider] Result:", result.outcome);
+
+      if (result.outcome === "update_required") {
         setState({
-          status: "offline_locked",
+          status: "update_required",
           versionConfig: result.config,
+          installedVersion: APP_VERSION,
+        });
+      } else {
+        // "ok" — version check passed or Firebase not configured
+        setState({
+          status: "ok",
+          versionConfig: null,
           installedVersion: APP_VERSION,
         });
       }

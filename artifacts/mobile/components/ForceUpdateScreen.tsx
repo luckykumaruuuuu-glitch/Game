@@ -28,11 +28,9 @@ type DownloadState =
 interface Props {
   versionConfig: VersionConfig | null;
   installedVersion: string;
-  /** When true, network is unavailable — show offline lock UI instead of update UI */
-  offlineLocked?: boolean;
 }
 
-export function ForceUpdateScreen({ versionConfig, installedVersion, offlineLocked = false }: Props) {
+export function ForceUpdateScreen({ versionConfig, installedVersion }: Props) {
   const insets = useSafeAreaInsets();
   const [dl, setDl] = useState<DownloadState>({ phase: "idle" });
 
@@ -150,38 +148,6 @@ export function ForceUpdateScreen({ versionConfig, installedVersion, offlineLock
   const progressPercent = dl.phase === "downloading" ? Math.round(dl.progress * 100) : 0;
   const progressWidth = progressAnim.interpolate({ inputRange: [0, 1], outputRange: ["0%", "100%"] });
   const shimmerOpacity = shimmerAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] });
-
-  // ── Offline locked UI ───────────────────────────────────────────────────────
-  if (offlineLocked) {
-    return (
-      <View
-        style={styles.root}
-        pointerEvents="box-only"
-      >
-        <LinearGradient colors={["#040408", "#0D0618", "#110820", "#040408"]} locations={[0, 0.3, 0.7, 1]} style={StyleSheet.absoluteFill} />
-        <View style={[styles.orb, styles.orb1]} />
-        <View style={[styles.orb, styles.orb2]} />
-        <View style={[styles.orb, styles.orb3]} />
-
-        <Animated.View style={[styles.offlineWrap, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <View style={styles.offlineIconWrap}>
-            <Text style={styles.offlineIcon}>📡</Text>
-          </View>
-          <Text style={styles.offlineTitle}>No Internet</Text>
-          <Text style={styles.offlineSubtitle}>
-            LeLudo requires an internet connection to verify your app version and securely log you in.
-          </Text>
-          <View style={styles.offlineCard}>
-            <LinearGradient colors={["rgba(239,68,68,0.1)", "rgba(239,68,68,0.05)"]} style={StyleSheet.absoluteFill} />
-            <Text style={styles.offlineCardText}>
-              Please connect to Wi-Fi or mobile data, then reopen the app.
-            </Text>
-          </View>
-          <Text style={styles.footerNote}>Access is blocked until connectivity is restored</Text>
-        </Animated.View>
-      </View>
-    );
-  }
 
   // ── Force update UI ─────────────────────────────────────────────────────────
   return (
