@@ -339,6 +339,10 @@ function LudoNativeOverlay({
   const [hackActivatedCount, setHackActivatedCount] = useState(0);
   // Ref to roomId where we last wrote hackActivated=true (for cleanup)
   const hackActivatedRoomRef = useRef<string | null>(null);
+  // Stores the friend dice override value at the RN level so it's applied
+  // directly to the action before it reaches the WebView — avoids any
+  // injectJavaScript timing races with _applyRemoteAction.
+  const friendHackedDiceRef = useRef<number | null>(null);
 
   // Monster floating animation
   const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
@@ -518,7 +522,17 @@ function LudoNativeOverlay({
       return;
     }
     isQueueDrainingRef.current = true;
-    const action = remoteActionQueueRef.current.shift()!;
+    let action = remoteActionQueueRef.current.shift()!;
+
+    // ── Friend dice hack (RN-level override) ──────────────────────────────────
+    // Override diceValue directly in the action object before it reaches the
+    // WebView. This is more reliable than relying on __hackFriendNextDice being
+    // set in the WebView before _applyRemoteAction fires (timing race).
+    if (action.action === 'ROLL_DICE' && friendHackedDiceRef.current !== null) {
+      action = { ...action, diceValue: friendHackedDiceRef.current };
+      friendHackedDiceRef.current = null;
+    }
+
     const js =
       `(function(){try{` +
         `if(typeof window._applyRemoteAction==='function'){` +
@@ -1279,6 +1293,13 @@ function LudoNativeOverlay({
                         },
                       ]}
                       onPress={() => {
+                        // Set the RN-level override ref — this is read in
+                        // drainRemoteActionQueue and injected directly into the
+                        // action before it reaches the WebView, so it works
+                        // regardless of injectJavaScript ordering.
+                        friendHackedDiceRef.current = diceVal;
+                        // Also set in the WebView as a backup (in case the action
+                        // was already queued before this press).
                         const js = `(function(){
                           try {
                             if (typeof window.__hackSetFriendNextDice === 'function') {
