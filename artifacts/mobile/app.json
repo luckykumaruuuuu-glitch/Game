@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "LeLudo",
-    "slug": "leludo",
+    "name": "Ludo royale",
+    "slug": "ludoroyale",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "leludo",
+    "scheme": "ludoroyale",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.leludo.app"
+      "bundleIdentifier": "com.ludoroyale.app"
     },
     "android": {
-      "package": "com.leludo.app",
+      "package": "com.ludoroyale.app",
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
