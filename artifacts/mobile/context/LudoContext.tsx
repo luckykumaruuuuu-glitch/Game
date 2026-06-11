@@ -524,27 +524,26 @@ function LudoNativeOverlay({
     isQueueDrainingRef.current = true;
     let action = remoteActionQueueRef.current.shift()!;
 
-    // ── Friend dice hack (RN-level override) ──────────────────────────────────
-    // When the user has pre-selected a friend dice value, we:
-    //   1. Override action.diceValue so _externalDiceValue is correct inside rollDice()
-    //   2. Call __hackSetFriendNextDice ATOMICALLY in the same JS execution as
-    //      _applyRemoteAction — this guarantees __fhack !== null when
-    //      _applyRemoteAction reads __hackFriendNextDice, so the auto-select
-    //      branch fires and __hackFriendSelectDone is set to skip the real
-    //      SELECT_TOKEN. Previously these were two separate injectJavaScript
-    //      calls that could race against each other.
+    // ── Friend dice hack ──────────────────────────────────────────────────────
+    // When the user pre-selected a friend dice value, use the dedicated
+    // _applyHackedFriendRoll function instead of _applyRemoteAction.
+    // This function directly sets _externalDiceValue and calls _origDispatch
+    // so there is NO dependency on __hackFriendNextDice variable timing at all.
     let hackedDice: number | null = null;
     if (action.action === 'ROLL_DICE' && friendHackedDiceRef.current !== null) {
       hackedDice = friendHackedDiceRef.current;
-      action = { ...action, diceValue: hackedDice };
       friendHackedDiceRef.current = null;
     }
 
     const js = hackedDice !== null
       ? `(function(){try{` +
-          `if(typeof window.__hackSetFriendNextDice==='function'){window.__hackSetFriendNextDice(${hackedDice});}` +
-          `if(typeof window._applyRemoteAction==='function'){window._applyRemoteAction(${JSON.stringify(action)});}` +
-        `}catch(e){console.warn('[MP queue]',String(e));}` +
+          `if(typeof window._applyHackedFriendRoll==='function'){` +
+            `window._applyHackedFriendRoll(${action.playerIndex},${hackedDice});` +
+          `}else{` +
+            // Fallback if somehow the function isn't defined yet
+            `if(typeof window._applyRemoteAction==='function'){window._applyRemoteAction(${JSON.stringify({ ...action, diceValue: hackedDice })});}` +
+          `}` +
+        `}catch(e){console.warn('[MP queue hack]',String(e));}` +
         `})();true;`
       : `(function(){try{` +
           `if(typeof window._applyRemoteAction==='function'){` +

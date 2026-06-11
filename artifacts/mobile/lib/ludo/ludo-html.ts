@@ -8657,6 +8657,65 @@ window.__hackSetNextDice = function(val) {
 window.__hackSetFriendNextDice = function(val) {
   __hackFriendNextDice = (val >= 1 && val <= 6) ? val : null;
 };
+// Dedicated handler for a pre-selected friend dice hack.
+// Called instead of _applyRemoteAction when React Native has a hacked dice
+// value ready. Directly sets _externalDiceValue, rolls with that value, then
+// auto-selects a token — completely bypassing the __hackFriendNextDice variable
+// so there is zero timing/race dependency.
+window._applyHackedFriendRoll = function(playerIdx, hackedDice) {
+  _setApplyingRemote(true);
+  try {
+    // Force state to be correct for this player's roll
+    if (typeof playerIdx === 'number' && state.currentPlayerIndex !== playerIdx) {
+      state.currentPlayerIndex = playerIdx;
+    }
+    if (state.phase !== 'AWAITING_ROLL') {
+      state.phase = 'AWAITING_ROLL';
+    }
+    // Clear any stale __hackFriendNextDice so it can't interfere
+    __hackFriendNextDice = null;
+    // Set the hacked value — rollDice() reads _externalDiceValue first
+    _externalDiceValue = +hackedDice;
+    var rollResult = _origDispatch({ type: 'ROLL_DICE' });
+    function afterRoll() {
+      // After dice animation: state.currentDiceRoll == hackedDice now.
+      // Auto-select a movable token for the friend.
+      var selResult = _hackFriendAutoSelect(playerIdx);
+      if (selResult && typeof selResult.then === 'function') {
+        selResult.then(function() {
+          _setApplyingRemote(false);
+          if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpActionDone' }));
+        }).catch(function() {
+          _setApplyingRemote(false);
+          if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpActionDone' }));
+        });
+      } else {
+        // No movable tokens for hackedDice — let the real SELECT_TOKEN run naturally
+        _setApplyingRemote(false);
+        if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpActionDone' }));
+      }
+    }
+    if (rollResult && typeof rollResult.then === 'function') {
+      rollResult.then(afterRoll).catch(function() {
+        // If roll animation errored, try to recover state
+        state.currentDiceRoll = +hackedDice;
+        state.phase = 'AWAITING_SELECTION';
+        try { updateDiceFace(state.currentDiceRoll, +hackedDice); } catch(e2) {}
+        afterRoll();
+      });
+    } else {
+      // Synchronous path (shouldn't happen, but handle gracefully)
+      state.currentDiceRoll = +hackedDice;
+      state.phase = 'AWAITING_SELECTION';
+      try { updateDiceFace(state.currentDiceRoll, +hackedDice); } catch(e2) {}
+      afterRoll();
+    }
+  } catch(e) {
+    console.warn('[HACK friend roll]', String(e));
+    _setApplyingRemote(false);
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpActionDone' }));
+  }
+};
 window._playClickSound = function() {
   try {
     if (typeof playClickSound === "function") {
