@@ -392,6 +392,7 @@ function LudoNativeOverlay({
   useEffect(() => {
     if (!mpConfig) {
       setSecretKeyActivated(false);
+      secretKeyActivatedRef.current = false;
       setSecretKeyModalOpen(false);
       setSecretKeyInput('');
       setSecretKeyError('');
@@ -400,18 +401,10 @@ function LudoNativeOverlay({
       setHackedSlot(null);
       monsterPos.setValue({ x: 20, y: 300 });
       hackPanelPos.setValue({ x: 16, y: 80 });
+      // Clear persisted room-scoped activation so a new match always starts fresh
+      AsyncStorage.removeItem('ludo_hack_key_room').catch(() => {});
     }
   }, [mpConfig]);
-
-  // Persist secret key activation across app restarts
-  useEffect(() => {
-    AsyncStorage.getItem('ludo_hack_key_active').then((val) => {
-      if (val === 'true') {
-        setSecretKeyActivated(true);
-        secretKeyActivatedRef.current = true;
-      }
-    }).catch(() => {});
-  }, []);
 
   // Keep ref in sync with state so effects can read latest value without deps
   useEffect(() => {
@@ -428,7 +421,10 @@ function LudoNativeOverlay({
         setSecretKeyInput('');
         setSecretKeyActivated(true);
         secretKeyActivatedRef.current = true;
-        AsyncStorage.setItem('ludo_hack_key_active', 'true').catch(() => {});
+        // Persist activation tied to this specific room/match only
+        if (mpConfig) {
+          AsyncStorage.setItem('ludo_hack_key_room', mpConfig.roomId).catch(() => {});
+        }
         setMonsterPanelOpen(true); // auto-open floating hack panel
         // Broadcast activation to Firebase so other players know
         if (mpConfig && user) {
@@ -459,10 +455,25 @@ function LudoNativeOverlay({
         hackActivatedRoomRef.current = null;
       }
       setHackActivatedCount(0);
-    } else if (secretKeyActivatedRef.current && user && hackActivatedRoomRef.current !== mpConfig.roomId) {
-      // Joined a new room while key is already activated — auto-broadcast to Firebase
-      hackActivatedRoomRef.current = mpConfig.roomId;
-      writeHackActivated(mpConfig.roomId, user.uid, true).catch(console.warn);
+    } else {
+      // Joined a room — restore activation ONLY if this is the exact same room the
+      // key was activated in (i.e. user temporarily left and rejoined the same match).
+      // A different/new room always starts with the key deactivated.
+      AsyncStorage.getItem('ludo_hack_key_room').then((savedRoomId) => {
+        if (savedRoomId === mpConfig.roomId) {
+          // Same match — restore activation and re-broadcast presence
+          setSecretKeyActivated(true);
+          secretKeyActivatedRef.current = true;
+          if (user && hackActivatedRoomRef.current !== mpConfig.roomId) {
+            hackActivatedRoomRef.current = mpConfig.roomId;
+            writeHackActivated(mpConfig.roomId, user.uid, true).catch(console.warn);
+          }
+        } else {
+          // New/different match — ensure key is deactivated
+          setSecretKeyActivated(false);
+          secretKeyActivatedRef.current = false;
+        }
+      }).catch(() => {});
     }
   }, [mpConfig?.roomId]);
 
