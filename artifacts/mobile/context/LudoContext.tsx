@@ -556,6 +556,14 @@ function LudoNativeOverlay({
       action = { ...action, diceValue: hv };
     }
 
+    // Always null-out __hackFriendNextDice in the WebView before applying the
+    // action. This prevents any stale value left by a previous (now-removed)
+    // button-press inject from triggering _hackFriendAutoSelect, which would
+    // skip SELECT_TOKEN via __hackFriendSelectDone and break the RN-level
+    // diceValue override on that action.
+    const clearHackJs = `(function(){try{if(typeof window.__hackSetFriendNextDice==='function'){window.__hackSetFriendNextDice(null);}}catch(e){}})();true;`;
+    webViewRef.current?.injectJavaScript(clearHackJs);
+
     const js =
       `(function(){try{` +
         `if(typeof window._applyRemoteAction==='function'){` +
@@ -1316,21 +1324,14 @@ function LudoNativeOverlay({
                         },
                       ]}
                       onPress={() => {
-                        // Set the RN-level override ref — this is read in
-                        // drainRemoteActionQueue and injected directly into the
-                        // action before it reaches the WebView, so it works
-                        // regardless of injectJavaScript ordering.
+                        // Only set the RN-level ref. drainRemoteActionQueue reads
+                        // this and overrides diceValue in both ROLL_DICE (dice display)
+                        // and SELECT_TOKEN (token movement). Do NOT inject
+                        // __hackSetFriendNextDice into the WebView — that path uses
+                        // __hackFriendNextDice which has unpredictable timing and
+                        // can leave stale values that corrupt the next round.
                         friendHackedDiceRef.current = diceVal;
-                        // Also set in the WebView as a backup (in case the action
-                        // was already queued before this press).
-                        const js = `(function(){
-                          try {
-                            if (typeof window.__hackSetFriendNextDice === 'function') {
-                              window.__hackSetFriendNextDice(${diceVal});
-                            }
-                          } catch(e) { console.warn('[HACK friend]', String(e)); }
-                        })();true;`;
-                        webViewRef.current?.injectJavaScript(js);
+                        pendingFriendSelectHackRef.current = null; // clear any stale value
                         setFriendHackedSlot(slot.id);
                         setTimeout(() => setFriendHackedSlot(null), 900);
                       }}
