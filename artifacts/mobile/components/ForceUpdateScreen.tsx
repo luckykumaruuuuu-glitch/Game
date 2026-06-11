@@ -217,7 +217,7 @@ export function ForceUpdateScreen({ versionConfig, installedVersion, offlineLock
             </View>
           </Animated.View>
 
-          <Text style={styles.title}>Ludo Royale</Text>
+          <Text style={styles.title}>LeLudo</Text>
           <Text style={styles.subtitle}>A new version is available</Text>
 
           {/* Version card */}
@@ -300,7 +300,7 @@ export function ForceUpdateScreen({ versionConfig, installedVersion, offlineLock
             </Animated.View>
           )}
 
-          <Text style={styles.footerNote}>You must update to continue playing Ludo Royale</Text>
+          <Text style={styles.footerNote}>You must update to continue playing LeLudo</Text>
         </Animated.View>
       </ScrollView>
     </View>

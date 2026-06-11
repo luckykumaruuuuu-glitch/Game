@@ -72,8 +72,8 @@ export default function QRScreen() {
         });
       } else {
         await Share.share({
-          message: `Add me on Ludo Royale! View my profile: ${profileUrl ?? ""}\nOr find me as @${profile?.username ?? ""}`,
-          title: "My Ludo Royale Profile",
+          message: `Add me on LeLudo! View my profile: ${profileUrl ?? ""}\nOr find me as @${profile?.username ?? ""}`,
+          title: "My LeLudo Profile",
         });
       }
     } catch (err) {
@@ -125,7 +125,7 @@ export default function QRScreen() {
             {/* Header: App branding + dice icons */}
             <View style={styles.cardHeader}>
               <MaterialCommunityIcons name="dice-6" size={16} color="rgba(124,58,237,0.7)" />
-              <Text style={styles.cardBrand}>Ludo Royale</Text>
+              <Text style={styles.cardBrand}>LeLudo</Text>
               <MaterialCommunityIcons name="dice-multiple" size={16} color="rgba(124,58,237,0.7)" />
             </View>
 

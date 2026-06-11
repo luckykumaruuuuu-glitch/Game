@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Ludo Royale",
-    "slug": "ludoroyale",
+    "name": "LeLudo",
+    "slug": "leludo",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ludoroyale",
+    "scheme": "leludo",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
@@ -15,10 +15,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.ludoroyale.app"
+      "bundleIdentifier": "com.leludo.app"
     },
     "android": {
-      "package": "com.ludoroyale.app",
+      "package": "com.leludo.app",
       "permissions": [
         "android.permission.REQUEST_INSTALL_PACKAGES",
         "android.permission.READ_EXTERNAL_STORAGE",
@@ -35,13 +35,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow Ludo Royale to access your camera to scan QR codes."
+          "cameraPermission": "Allow LeLudo to access your camera to scan QR codes."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Ludo Royale to access your photos to upload profile pictures."
+          "photosPermission": "Allow LeLudo to access your photos to upload profile pictures."
         }
       ]
     ],

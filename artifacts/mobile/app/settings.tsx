@@ -205,7 +205,7 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <Text style={[styles.versionText, { color: colors.mutedForeground }]}>
-          Ludo Royale · Version {APP_VERSION}
+          LeLudo · Version {APP_VERSION}
         </Text>
       </ScrollView>
 

@@ -22,11 +22,11 @@ function buildProfileHtml(userId: string): string {
 
   <!-- Open Graph -->
   <meta property="og:type" content="profile" />
-  <meta property="og:title" content="Ludo Royale Player Profile" />
-  <meta property="og:description" content="View this player's public Ludo Royale profile — no login required." />
-  <meta property="og:site_name" content="Ludo Royale" />
+  <meta property="og:title" content="LeLudo Player Profile" />
+  <meta property="og:description" content="View this player's public LeLudo profile — no login required." />
+  <meta property="og:site_name" content="LeLudo" />
 
-  <title>Ludo Royale Profile</title>
+  <title>LeLudo Profile</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -378,7 +378,7 @@ function buildProfileHtml(userId: string): string {
 <div id="error">
   <div class="err-icon">🎲</div>
   <h2>Profile Not Found</h2>
-  <p>This player's profile doesn't exist or may have been removed from Ludo Royale.</p>
+  <p>This player's profile doesn't exist or may have been removed from LeLudo.</p>
 </div>
 
 <!-- Main page -->
@@ -394,7 +394,7 @@ function buildProfileHtml(userId: string): string {
     <div class="brand-bar">
       <div class="brand-left">
         <div class="brand-dot"></div>
-        <span class="brand-name">Ludo Royale</span>
+        <span class="brand-name">LeLudo</span>
       </div>
       <div class="public-badge">Public Profile</div>
     </div>
@@ -426,7 +426,7 @@ function buildProfileHtml(userId: string): string {
         <line x1="19" y1="8" x2="19" y2="14"/>
         <line x1="22" y1="11" x2="16" y2="11"/>
       </svg>
-      Add as Friend on Ludo Royale
+      Add as Friend on LeLudo
     </button>
 
     <!-- Open / Download App -->
@@ -437,7 +437,7 @@ function buildProfileHtml(userId: string): string {
         <line x1="12" y1="15" x2="12" y2="3"/>
       </svg>
       <div class="btn-content">
-        <div>Open in Ludo Royale</div>
+        <div>Open in LeLudo</div>
         <div class="btn-sub">Play Ludo · Chat · Compete</div>
       </div>
     </button>
@@ -482,7 +482,7 @@ function buildProfileHtml(userId: string): string {
 
   <!-- Download / Store -->
   <div class="download-section">
-    <div class="download-title">🎲 Play Ludo Royale</div>
+    <div class="download-title">🎲 Play LeLudo</div>
     <div class="download-sub">Download the app to play Ludo, add friends, and chat in real time.</div>
     <button class="store-btn" onclick="openAndroid()">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -509,7 +509,7 @@ function buildProfileHtml(userId: string): string {
 
   <!-- Footer -->
   <div class="footer">
-    <p>🎲 Ludo Royale · Social Ludo Gaming</p>
+    <p>🎲 LeLudo · Social Ludo Gaming</p>
     <p>Scan QR codes to connect &amp; play with friends</p>
   </div>
 </div>
@@ -567,10 +567,10 @@ function buildProfileHtml(userId: string): string {
       }
 
       // ── Name ────────────────────────────────────────────────
-      const dispName = p.name || p.username || "Ludo Royale Player";
+      const dispName = p.name || p.username || "LeLudo Player";
       document.getElementById("display-name").textContent = dispName;
       document.getElementById("username-el").textContent  = p.username ? "@" + p.username : "";
-      document.title = dispName + " · Ludo Royale";
+      document.title = dispName + " · LeLudo";
 
       // ── Chips / badges ───────────────────────────────────────
       const chips = [];
@@ -705,16 +705,16 @@ function buildProfileHtml(userId: string): string {
 
   function contactUser() {
     if (isMobile()) {
-      showToast("Opening Ludo Royale…");
+      showToast("Opening LeLudo…");
       tryDeepLink(DEEP_USER, isIOS() ? APP_STORE : PLAY_STORE);
     } else {
-      showToast("Get Ludo Royale on your phone to add friends!");
+      showToast("Get LeLudo on your phone to add friends!");
     }
   }
 
   function openApp() {
     if (isMobile()) {
-      showToast("Opening Ludo Royale…");
+      showToast("Opening LeLudo…");
       tryDeepLink(DEEP_HOME, isIOS() ? APP_STORE : PLAY_STORE);
     } else {
       window.open(PLAY_STORE, "_blank");
