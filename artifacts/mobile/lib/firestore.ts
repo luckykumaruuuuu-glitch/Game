@@ -1096,6 +1096,7 @@ export interface GameRoom {
   lastAction?: GameAction;    // last game action for sync relay
   currentTurnPlayerIndex?: number; // whose turn it is right now (Firebase source of truth)
   gameState?: SavedGameState; // continuously saved board state for match resume
+  hackActivated?: Record<string, boolean>; // userId → true for players with secret key active
 }
 
 export async function createGameRoom(
@@ -1250,6 +1251,17 @@ export async function writeCurrentTurn(
 ): Promise<void> {
   await updateDoc(doc(db, "gameRooms", roomId), {
     currentTurnPlayerIndex,
+    lastActivityAt: Date.now(),
+  });
+}
+
+export async function writeHackActivated(
+  roomId: string,
+  userId: string,
+  active: boolean
+): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    [`hackActivated.${userId}`]: active ? true : deleteField(),
     lastActivityAt: Date.now(),
   });
 }

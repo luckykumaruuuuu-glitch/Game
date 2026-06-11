@@ -18,6 +18,7 @@ import {
   subscribeToGameRoom,
   writeGameAction,
   writeCurrentTurn,
+  writeHackActivated,
   saveGameState,
   markPlayerExit,
   markPlayerRejoin,
@@ -331,6 +332,10 @@ function LudoNativeOverlay({
   const [mcpActiveSlot, setMcpActiveSlot] = useState<McpSlotId>('crown');
   const [hackedSlot, setHackedSlot] = useState<string | null>(null);
   const [friendHackedSlot, setFriendHackedSlot] = useState<string | null>(null);
+  // How many players in this room have activated the secret key
+  const [hackActivatedCount, setHackActivatedCount] = useState(0);
+  // Ref to roomId where we last wrote hackActivated=true (for cleanup)
+  const hackActivatedRoomRef = useRef<string | null>(null);
 
   // Monster floating animation
   const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
@@ -406,11 +411,37 @@ function LudoNativeOverlay({
         setSecretKeyInput('');
         setSecretKeyActivated(true);
         setMonsterPanelOpen(true); // auto-open floating hack panel
+        // Broadcast activation to Firebase so other players know
+        if (mpConfig && user) {
+          hackActivatedRoomRef.current = mpConfig.roomId;
+          writeHackActivated(mpConfig.roomId, user.uid, true).catch(console.warn);
+        }
       }, 1400);
     } else {
       setSecretKeyError('Invalid Secret Key');
     }
   }
+
+  // Clean up hackActivated entry when leaving the room or unmounting
+  useEffect(() => {
+    return () => {
+      if (hackActivatedRoomRef.current && user) {
+        writeHackActivated(hackActivatedRoomRef.current, user.uid, false).catch(() => {});
+        hackActivatedRoomRef.current = null;
+      }
+    };
+  }, [user?.uid]);
+
+  useEffect(() => {
+    if (!mpConfig) {
+      // Left the room — clear activation entry if we had one
+      if (hackActivatedRoomRef.current && user) {
+        writeHackActivated(hackActivatedRoomRef.current, user.uid, false).catch(() => {});
+        hackActivatedRoomRef.current = null;
+      }
+      setHackActivatedCount(0);
+    }
+  }, [mpConfig?.roomId]);
 
   // Helper to compute next non-kicked player index
   function nextActiveIndex(from: number, total: number): number {
@@ -575,6 +606,12 @@ function LudoNativeOverlay({
         };
       });
       setExitPlayers(newExitPlayers);
+
+      // ── hackActivated count: how many PLAYERS (not spectators) have key active ──
+      const hackMap = room.hackActivated ?? {};
+      const playerIdSet = new Set(Object.values(room.players).map(p => (p as GameRoomPlayer).userId));
+      const activeHackCount = Object.keys(hackMap).filter(uid => hackMap[uid] && playerIdSet.has(uid)).length;
+      setHackActivatedCount(activeHackCount);
 
       // ── Winner detection (2-player: last player wins) ─────────────────────
       if (room.status === 'finished' && (room as any).winnerId === mpConfig.userId) {
@@ -1174,67 +1211,79 @@ function LudoNativeOverlay({
             })}
           </View>
 
-          {/* FRIEND DICE — 6 buttons (intercepts remote player's next roll) */}
-          <View style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2 }]}>
-            <Text style={[styles.hackSectionLabelText, { color: '#FF6666' }]}>FRIEND DICE</Text>
-          </View>
-          <View style={styles.hackBtnGrid}>
-            {MCP_SLOTS.map((slot, idx) => {
-              const diceVal = idx + 1;
-              const isActive = friendHackedSlot === slot.id;
-              return (
-                <TouchableOpacity
-                  key={`friend-${slot.id}`}
-                  activeOpacity={0.72}
-                  style={[
-                    styles.hackBtn,
-                    {
-                      borderColor: isActive ? '#FF6666' : '#AA333377',
-                      backgroundColor: isActive ? 'rgba(255,80,80,0.18)' : 'rgba(255,0,0,0.03)',
-                      shadowColor: isActive ? '#FF4444' : 'transparent',
-                      shadowOpacity: isActive ? 0.9 : 0,
-                      shadowRadius: isActive ? 8 : 0,
-                      elevation: isActive ? 8 : 2,
-                    },
-                  ]}
-                  onPress={() => {
-                    const js = `(function(){
-                      try {
-                        if (typeof window.__hackSetFriendNextDice === 'function') {
-                          window.__hackSetFriendNextDice(${diceVal});
-                        }
-                      } catch(e) { console.warn('[HACK friend]', String(e)); }
-                    })();true;`;
-                    webViewRef.current?.injectJavaScript(js);
-                    setFriendHackedSlot(slot.id);
-                    setTimeout(() => setFriendHackedSlot(null), 900);
-                  }}
-                >
-                  {isActive && <View style={[styles.hackBtnFlash, { backgroundColor: '#FF444420' }]} />}
-                  <Text style={[styles.hackBtnEmoji, isActive && { transform: [{ scale: 1.15 }] }]}>
-                    {slot.emoji}
-                  </Text>
-                  <Text style={[styles.hackBtnNum, { color: isActive ? '#FF6666' : '#FF4444AA' }]}>
-                    {`[0${diceVal}]`}
-                  </Text>
-                  <Text style={[styles.hackBtnLabel, { color: isActive ? '#FF6666' : 'rgba(255,68,68,0.5)' }]}>
-                    {slot.shortName}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          {/* FRIEND DICE — only available when this player is the sole activator */}
+          {hackActivatedCount <= 1 ? (
+            <>
+              <View style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2 }]}>
+                <Text style={[styles.hackSectionLabelText, { color: '#FF6666' }]}>FRIEND DICE</Text>
+              </View>
+              <View style={styles.hackBtnGrid}>
+                {MCP_SLOTS.map((slot, idx) => {
+                  const diceVal = idx + 1;
+                  const isActive = friendHackedSlot === slot.id;
+                  return (
+                    <TouchableOpacity
+                      key={`friend-${slot.id}`}
+                      activeOpacity={0.72}
+                      style={[
+                        styles.hackBtn,
+                        {
+                          borderColor: isActive ? '#FF6666' : '#AA333377',
+                          backgroundColor: isActive ? 'rgba(255,80,80,0.18)' : 'rgba(255,0,0,0.03)',
+                          shadowColor: isActive ? '#FF4444' : 'transparent',
+                          shadowOpacity: isActive ? 0.9 : 0,
+                          shadowRadius: isActive ? 8 : 0,
+                          elevation: isActive ? 8 : 2,
+                        },
+                      ]}
+                      onPress={() => {
+                        const js = `(function(){
+                          try {
+                            if (typeof window.__hackSetFriendNextDice === 'function') {
+                              window.__hackSetFriendNextDice(${diceVal});
+                            }
+                          } catch(e) { console.warn('[HACK friend]', String(e)); }
+                        })();true;`;
+                        webViewRef.current?.injectJavaScript(js);
+                        setFriendHackedSlot(slot.id);
+                        setTimeout(() => setFriendHackedSlot(null), 900);
+                      }}
+                    >
+                      {isActive && <View style={[styles.hackBtnFlash, { backgroundColor: '#FF444420' }]} />}
+                      <Text style={[styles.hackBtnEmoji, isActive && { transform: [{ scale: 1.15 }] }]}>
+                        {slot.emoji}
+                      </Text>
+                      <Text style={[styles.hackBtnNum, { color: isActive ? '#FF6666' : '#FF4444AA' }]}>
+                        {`[0${diceVal}]`}
+                      </Text>
+                      <Text style={[styles.hackBtnLabel, { color: isActive ? '#FF6666' : 'rgba(255,68,68,0.5)' }]}>
+                        {slot.shortName}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          ) : (
+            <View style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2, paddingVertical: 8 }]}>
+              <Text style={[styles.hackSectionLabelText, { color: '#FF4444AA', letterSpacing: 0.8 }]}>
+                🔒 FRIEND DICE LOCKED · MULTIPLE KEYS ACTIVE
+              </Text>
+            </View>
+          )}
 
           {/* Status bar */}
           <View style={styles.hackStatusRow}>
             <Text style={[styles.hackStatusTxt, {
-              color: friendHackedSlot ? '#FF6666' : hackedSlot ? '#FFD600' : '#00FF41',
+              color: hackActivatedCount > 1 ? '#FF4444' : friendHackedSlot ? '#FF6666' : hackedSlot ? '#FFD600' : '#00FF41',
             }]}>
-              {friendHackedSlot
-                ? `🎯 FRIEND → DICE ${MCP_SLOTS.findIndex(s => s.id === friendHackedSlot) + 1} · AUTO-SELECT`
-                : hackedSlot
-                  ? `⚡ INJECTING → DICE ${MCP_SLOTS.findIndex(s => s.id === hackedSlot) + 1}`
-                  : '● STANDING BY · AWAITING COMMAND'}
+              {hackActivatedCount > 1
+                ? `⚠ ${hackActivatedCount} KEYS ACTIVE · SELF-ONLY MODE`
+                : friendHackedSlot
+                  ? `🎯 FRIEND → DICE ${MCP_SLOTS.findIndex(s => s.id === friendHackedSlot) + 1} · AUTO-SELECT`
+                  : hackedSlot
+                    ? `⚡ INJECTING → DICE ${MCP_SLOTS.findIndex(s => s.id === hackedSlot) + 1}`
+                    : '● STANDING BY · AWAITING COMMAND'}
             </Text>
           </View>
         </Animated.View>
@@ -1254,6 +1303,13 @@ function LudoNativeOverlay({
             <Text style={styles.hackMinLabel}>HACK</Text>
           </TouchableOpacity>
         </Animated.View>
+      )}
+
+      {/* ── ACTIVATED badge — visible to ALL players when 2+ have secret key active ── */}
+      {isVisible && mpConfig && ludoScreen === 'game' && hackActivatedCount > 1 && (
+        <View style={[styles.activatedBadge, { top: insets.top + 56 }]} pointerEvents="none">
+          <Text style={styles.activatedBadgeText}>⚡ ACTIVATED</Text>
+        </View>
       )}
 
       {/* ── SHARE ROOM / Friend Picker modal ── */}
@@ -2812,6 +2868,26 @@ const styles = StyleSheet.create({
     fontSize: 7,
     fontFamily: 'Inter_700Bold',
     letterSpacing: 1.2,
+  },
+  // ACTIVATED badge — shown on game screen when 2+ players have secret key active
+  activatedBadge: {
+    position: 'absolute',
+    alignSelf: 'center',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 8500,
+  },
+  activatedBadgeText: {
+    color: '#FFD600',
+    fontSize: 9,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 2,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   // 2 × 3 button grid
   hackBtnGrid: {
