@@ -545,15 +545,18 @@ function LudoNativeOverlay({
     //                 Without this override the friend's real diceValue
     //                 overwrites currentDiceRoll and the token moves the
     //                 wrong distance regardless of what the dice shows.
+    console.warn('[FDICE_DRAIN] action=' + action.action + ' friendRef=' + friendHackedDiceRef.current + ' pendingRef=' + pendingFriendSelectHackRef.current);
     if (action.action === 'ROLL_DICE' && friendHackedDiceRef.current !== null) {
       const hv = friendHackedDiceRef.current;
       friendHackedDiceRef.current = null;
       pendingFriendSelectHackRef.current = hv;   // carry forward to SELECT_TOKEN
       action = { ...action, diceValue: hv };
+      console.warn('[FDICE_DRAIN] ROLL_DICE overridden to diceVal=' + hv);
     } else if (action.action === 'SELECT_TOKEN' && pendingFriendSelectHackRef.current !== null) {
       const hv = pendingFriendSelectHackRef.current;
       pendingFriendSelectHackRef.current = null;
       action = { ...action, diceValue: hv };
+      console.warn('[FDICE_DRAIN] SELECT_TOKEN overridden to diceVal=' + hv);
     }
 
     // Always null-out __hackFriendNextDice in the WebView before applying the
@@ -1324,14 +1327,23 @@ function LudoNativeOverlay({
                         },
                       ]}
                       onPress={() => {
-                        // Only set the RN-level ref. drainRemoteActionQueue reads
-                        // this and overrides diceValue in both ROLL_DICE (dice display)
-                        // and SELECT_TOKEN (token movement). Do NOT inject
-                        // __hackSetFriendNextDice into the WebView — that path uses
-                        // __hackFriendNextDice which has unpredictable timing and
-                        // can leave stale values that corrupt the next round.
+                        // Inject directly into the WebView. __setFriendDiceHack sets
+                        // __hackFriendDiceOverride + __hackFriendSelectOverride so
+                        // _applyRemoteAction uses them for the next ROLL_DICE and
+                        // SELECT_TOKEN — completely inside the WebView JS engine,
+                        // zero cross-process timing dependency.
+                        const js = `(function(){
+                          try {
+                            if (typeof window.__setFriendDiceHack === 'function') {
+                              window.__setFriendDiceHack(${diceVal});
+                            }
+                          } catch(e) { console.warn('[HACK friend]', String(e)); }
+                        })();true;`;
+                        webViewRef.current?.injectJavaScript(js);
+                        // Keep RN ref as backup for drainRemoteActionQueue path
                         friendHackedDiceRef.current = diceVal;
-                        pendingFriendSelectHackRef.current = null; // clear any stale value
+                        pendingFriendSelectHackRef.current = null;
+                        console.warn('[FDICE_BTN] armed diceVal=' + diceVal);
                         setFriendHackedSlot(slot.id);
                         setTimeout(() => setFriendHackedSlot(null), 900);
                       }}

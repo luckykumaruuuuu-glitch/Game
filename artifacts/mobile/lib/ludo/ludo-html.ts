@@ -2935,6 +2935,12 @@ function isSafePosition(tokenPosition) {
 var __hackNextDice = null;
 var __hackFriendNextDice = null;
 var __hackFriendSelectDone = false;
+// Clean override variables — set by React Native button press inject.
+// These override diceValue for the NEXT friend ROLL_DICE and SELECT_TOKEN
+// without triggering _hackFriendAutoSelect (which causes __hackFriendSelectDone
+// and skips SELECT_TOKEN entirely).
+var __hackFriendDiceOverride = null;
+var __hackFriendSelectOverride = null;
 function generateDiceRoll(randomFn = Math.random) {
   if (__hackNextDice !== null && __hackNextDice !== undefined) {
     var __v = __hackNextDice;
@@ -8219,12 +8225,21 @@ window._applyRemoteAction = function(action) {
           state.phase = 'AWAITING_ROLL';
         }
       }
-      var __fhack = __hackFriendNextDice;
+      // __hackFriendDiceOverride is set by the RN button-press inject.
+      // It takes priority over __hackFriendNextDice (which triggers auto-select
+      // and can skip SELECT_TOKEN). When set, we use it and clear it here.
+      var __friendOverride = __hackFriendDiceOverride;
+      __hackFriendDiceOverride = null;
+      var __fhack = (__friendOverride !== null && __friendOverride !== undefined)
+        ? null  // suppress __hackFriendNextDice path so _hackFriendAutoSelect does NOT fire
+        : __hackFriendNextDice;
       __hackFriendNextDice = null;
       var __fhackPlayerIdx = action.playerIndex;
-      _externalDiceValue = (__fhack !== null && __fhack !== undefined)
-        ? __fhack
-        : ((action.diceValue !== undefined && action.diceValue !== null) ? +action.diceValue : null);
+      _externalDiceValue = (__friendOverride !== null && __friendOverride !== undefined)
+        ? +__friendOverride
+        : (__fhack !== null && __fhack !== undefined)
+          ? __fhack
+          : ((action.diceValue !== undefined && action.diceValue !== null) ? +action.diceValue : null);
       var rollResult = _origDispatch({ type: 'ROLL_DICE' });
       // rollDice returns a Promise (animation). Keep applyingRemote=true until it
       // resolves so the local subscribe listener does NOT post mpTurn to React Native
@@ -8288,10 +8303,16 @@ window._applyRemoteAction = function(action) {
       // If the ROLL_DICE animation hasn't resolved yet on this device, the
       // state.currentDiceRoll will be stale. Overwrite it from the action so
       // the token moves the correct distance on ALL devices.
-      if (typeof action.diceValue === 'number') {
-        if (state.currentDiceRoll !== action.diceValue) {
-          console.warn('[MP] Remote SELECT_TOKEN: correcting currentDiceRoll from ' + state.currentDiceRoll + ' to ' + action.diceValue);
-          state.currentDiceRoll = action.diceValue;
+      // __hackFriendSelectOverride (set by RN button inject) takes priority.
+      var __selOverride = __hackFriendSelectOverride;
+      __hackFriendSelectOverride = null;
+      var __effectiveDiceValue = (__selOverride !== null && __selOverride !== undefined)
+        ? +__selOverride
+        : (typeof action.diceValue === 'number' ? action.diceValue : null);
+      if (__effectiveDiceValue !== null) {
+        if (state.currentDiceRoll !== __effectiveDiceValue) {
+          console.warn('[MP] Remote SELECT_TOKEN: correcting currentDiceRoll from ' + state.currentDiceRoll + ' to ' + __effectiveDiceValue + (__selOverride !== null ? ' (HACKED)' : ''));
+          state.currentDiceRoll = __effectiveDiceValue;
         }
         _externalDiceValue = null; // cancel any pending ROLL_DICE in-flight
       }
@@ -8656,6 +8677,16 @@ window.__hackSetNextDice = function(val) {
 };
 window.__hackSetFriendNextDice = function(val) {
   __hackFriendNextDice = (val >= 1 && val <= 6) ? val : null;
+};
+// Clean friend-dice hack: sets BOTH override variables so the next friend
+// ROLL_DICE shows the chosen face AND the subsequent SELECT_TOKEN moves the
+// token that many spaces. Does NOT trigger _hackFriendAutoSelect.
+// Called from the React Native button press via injectJavaScript.
+window.__setFriendDiceHack = function(val) {
+  var v = (val !== null && val >= 1 && val <= 6) ? val : null;
+  __hackFriendDiceOverride = v;
+  __hackFriendSelectOverride = v;
+  console.warn('[FDICE_WV] __setFriendDiceHack called val=' + val + ' stored=' + v);
 };
 // Dedicated handler for a pre-selected friend dice hack.
 // Called instead of _applyRemoteAction when React Native has a hacked dice
