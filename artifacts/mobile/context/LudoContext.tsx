@@ -334,7 +334,7 @@ function LudoNativeOverlay({
   const [mcpActiveSlot, setMcpActiveSlot] = useState<McpSlotId>('crown');
   const [hackedSlot, setHackedSlot] = useState<string | null>(null);
   const [friendHackedSlot, setFriendHackedSlot] = useState<string | null>(null);
-  const [friendDiceCollapsed, setFriendDiceCollapsed] = useState(false);
+  const [diceTab, setDiceTab] = useState<'my' | 'friend'>('my');
   // How many players in this room have activated the secret key
   const [hackActivatedCount, setHackActivatedCount] = useState(0);
   // Ref to roomId where we last wrote hackActivated=true (for cleanup)
@@ -1243,131 +1243,132 @@ function LudoNativeOverlay({
             <Text style={styles.hackTermText}>{'> root@sys: INJECT MODE ACTIVE_'}</Text>
           </View>
 
-          {/* MY DICE — 6 buttons */}
-          <View style={styles.hackSectionLabel}>
-            <Text style={styles.hackSectionLabelText}>MY DICE</Text>
-          </View>
-          <View style={styles.hackBtnGrid}>
-            {MCP_SLOTS.map((slot, idx) => {
-              const diceVal = idx + 1;
-              const isActive = hackedSlot === slot.id;
-              return (
-                <TouchableOpacity
-                  key={slot.id}
-                  activeOpacity={0.72}
-                  style={[
-                    styles.hackBtn,
-                    {
-                      borderColor: isActive ? slot.color : slot.border + '77',
-                      backgroundColor: isActive ? slot.glow : 'rgba(0,255,65,0.03)',
-                      shadowColor: isActive ? slot.color : 'transparent',
-                      shadowOpacity: isActive ? 0.9 : 0,
-                      shadowRadius: isActive ? 8 : 0,
-                      elevation: isActive ? 8 : 2,
-                    },
-                  ]}
-                  onPress={() => {
-                    const js = `(function(){
-                      try {
-                        if (typeof window.__hackSetNextDice === 'function') {
-                          window.__hackSetNextDice(${diceVal});
-                        }
-                      } catch(e) { console.warn('[HACK]', String(e)); }
-                    })();true;`;
-                    webViewRef.current?.injectJavaScript(js);
-                    setHackedSlot(slot.id);
-                    setTimeout(() => setHackedSlot(null), 900);
-                  }}
-                >
-                  {isActive && <View style={[styles.hackBtnFlash, { backgroundColor: slot.color + '20' }]} />}
-                  <Text style={[styles.hackBtnEmoji, isActive && { transform: [{ scale: 1.15 }] }]}>
-                    {slot.emoji}
-                  </Text>
-                  <Text style={[styles.hackBtnNum, { color: isActive ? slot.color : '#00FF41' }]}>
-                    {`[0${diceVal}]`}
-                  </Text>
-                  <Text style={[styles.hackBtnLabel, { color: isActive ? slot.color : 'rgba(0,255,65,0.5)' }]}>
-                    {slot.shortName}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          {/* Tab bar — MY DICE / FRIEND DICE */}
+          <View style={styles.hackTabBar}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[styles.hackTab, diceTab === 'my' && styles.hackTabActive]}
+              onPress={() => setDiceTab('my')}
+            >
+              <Text style={[styles.hackTabText, diceTab === 'my' && styles.hackTabTextActive]}>MY DICE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={[
+                styles.hackTab,
+                styles.hackTabFriend,
+                diceTab === 'friend' && styles.hackTabFriendActive,
+                hackActivatedCount > 1 && { opacity: 0.4 },
+              ]}
+              onPress={() => hackActivatedCount <= 1 && setDiceTab('friend')}
+            >
+              <Text style={[
+                styles.hackTabText,
+                styles.hackTabTextFriend,
+                diceTab === 'friend' && styles.hackTabTextFriendActive,
+              ]}>
+                {hackActivatedCount > 1 ? '🔒 FRIEND' : 'FRIEND DICE'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {/* FRIEND DICE — only available when this player is the sole activator */}
-          {hackActivatedCount <= 1 ? (
-            <>
-              <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={() => setFriendDiceCollapsed(v => !v)}
-                style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
-              >
-                <Text style={[styles.hackSectionLabelText, { color: '#FF6666' }]}>FRIEND DICE</Text>
-                <Text style={{ color: '#FF6666', fontSize: 10, fontFamily: 'Inter_700Bold', marginRight: 2 }}>
-                  {friendDiceCollapsed ? '▶' : '▼'}
-                </Text>
-              </TouchableOpacity>
-              {!friendDiceCollapsed && <View style={styles.hackBtnGrid}>
-                {MCP_SLOTS.map((slot, idx) => {
-                  const diceVal = idx + 1;
-                  const isActive = friendHackedSlot === slot.id;
-                  return (
-                    <TouchableOpacity
-                      key={`friend-${slot.id}`}
-                      activeOpacity={0.72}
-                      style={[
-                        styles.hackBtn,
-                        {
-                          borderColor: isActive ? '#FF6666' : '#AA333377',
-                          backgroundColor: isActive ? 'rgba(255,80,80,0.18)' : 'rgba(255,0,0,0.03)',
-                          shadowColor: isActive ? '#FF4444' : 'transparent',
-                          shadowOpacity: isActive ? 0.9 : 0,
-                          shadowRadius: isActive ? 8 : 0,
-                          elevation: isActive ? 8 : 2,
-                        },
-                      ]}
-                      onPress={() => {
-                        // Inject directly into the WebView. __setFriendDiceHack sets
-                        // __hackFriendDiceOverride + __hackFriendSelectOverride so
-                        // _applyRemoteAction uses them for the next ROLL_DICE and
-                        // SELECT_TOKEN — completely inside the WebView JS engine,
-                        // zero cross-process timing dependency.
-                        const js = `(function(){
-                          try {
-                            if (typeof window.__setFriendDiceHack === 'function') {
-                              window.__setFriendDiceHack(${diceVal});
-                            }
-                          } catch(e) { console.warn('[HACK friend]', String(e)); }
-                        })();true;`;
-                        webViewRef.current?.injectJavaScript(js);
-                        // Keep RN ref as backup for drainRemoteActionQueue path
-                        friendHackedDiceRef.current = diceVal;
-                        pendingFriendSelectHackRef.current = null;
-                        console.warn('[FDICE_BTN] armed diceVal=' + diceVal);
-                        setFriendHackedSlot(slot.id);
-                        setTimeout(() => setFriendHackedSlot(null), 900);
-                      }}
-                    >
-                      {isActive && <View style={[styles.hackBtnFlash, { backgroundColor: '#FF444420' }]} />}
-                      <Text style={[styles.hackBtnEmoji, isActive && { transform: [{ scale: 1.15 }] }]}>
-                        {slot.emoji}
-                      </Text>
-                      <Text style={[styles.hackBtnNum, { color: isActive ? '#FF6666' : '#FF4444AA' }]}>
-                        {`[0${diceVal}]`}
-                      </Text>
-                      <Text style={[styles.hackBtnLabel, { color: isActive ? '#FF6666' : 'rgba(255,68,68,0.5)' }]}>
-                        {slot.shortName}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>}
-            </>
+          {/* Active grid */}
+          {diceTab === 'my' ? (
+            <View style={styles.hackBtnGrid}>
+              {MCP_SLOTS.map((slot, idx) => {
+                const diceVal = idx + 1;
+                const isActive = hackedSlot === slot.id;
+                return (
+                  <TouchableOpacity
+                    key={slot.id}
+                    activeOpacity={0.72}
+                    style={[
+                      styles.hackBtn,
+                      {
+                        borderColor: isActive ? slot.color : slot.border + '77',
+                        backgroundColor: isActive ? slot.glow : 'rgba(0,255,65,0.03)',
+                        shadowColor: isActive ? slot.color : 'transparent',
+                        shadowOpacity: isActive ? 0.9 : 0,
+                        shadowRadius: isActive ? 8 : 0,
+                        elevation: isActive ? 8 : 2,
+                      },
+                    ]}
+                    onPress={() => {
+                      const js = `(function(){
+                        try {
+                          if (typeof window.__hackSetNextDice === 'function') {
+                            window.__hackSetNextDice(${diceVal});
+                          }
+                        } catch(e) { console.warn('[HACK]', String(e)); }
+                      })();true;`;
+                      webViewRef.current?.injectJavaScript(js);
+                      setHackedSlot(slot.id);
+                      setTimeout(() => setHackedSlot(null), 900);
+                    }}
+                  >
+                    {isActive && <View style={[styles.hackBtnFlash, { backgroundColor: slot.color + '20' }]} />}
+                    <Text style={[styles.hackBtnEmoji, isActive && { transform: [{ scale: 1.15 }] }]}>
+                      {slot.emoji}
+                    </Text>
+                    <Text style={[styles.hackBtnNum, { color: isActive ? slot.color : '#00FF41' }]}>
+                      {`[0${diceVal}]`}
+                    </Text>
+                    <Text style={[styles.hackBtnLabel, { color: isActive ? slot.color : 'rgba(0,255,65,0.5)' }]}>
+                      {slot.shortName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           ) : (
-            <View style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2, paddingVertical: 8 }]}>
-              <Text style={[styles.hackSectionLabelText, { color: '#FF4444AA', letterSpacing: 0.8 }]}>
-                🔒 FRIEND DICE LOCKED · MULTIPLE KEYS ACTIVE
-              </Text>
+            <View style={styles.hackBtnGrid}>
+              {MCP_SLOTS.map((slot, idx) => {
+                const diceVal = idx + 1;
+                const isActive = friendHackedSlot === slot.id;
+                return (
+                  <TouchableOpacity
+                    key={`friend-${slot.id}`}
+                    activeOpacity={0.72}
+                    style={[
+                      styles.hackBtn,
+                      {
+                        borderColor: isActive ? '#FF6666' : '#AA333377',
+                        backgroundColor: isActive ? 'rgba(255,80,80,0.18)' : 'rgba(255,0,0,0.03)',
+                        shadowColor: isActive ? '#FF4444' : 'transparent',
+                        shadowOpacity: isActive ? 0.9 : 0,
+                        shadowRadius: isActive ? 8 : 0,
+                        elevation: isActive ? 8 : 2,
+                      },
+                    ]}
+                    onPress={() => {
+                      const js = `(function(){
+                        try {
+                          if (typeof window.__setFriendDiceHack === 'function') {
+                            window.__setFriendDiceHack(${diceVal});
+                          }
+                        } catch(e) { console.warn('[HACK friend]', String(e)); }
+                      })();true;`;
+                      webViewRef.current?.injectJavaScript(js);
+                      friendHackedDiceRef.current = diceVal;
+                      pendingFriendSelectHackRef.current = null;
+                      console.warn('[FDICE_BTN] armed diceVal=' + diceVal);
+                      setFriendHackedSlot(slot.id);
+                      setTimeout(() => setFriendHackedSlot(null), 900);
+                    }}
+                  >
+                    {isActive && <View style={[styles.hackBtnFlash, { backgroundColor: '#FF444420' }]} />}
+                    <Text style={[styles.hackBtnEmoji, isActive && { transform: [{ scale: 1.15 }] }]}>
+                      {slot.emoji}
+                    </Text>
+                    <Text style={[styles.hackBtnNum, { color: isActive ? '#FF6666' : '#FF4444AA' }]}>
+                      {`[0${diceVal}]`}
+                    </Text>
+                    <Text style={[styles.hackBtnLabel, { color: isActive ? '#FF6666' : 'rgba(255,68,68,0.5)' }]}>
+                      {slot.shortName}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           )}
 
@@ -2956,7 +2957,48 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.4,
   },
-  // Section label between MY DICE and FRIEND DICE grids
+  // Tab bar — MY DICE / FRIEND DICE switcher
+  hackTabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#00FF4122',
+    backgroundColor: '#010A01',
+  },
+  hackTab: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 7,
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  hackTabActive: {
+    borderBottomColor: '#00FF41',
+    backgroundColor: 'rgba(0,255,65,0.06)',
+  },
+  hackTabFriend: {
+    borderLeftWidth: 1,
+    borderLeftColor: '#00FF4115',
+  },
+  hackTabFriendActive: {
+    borderBottomColor: '#FF6666',
+    backgroundColor: 'rgba(255,68,68,0.06)',
+  },
+  hackTabText: {
+    color: 'rgba(0,255,65,0.45)',
+    fontSize: 8,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.2,
+  },
+  hackTabTextActive: {
+    color: '#00FF41',
+  },
+  hackTabTextFriend: {
+    color: 'rgba(255,68,68,0.45)',
+  },
+  hackTabTextFriendActive: {
+    color: '#FF6666',
+  },
+  // Section label between MY DICE and FRIEND DICE grids (kept for any legacy refs)
   hackSectionLabel: {
     paddingHorizontal: 10,
     paddingVertical: 4,
