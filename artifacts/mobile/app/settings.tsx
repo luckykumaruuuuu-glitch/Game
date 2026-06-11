@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import React, { useState } from "react";
+import { APP_VERSION } from "@/context/UpdateContext";
 import {
   ActivityIndicator,
   ScrollView,
@@ -204,7 +205,7 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <Text style={[styles.versionText, { color: colors.mutedForeground }]}>
-          QR Profile Share · Version 1.0.0
+          LeLudo · Version {APP_VERSION}
         </Text>
       </ScrollView>
 

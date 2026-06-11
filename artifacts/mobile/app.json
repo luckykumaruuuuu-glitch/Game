@@ -18,7 +18,12 @@
       "bundleIdentifier": "com.leludo.app"
     },
     "android": {
-      "package": "com.leludo.app"
+      "package": "com.leludo.app",
+      "permissions": [
+        "android.permission.REQUEST_INSTALL_PACKAGES",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "favicon": "./assets/images/icon.png"

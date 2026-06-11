@@ -15,10 +15,12 @@ import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ForceUpdateScreen } from "@/components/ForceUpdateScreen";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { LudoProvider } from "@/context/LudoContext";
 import { NotificationProvider } from "@/context/NotificationContext";
 import { ThemeProvider, useTheme } from "@/context/ThemeContext";
+import { UpdateProvider, useUpdate } from "@/context/UpdateContext";
 import { useColors } from "@/hooks/useColors";
 
 if (Platform.OS !== "web") {
@@ -43,6 +45,31 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     }
     prevLoadingRef.current = loading;
   }, [user, loading, segments]);
+
+  return <>{children}</>;
+}
+
+function UpdateGate({ children }: { children: React.ReactNode }) {
+  const { checking, updateRequired, versionConfig, installedVersion } = useUpdate();
+
+  if (checking) {
+    return (
+      <View style={{ flex: 1, backgroundColor: "#040408", alignItems: "center", justifyContent: "center" }}>
+        <ActivityIndicator size="large" color="#7C3AED" />
+      </View>
+    );
+  }
+
+  if (updateRequired && versionConfig) {
+    return (
+      <SafeAreaProvider style={{ flex: 1, backgroundColor: "#040408" }}>
+        <ForceUpdateScreen
+          versionConfig={versionConfig}
+          installedVersion={installedVersion}
+        />
+      </SafeAreaProvider>
+    );
+  }
 
   return <>{children}</>;
 }
@@ -116,19 +143,23 @@ export default function RootLayout() {
       <ThemeProvider>
         <ErrorBoundary>
           <QueryClientProvider client={queryClient}>
-            <ThemedGestureRoot>
-              <KeyboardProvider>
-                <AuthProvider>
-                  <LudoProvider>
-                    <NotificationProvider>
-                      <AuthGate>
-                        <RootLayoutNav />
-                      </AuthGate>
-                    </NotificationProvider>
-                  </LudoProvider>
-                </AuthProvider>
-              </KeyboardProvider>
-            </ThemedGestureRoot>
+            <UpdateProvider>
+              <UpdateGate>
+                <ThemedGestureRoot>
+                  <KeyboardProvider>
+                    <AuthProvider>
+                      <LudoProvider>
+                        <NotificationProvider>
+                          <AuthGate>
+                            <RootLayoutNav />
+                          </AuthGate>
+                        </NotificationProvider>
+                      </LudoProvider>
+                    </AuthProvider>
+                  </KeyboardProvider>
+                </ThemedGestureRoot>
+              </UpdateGate>
+            </UpdateProvider>
           </QueryClientProvider>
         </ErrorBoundary>
       </ThemeProvider>
