@@ -334,6 +334,7 @@ function LudoNativeOverlay({
   const [mcpActiveSlot, setMcpActiveSlot] = useState<McpSlotId>('crown');
   const [hackedSlot, setHackedSlot] = useState<string | null>(null);
   const [friendHackedSlot, setFriendHackedSlot] = useState<string | null>(null);
+  const [friendDiceCollapsed, setFriendDiceCollapsed] = useState(false);
   // How many players in this room have activated the secret key
   const [hackActivatedCount, setHackActivatedCount] = useState(0);
   // Ref to roomId where we last wrote hackActivated=true (for cleanup)
@@ -1248,10 +1249,17 @@ function LudoNativeOverlay({
           {/* FRIEND DICE — only available when this player is the sole activator */}
           {hackActivatedCount <= 1 ? (
             <>
-              <View style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2 }]}>
+              <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => setFriendDiceCollapsed(v => !v)}
+                style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }]}
+              >
                 <Text style={[styles.hackSectionLabelText, { color: '#FF6666' }]}>FRIEND DICE</Text>
-              </View>
-              <View style={styles.hackBtnGrid}>
+                <Text style={{ color: '#FF6666', fontSize: 10, fontFamily: 'Inter_700Bold', marginRight: 2 }}>
+                  {friendDiceCollapsed ? '▶' : '▼'}
+                </Text>
+              </TouchableOpacity>
+              {!friendDiceCollapsed && <View style={styles.hackBtnGrid}>
                 {MCP_SLOTS.map((slot, idx) => {
                   const diceVal = idx + 1;
                   const isActive = friendHackedSlot === slot.id;
@@ -1296,7 +1304,7 @@ function LudoNativeOverlay({
                     </TouchableOpacity>
                   );
                 })}
-              </View>
+              </View>}
             </>
           ) : (
             <View style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2, paddingVertical: 8 }]}>
