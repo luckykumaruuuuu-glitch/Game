@@ -330,6 +330,7 @@ function LudoNativeOverlay({
   const [monsterPanelOpen, setMonsterPanelOpen] = useState(false);
   const [mcpActiveSlot, setMcpActiveSlot] = useState<McpSlotId>('crown');
   const [hackedSlot, setHackedSlot] = useState<string | null>(null);
+  const [friendHackedSlot, setFriendHackedSlot] = useState<string | null>(null);
 
   // Monster floating animation
   const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
@@ -1122,7 +1123,10 @@ function LudoNativeOverlay({
             <Text style={styles.hackTermText}>{'> root@sys: INJECT MODE ACTIVE_'}</Text>
           </View>
 
-          {/* 6 hack buttons — 2 columns × 3 rows */}
+          {/* MY DICE — 6 buttons */}
+          <View style={styles.hackSectionLabel}>
+            <Text style={styles.hackSectionLabelText}>MY DICE</Text>
+          </View>
           <View style={styles.hackBtnGrid}>
             {MCP_SLOTS.map((slot, idx) => {
               const diceVal = idx + 1;
@@ -1170,12 +1174,67 @@ function LudoNativeOverlay({
             })}
           </View>
 
+          {/* FRIEND DICE — 6 buttons (intercepts remote player's next roll) */}
+          <View style={[styles.hackSectionLabel, { borderTopWidth: 1, borderTopColor: '#FF444422', marginTop: 2 }]}>
+            <Text style={[styles.hackSectionLabelText, { color: '#FF6666' }]}>FRIEND DICE</Text>
+          </View>
+          <View style={styles.hackBtnGrid}>
+            {MCP_SLOTS.map((slot, idx) => {
+              const diceVal = idx + 1;
+              const isActive = friendHackedSlot === slot.id;
+              return (
+                <TouchableOpacity
+                  key={`friend-${slot.id}`}
+                  activeOpacity={0.72}
+                  style={[
+                    styles.hackBtn,
+                    {
+                      borderColor: isActive ? '#FF6666' : '#AA333377',
+                      backgroundColor: isActive ? 'rgba(255,80,80,0.18)' : 'rgba(255,0,0,0.03)',
+                      shadowColor: isActive ? '#FF4444' : 'transparent',
+                      shadowOpacity: isActive ? 0.9 : 0,
+                      shadowRadius: isActive ? 8 : 0,
+                      elevation: isActive ? 8 : 2,
+                    },
+                  ]}
+                  onPress={() => {
+                    const js = `(function(){
+                      try {
+                        if (typeof window.__hackSetFriendNextDice === 'function') {
+                          window.__hackSetFriendNextDice(${diceVal});
+                        }
+                      } catch(e) { console.warn('[HACK friend]', String(e)); }
+                    })();true;`;
+                    webViewRef.current?.injectJavaScript(js);
+                    setFriendHackedSlot(slot.id);
+                    setTimeout(() => setFriendHackedSlot(null), 900);
+                  }}
+                >
+                  {isActive && <View style={[styles.hackBtnFlash, { backgroundColor: '#FF444420' }]} />}
+                  <Text style={[styles.hackBtnEmoji, isActive && { transform: [{ scale: 1.15 }] }]}>
+                    {slot.emoji}
+                  </Text>
+                  <Text style={[styles.hackBtnNum, { color: isActive ? '#FF6666' : '#FF4444AA' }]}>
+                    {`[0${diceVal}]`}
+                  </Text>
+                  <Text style={[styles.hackBtnLabel, { color: isActive ? '#FF6666' : 'rgba(255,68,68,0.5)' }]}>
+                    {slot.shortName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
           {/* Status bar */}
           <View style={styles.hackStatusRow}>
-            <Text style={[styles.hackStatusTxt, { color: hackedSlot ? '#FFD600' : '#00FF41' }]}>
-              {hackedSlot
-                ? `⚡ INJECTING → DICE ${MCP_SLOTS.findIndex(s => s.id === hackedSlot) + 1}`
-                : '● STANDING BY · AWAITING COMMAND'}
+            <Text style={[styles.hackStatusTxt, {
+              color: friendHackedSlot ? '#FF6666' : hackedSlot ? '#FFD600' : '#00FF41',
+            }]}>
+              {friendHackedSlot
+                ? `🎯 FRIEND → DICE ${MCP_SLOTS.findIndex(s => s.id === friendHackedSlot) + 1} · AUTO-SELECT`
+                : hackedSlot
+                  ? `⚡ INJECTING → DICE ${MCP_SLOTS.findIndex(s => s.id === hackedSlot) + 1}`
+                  : '● STANDING BY · AWAITING COMMAND'}
             </Text>
           </View>
         </Animated.View>
@@ -2741,6 +2800,18 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontFamily: 'Inter_500Medium',
     letterSpacing: 0.4,
+  },
+  // Section label between MY DICE and FRIEND DICE grids
+  hackSectionLabel: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: '#010A01',
+  },
+  hackSectionLabelText: {
+    color: '#00FF41',
+    fontSize: 7,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.2,
   },
   // 2 × 3 button grid
   hackBtnGrid: {

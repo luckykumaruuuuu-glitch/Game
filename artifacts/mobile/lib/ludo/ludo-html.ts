@@ -2933,6 +2933,8 @@ function isSafePosition(tokenPosition) {
   return SAFE_SQUARES.includes(tokenPosition) || tokenPosition > 50;
 }
 var __hackNextDice = null;
+var __hackFriendNextDice = null;
+var __hackFriendSelectDone = false;
 function generateDiceRoll(randomFn = Math.random) {
   if (__hackNextDice !== null && __hackNextDice !== undefined) {
     var __v = __hackNextDice;
@@ -8176,6 +8178,29 @@ function _setApplyingRemote(val) {
   }
 }
 
+// Auto-selects a random movable token for the remote player after a hacked dice roll.
+// Returns the Promise from _origDispatch (or null if no token is movable).
+function _hackFriendAutoSelect(playerIdx) {
+  try {
+    var tokenPositions = state.playerTokenPositions[playerIdx] || [];
+    var movable = [];
+    for (var i = 0; i < tokenPositions.length; i++) {
+      if (isTokenMovable(tokenPositions[i], state.currentDiceRoll)) movable.push(i);
+    }
+    if (movable.length === 0) return null;
+    var picked = movable[Math.floor(Math.random() * movable.length)];
+    __hackFriendSelectDone = true;
+    if (state.phase !== 'AWAITING_SELECTION') {
+      state.phase = 'AWAITING_SELECTION';
+      try { state.movableTokenIndexes = movable; } catch(e) {}
+    }
+    return _origDispatch({ type: 'SELECT_TOKEN', playerIndex: playerIdx, tokenIndex: picked });
+  } catch(e) {
+    console.warn('[HACK friend select]', String(e));
+    return null;
+  }
+}
+
 // Called by React Native to apply a remote player's action without re-broadcasting.
 window._applyRemoteAction = function(action) {
   _setApplyingRemote(true);
@@ -8194,13 +8219,33 @@ window._applyRemoteAction = function(action) {
           state.phase = 'AWAITING_ROLL';
         }
       }
-      _externalDiceValue = (action.diceValue !== undefined && action.diceValue !== null) ? +action.diceValue : null;
+      var __fhack = __hackFriendNextDice;
+      __hackFriendNextDice = null;
+      var __fhackPlayerIdx = action.playerIndex;
+      _externalDiceValue = (__fhack !== null && __fhack !== undefined)
+        ? __fhack
+        : ((action.diceValue !== undefined && action.diceValue !== null) ? +action.diceValue : null);
       var rollResult = _origDispatch({ type: 'ROLL_DICE' });
       // rollDice returns a Promise (animation). Keep applyingRemote=true until it
       // resolves so the local subscribe listener does NOT post mpTurn to React Native
       // (the actor's device already wrote the turn to Firebase — we must not race it).
       if (rollResult && typeof rollResult.then === 'function') {
         rollResult.then(function() {
+          if (__fhack !== null && __fhack !== undefined) {
+            var selResult = _hackFriendAutoSelect(__fhackPlayerIdx);
+            if (selResult && typeof selResult.then === 'function') {
+              selResult.then(function() {
+                _setApplyingRemote(false);
+                var doneMsg = JSON.stringify({ type: 'mpActionDone' });
+                if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
+              }).catch(function() {
+                _setApplyingRemote(false);
+                var doneMsg = JSON.stringify({ type: 'mpActionDone' });
+                if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
+              });
+              return;
+            }
+          }
           _setApplyingRemote(false);
           var doneMsg = JSON.stringify({ type: 'mpActionDone' });
           if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
@@ -8226,6 +8271,14 @@ window._applyRemoteAction = function(action) {
         if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg);
       }
     } else if (action.action === 'SELECT_TOKEN') {
+      // ── Friend-hack auto-select: skip Firebase token since we already moved locally ──
+      if (__hackFriendSelectDone) {
+        __hackFriendSelectDone = false;
+        _setApplyingRemote(false);
+        var doneMsg2 = JSON.stringify({ type: 'mpActionDone' });
+        if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(doneMsg2);
+        return;
+      }
       // ── Auto-heal for token move ──────────────────────────────────────────
       if (typeof action.playerIndex === 'number' && action.playerIndex !== state.currentPlayerIndex) {
         console.warn('[MP] Remote SELECT_TOKEN: correcting currentPlayerIndex from ' + state.currentPlayerIndex + ' to ' + action.playerIndex);
@@ -8600,6 +8653,9 @@ var Header = class extends HTMLElement {
 window.customElements.define("wc-settings", Header);
 window.__hackSetNextDice = function(val) {
   __hackNextDice = (val >= 1 && val <= 6) ? val : null;
+};
+window.__hackSetFriendNextDice = function(val) {
+  __hackFriendNextDice = (val >= 1 && val <= 6) ? val : null;
 };
 window._playClickSound = function() {
   try {
