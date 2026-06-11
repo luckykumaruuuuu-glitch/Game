@@ -50,9 +50,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 }
 
 function UpdateGate({ children }: { children: React.ReactNode }) {
-  const { checking, updateRequired, versionConfig, installedVersion } = useUpdate();
+  const { status, versionConfig, installedVersion } = useUpdate();
 
-  if (checking) {
+  // ── Still verifying — block ALL navigation until check completes ────────────
+  if (status === "checking") {
     return (
       <View style={{ flex: 1, backgroundColor: "#040408", alignItems: "center", justifyContent: "center" }}>
         <ActivityIndicator size="large" color="#7C3AED" />
@@ -60,17 +61,33 @@ function UpdateGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (updateRequired && versionConfig) {
+  // ── Version below minimum or forceUpdate flag set ───────────────────────────
+  if (status === "update_required") {
     return (
       <SafeAreaProvider style={{ flex: 1, backgroundColor: "#040408" }}>
         <ForceUpdateScreen
           versionConfig={versionConfig}
           installedVersion={installedVersion}
+          offlineLocked={false}
         />
       </SafeAreaProvider>
     );
   }
 
+  // ── Network unavailable — deny entry regardless of prior state ──────────────
+  if (status === "offline_locked") {
+    return (
+      <SafeAreaProvider style={{ flex: 1, backgroundColor: "#040408" }}>
+        <ForceUpdateScreen
+          versionConfig={versionConfig}
+          installedVersion={installedVersion}
+          offlineLocked
+        />
+      </SafeAreaProvider>
+    );
+  }
+
+  // ── status === "ok" — all layers passed ─────────────────────────────────────
   return <>{children}</>;
 }
 

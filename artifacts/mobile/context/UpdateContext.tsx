@@ -1,81 +1,65 @@
 import Constants from "expo-constants";
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
-import { fetchVersionConfig, isUpdateRequired, VersionConfig } from "@/lib/updateChecker";
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { runVersionCheck, VersionConfig } from "@/lib/updateChecker";
 
-export const APP_VERSION: string =
-  Constants.expoConfig?.version ?? "1.0.0";
+export const APP_VERSION: string = Constants.expoConfig?.version ?? "1.0.0";
 
-interface UpdateState {
-  checking: boolean;
-  updateRequired: boolean;
+function _getApiBase(): string {
+  const url = process.env.EXPO_PUBLIC_API_URL;
+  if (url) return url.replace(/\/$/, "");
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+  if (domain) return `https://${domain}`;
+  return "";
+}
+
+export type UpdateStatus =
+  | "checking"        // initial check running
+  | "ok"              // all layers passed
+  | "update_required" // version < minimum or force flag set
+  | "offline_locked"; // network down — entry denied
+
+export interface UpdateState {
+  status: UpdateStatus;
   versionConfig: VersionConfig | null;
   installedVersion: string;
-  error: boolean;
 }
 
 const UpdateContext = createContext<UpdateState>({
-  checking: true,
-  updateRequired: false,
+  status: "checking",
   versionConfig: null,
   installedVersion: APP_VERSION,
-  error: false,
 });
 
 export function UpdateProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<UpdateState>({
-    checking: true,
-    updateRequired: false,
+    status: "checking",
     versionConfig: null,
     installedVersion: APP_VERSION,
-    error: false,
   });
 
   useEffect(() => {
     let cancelled = false;
 
-    async function check() {
-      try {
-        const config = await fetchVersionConfig();
-        if (cancelled) return;
+    async function run() {
+      const apiBase = _getApiBase();
+      const result = await runVersionCheck(APP_VERSION, apiBase);
+      if (cancelled) return;
 
-        if (!config) {
-          setState({
-            checking: false,
-            updateRequired: false,
-            versionConfig: null,
-            installedVersion: APP_VERSION,
-            error: false,
-          });
-          return;
-        }
-
-        const updateRequired = isUpdateRequired(APP_VERSION, config);
+      if (result.outcome === "ok") {
+        setState({ status: "ok", versionConfig: null, installedVersion: APP_VERSION });
+      } else if (result.outcome === "update_required") {
+        setState({ status: "update_required", versionConfig: result.config, installedVersion: APP_VERSION });
+      } else {
+        // offline_locked — network failed; deny entry regardless of prior state
         setState({
-          checking: false,
-          updateRequired,
-          versionConfig: config,
+          status: "offline_locked",
+          versionConfig: result.config,
           installedVersion: APP_VERSION,
-          error: false,
         });
-      } catch {
-        if (!cancelled) {
-          setState({
-            checking: false,
-            updateRequired: false,
-            versionConfig: null,
-            installedVersion: APP_VERSION,
-            error: true,
-          });
-        }
       }
     }
 
-    check();
+    run();
     return () => { cancelled = true; };
   }, []);
 
@@ -86,6 +70,6 @@ export function UpdateProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function useUpdate() {
+export function useUpdate(): UpdateState {
   return useContext(UpdateContext);
 }
