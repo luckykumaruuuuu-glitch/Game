@@ -525,21 +525,33 @@ function LudoNativeOverlay({
     let action = remoteActionQueueRef.current.shift()!;
 
     // ── Friend dice hack (RN-level override) ──────────────────────────────────
-    // Override diceValue directly in the action object before it reaches the
-    // WebView. This is more reliable than relying on __hackFriendNextDice being
-    // set in the WebView before _applyRemoteAction fires (timing race).
+    // When the user has pre-selected a friend dice value, we:
+    //   1. Override action.diceValue so _externalDiceValue is correct inside rollDice()
+    //   2. Call __hackSetFriendNextDice ATOMICALLY in the same JS execution as
+    //      _applyRemoteAction — this guarantees __fhack !== null when
+    //      _applyRemoteAction reads __hackFriendNextDice, so the auto-select
+    //      branch fires and __hackFriendSelectDone is set to skip the real
+    //      SELECT_TOKEN. Previously these were two separate injectJavaScript
+    //      calls that could race against each other.
+    let hackedDice: number | null = null;
     if (action.action === 'ROLL_DICE' && friendHackedDiceRef.current !== null) {
-      action = { ...action, diceValue: friendHackedDiceRef.current };
+      hackedDice = friendHackedDiceRef.current;
+      action = { ...action, diceValue: hackedDice };
       friendHackedDiceRef.current = null;
     }
 
-    const js =
-      `(function(){try{` +
-        `if(typeof window._applyRemoteAction==='function'){` +
-          `window._applyRemoteAction(${JSON.stringify(action)});` +
-        `}` +
-      `}catch(e){console.warn('[MP queue]',String(e));}` +
-      `})();true;`;
+    const js = hackedDice !== null
+      ? `(function(){try{` +
+          `if(typeof window.__hackSetFriendNextDice==='function'){window.__hackSetFriendNextDice(${hackedDice});}` +
+          `if(typeof window._applyRemoteAction==='function'){window._applyRemoteAction(${JSON.stringify(action)});}` +
+        `}catch(e){console.warn('[MP queue]',String(e));}` +
+        `})();true;`
+      : `(function(){try{` +
+          `if(typeof window._applyRemoteAction==='function'){` +
+            `window._applyRemoteAction(${JSON.stringify(action)});` +
+          `}` +
+        `}catch(e){console.warn('[MP queue]',String(e));}` +
+        `})();true;`;
     webViewRef.current?.injectJavaScript(js);
     // Safety: if mpActionDone never arrives (e.g. synchronous dispatch path),
     // auto-drain after 12 s (slightly longer than the 10 s applyingRemote safety timer).
