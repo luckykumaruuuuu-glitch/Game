@@ -7,6 +7,7 @@ import {
   AppState, Modal, Image, ScrollView,
   Animated, TextInput, KeyboardAvoidingView, PanResponder,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { playWebClickSound } from '@/lib/webSound';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -325,6 +326,7 @@ function LudoNativeOverlay({
   const [secretKeyInput, setSecretKeyInput] = useState('');
   const [secretKeyError, setSecretKeyError] = useState('');
   const [secretKeyActivated, setSecretKeyActivated] = useState(false);
+  const secretKeyActivatedRef = useRef(false); // mirror for use in effects without deps
   const [secretKeySuccess, setSecretKeySuccess] = useState(false);
 
   // Monster Control Panel state
@@ -401,6 +403,21 @@ function LudoNativeOverlay({
     }
   }, [mpConfig]);
 
+  // Persist secret key activation across app restarts
+  useEffect(() => {
+    AsyncStorage.getItem('ludo_hack_key_active').then((val) => {
+      if (val === 'true') {
+        setSecretKeyActivated(true);
+        secretKeyActivatedRef.current = true;
+      }
+    }).catch(() => {});
+  }, []);
+
+  // Keep ref in sync with state so effects can read latest value without deps
+  useEffect(() => {
+    secretKeyActivatedRef.current = secretKeyActivated;
+  }, [secretKeyActivated]);
+
   function handleSecretKeyConfirm() {
     if (secretKeyInput.toUpperCase().trim() === '7X1CM4') {
       setSecretKeyError('');
@@ -410,6 +427,8 @@ function LudoNativeOverlay({
         setSecretKeyModalOpen(false);
         setSecretKeyInput('');
         setSecretKeyActivated(true);
+        secretKeyActivatedRef.current = true;
+        AsyncStorage.setItem('ludo_hack_key_active', 'true').catch(() => {});
         setMonsterPanelOpen(true); // auto-open floating hack panel
         // Broadcast activation to Firebase so other players know
         if (mpConfig && user) {
@@ -440,6 +459,10 @@ function LudoNativeOverlay({
         hackActivatedRoomRef.current = null;
       }
       setHackActivatedCount(0);
+    } else if (secretKeyActivatedRef.current && user && hackActivatedRoomRef.current !== mpConfig.roomId) {
+      // Joined a new room while key is already activated — auto-broadcast to Firebase
+      hackActivatedRoomRef.current = mpConfig.roomId;
+      writeHackActivated(mpConfig.roomId, user.uid, true).catch(console.warn);
     }
   }, [mpConfig?.roomId]);
 
