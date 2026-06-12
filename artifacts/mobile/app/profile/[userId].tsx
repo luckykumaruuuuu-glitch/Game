@@ -93,7 +93,7 @@ export default function PublicProfileScreen() {
         {/* ── Branding header ── */}
         <View style={styles.brandHeader}>
           <MaterialCommunityIcons name="dice-6" size={18} color={BRAND_PURPLE} />
-          <Text style={styles.brandName}>LeLudo</Text>
+          <Text style={styles.brandName}>Ludo Royale</Text>
           <MaterialCommunityIcons name="dice-multiple" size={18} color={BRAND_PURPLE} />
         </View>
 
@@ -154,7 +154,7 @@ export default function PublicProfileScreen() {
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <MaterialCommunityIcons name="dice-multiple" size={22} color={BRAND_PURPLE_LIGHT} />
-              <Text style={styles.statLabel}>LeLudo Player</Text>
+              <Text style={styles.statLabel}>Ludo Royale Player</Text>
             </View>
           </View>
         </LinearGradient>
@@ -168,7 +168,7 @@ export default function PublicProfileScreen() {
             style={styles.ctaGradient}
           >
             <MaterialCommunityIcons name="dice-6" size={20} color="#fff" />
-            <Text style={styles.ctaText}>Play LeLudo — Download the App</Text>
+            <Text style={styles.ctaText}>Play Ludo Royale — Download the App</Text>
           </LinearGradient>
         </TouchableOpacity>
 

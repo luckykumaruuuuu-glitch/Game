@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "LeLudo",
+    "name": "Ludo Royale",
     "slug": "leludo",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -35,13 +35,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow LeLudo to access your camera to scan QR codes."
+          "cameraPermission": "Allow Ludo Royale to access your camera to scan QR codes."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow LeLudo to access your photos to upload profile pictures."
+          "photosPermission": "Allow Ludo Royale to access your photos to upload profile pictures."
         }
       ]
     ],
