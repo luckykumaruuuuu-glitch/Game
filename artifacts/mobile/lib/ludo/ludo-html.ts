@@ -5777,6 +5777,23 @@ function rollDice(emit2) {
     emit2({ type: EVENTS.DICE_ROLLED, value: newRoll });
     updateDiceFace(lastDiceRoll, state.currentDiceRoll);
     setLastRoll(state.currentPlayerIndex, state.currentDiceRoll);
+    // When applying a remote action, check if the turn will auto-advance
+    // (no movable tokens). If so, delay handleAfterDiceRoll so the dice
+    // value stays visible to all players before the turn passes.
+    if (_mp.enabled && _mp.applyingRemote && state.consecutiveSixesCount !== 3) {
+      var _remoteMovable = 0;
+      var _remotePositions = state.playerTokenPositions[state.currentPlayerIndex];
+      if (_remotePositions) {
+        for (var _ri = 0; _ri < _remotePositions.length; _ri++) {
+          if (isTokenMovable(_remotePositions[_ri], state.currentDiceRoll)) { _remoteMovable++; }
+        }
+      }
+      if (_remoteMovable === 0) {
+        return new Promise(function(resolve) {
+          setTimeout(function() { handleAfterDiceRoll(emit2); resolve(); }, 1200);
+        });
+      }
+    }
     handleAfterDiceRoll(emit2);
   });
 }
