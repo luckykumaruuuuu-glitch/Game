@@ -570,6 +570,19 @@ function LudoNativeOverlay({
       pendingFriendSelectHackRef.current = null;
       action = { ...action, diceValue: hv };
       console.warn('[FDICE_DRAIN] SELECT_TOKEN overridden to diceVal=' + hv);
+    } else if (action.action === 'SELECT_TOKEN' && friendHackedDiceRef.current !== null) {
+      // ── Coalescing recovery ──────────────────────────────────────────────
+      // Firestore merged ROLL_DICE + SELECT_TOKEN into a single snapshot, so
+      // the ROLL_DICE action was never dequeued. friendHackedDiceRef was armed
+      // for that ROLL_DICE but was never consumed. Consume it now to:
+      //   1. Prevent it bleeding into the next turn's ROLL_DICE (wrong dice override).
+      //   2. Pass the hacked diceValue to _applyRemoteAction so the synthesised
+      //      dice animation (the __missedDice path) shows the correct hacked number.
+      const hv = friendHackedDiceRef.current;
+      friendHackedDiceRef.current = null;
+      pendingFriendSelectHackRef.current = null;
+      action = { ...action, diceValue: hv };
+      console.warn('[FDICE_DRAIN] SELECT_TOKEN (coalesced ROLL_DICE) overridden to diceVal=' + hv);
     }
 
     // Always null-out __hackFriendNextDice in the WebView before applying the

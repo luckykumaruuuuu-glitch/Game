@@ -8335,6 +8335,11 @@ window._applyRemoteAction = function(action) {
         var __animResult = animateDiceRoll(__prevFaceForAnim);
         // Closure over __effectiveDiceValue captured above.
         var __applyAfterDiceAnim = function() {
+          // Clear any stale __hackFriendDiceOverride that was left over because
+          // ROLL_DICE was coalesced (never reached _applyRemoteAction's ROLL_DICE
+          // branch which normally clears it). Without this, the NEXT remote
+          // ROLL_DICE would incorrectly inherit the previous turn's hack value.
+          __hackFriendDiceOverride = null;
           // Show the correct final dice face and update state.
           state.currentDiceRoll = __effectiveDiceValue;
           _externalDiceValue = null;
