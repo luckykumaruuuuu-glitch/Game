@@ -1,6 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { Link } from "expo-router";
+import { Link, router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
@@ -21,13 +21,12 @@ import { useColors } from "@/hooks/useColors";
 export default function LoginScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { signIn, sendPasswordReset } = useAuth();
+  const { signIn } = useAuth();
   const [input, setInput] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
 
   async function handleLogin() {
     if (!input.trim() || !password) {
@@ -70,20 +69,8 @@ export default function LoginScreen() {
     }
   }
 
-  async function handleForgotPassword() {
-    const email = input.trim();
-    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-    if (!isEmail) {
-      setError("Enter your email address in the field above to reset password.");
-      return;
-    }
-    try {
-      await sendPasswordReset(email);
-      setResetSent(true);
-      setError("");
-    } catch {
-      setError("Failed to send reset email. Check the address and try again.");
-    }
+  function handleForgotPassword() {
+    router.push("/(auth)/forgot-password");
   }
 
   return (
@@ -134,20 +121,6 @@ export default function LoginScreen() {
                 <Feather name="alert-circle" size={14} color={colors.destructive} />
                 <Text style={[styles.errorText, { color: colors.destructive }]}>
                   {error}
-                </Text>
-              </View>
-            ) : null}
-
-            {resetSent ? (
-              <View
-                style={[
-                  styles.errorBox,
-                  { backgroundColor: "#10B98122", borderColor: "#10B98144" },
-                ]}
-              >
-                <Feather name="check-circle" size={14} color="#10B981" />
-                <Text style={[styles.errorText, { color: "#10B981" }]}>
-                  Password reset email sent! Check your inbox.
                 </Text>
               </View>
             ) : null}
