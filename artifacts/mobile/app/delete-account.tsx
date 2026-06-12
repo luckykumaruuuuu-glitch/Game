@@ -14,6 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemedBackground } from "@/components/ThemedBackground";
 import { GlassCard } from "@/components/GlassCard";
+import { ConfirmModal } from "@/components/ConfirmModal";
 import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
@@ -30,21 +31,27 @@ export default function DeleteAccountScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showConfirm, setShowConfirm] = useState(false);
 
-  async function handleDelete() {
+  function handleDeletePress() {
     if (!password.trim()) {
-      setError("Please enter your password.");
+      setError("Please enter your password to continue.");
       return;
     }
     setError("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    setShowConfirm(true);
+  }
+
+  async function handleConfirmedDelete() {
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     try {
       await deleteAccount(password);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       // AuthGate in _layout.tsx detects user=null and navigates to login automatically
-      // No manual router.replace here — that would conflict with AuthGate
     } catch (e: any) {
+      setShowConfirm(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (
         e?.code === "auth/wrong-password" ||
@@ -173,13 +180,13 @@ export default function DeleteAccountScreen() {
           ) : null}
         </GlassCard>
 
-        {/* Delete button */}
+        {/* Delete button — opens confirmation modal */}
         <TouchableOpacity
           style={[
             styles.deleteBtn,
             { backgroundColor: DANGER_RED, opacity: loading || !password.trim() ? 0.6 : 1 },
           ]}
-          onPress={handleDelete}
+          onPress={handleDeletePress}
           disabled={loading || !password.trim()}
           activeOpacity={0.8}
         >
@@ -201,6 +208,22 @@ export default function DeleteAccountScreen() {
           <Text style={[styles.cancelBtnText, { color: colors.foreground }]}>Cancel</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Final "Are you sure?" confirmation modal */}
+      <ConfirmModal
+        visible={showConfirm}
+        onClose={() => !loading && setShowConfirm(false)}
+        onConfirm={handleConfirmedDelete}
+        title="Delete Permanently?"
+        message={`Your profile, all data, and account access will be removed forever.\n\nThis action cannot be undone.`}
+        confirmLabel="Yes, Delete Forever"
+        cancelLabel="Go Back"
+        confirmColor={DANGER_RED}
+        iconName="trash-2"
+        iconColor={DANGER_RED}
+        iconBg={DANGER_RED_BG}
+        loading={loading}
+      />
     </ThemedBackground>
   );
 }

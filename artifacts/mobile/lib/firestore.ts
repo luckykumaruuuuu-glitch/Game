@@ -866,6 +866,12 @@ export async function deleteAllUserData(userId: string, username: string): Promi
     )
   );
 
+  const gameInvitesSentSnap = await getDocs(query(collection(db, "gameInvites"), where("senderId", "==", userId)));
+  await batchDelete(gameInvitesSentSnap.docs);
+
+  const gameInvitesReceivedSnap = await getDocs(query(collection(db, "gameInvites"), where("receiverId", "==", userId)));
+  await batchDelete(gameInvitesReceivedSnap.docs);
+
   try { await deleteDoc(doc(db, "userPresence", userId)); } catch { /* ignore */ }
   try { await deleteDoc(doc(db, "usernames", username.toLowerCase())); } catch { /* ignore */ }
   try { await deleteDoc(doc(db, "users", userId)); } catch { /* ignore */ }
