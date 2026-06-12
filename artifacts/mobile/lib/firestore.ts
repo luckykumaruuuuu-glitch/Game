@@ -1484,8 +1484,14 @@ export async function saveGameState(
   roomId: string,
   gameState: SavedGameState
 ): Promise<void> {
+  // Firestore does not support nested arrays. Serialize tokenPositions as a
+  // JSON string so the 2-D array (Array<Array<number>|null>) can be stored.
+  const firestoreState = {
+    ...gameState,
+    tokenPositions: JSON.stringify(gameState.tokenPositions),
+  };
   await updateDoc(doc(db, "gameRooms", roomId), {
-    gameState,
+    gameState: firestoreState,
     lastActivityAt: Date.now(),
   });
 }

@@ -81,8 +81,17 @@ function buildStartGameJS(
   const mpInit = typeof myPlayerIndex === 'number'
     ? `setTimeout(function(){if(typeof window._initMultiplayer==='function'){window._initMultiplayer(${myPlayerIndex});}},${ 800});`
     : '';
-  const restoreCall = savedGameState && typeof myPlayerIndex === 'number'
-    ? `setTimeout(function(){if(typeof window._restoreGameState==='function'){window._restoreGameState(${JSON.stringify(savedGameState)});}},1600);`
+  // tokenPositions is stored as a JSON string in Firestore (to avoid nested
+  // arrays which Firestore rejects). Parse it back to an array before passing
+  // to the game engine. If it's already an array (legacy / in-memory), keep it.
+  const normalizedState = savedGameState ? {
+    ...savedGameState,
+    tokenPositions: typeof savedGameState.tokenPositions === 'string'
+      ? JSON.parse(savedGameState.tokenPositions as unknown as string)
+      : savedGameState.tokenPositions,
+  } : undefined;
+  const restoreCall = normalizedState && typeof myPlayerIndex === 'number'
+    ? `setTimeout(function(){if(typeof window._restoreGameState==='function'){window._restoreGameState(${JSON.stringify(normalizedState)});}},1600);`
     : '';
   // Always reset _mp before START_GAME so a previous online session never
   // bleeds into an offline or new-online game. _initMultiplayer (called
@@ -917,17 +926,18 @@ function LudoNativeOverlay({
         const cfg = mpConfigRef.current;
         if (!cfg) return;
         lastWrittenSeqRef.current += 1;
-        const action: GameAction = {
+        const _rawAction: Record<string, unknown> = {
           action: data.action,
           playerIndex: data.playerIndex,
-          diceValue: data.diceValue,
-          tokenIndex: data.tokenIndex,
-          fromPosition: data.fromPosition,
-          toPosition: data.toPosition,
           seq: lastWrittenSeqRef.current,
           actorId: cfg.userId,
           ts: Date.now(),
         };
+        if (data.diceValue !== undefined && data.diceValue !== null) _rawAction.diceValue = data.diceValue;
+        if (data.tokenIndex !== undefined && data.tokenIndex !== null) _rawAction.tokenIndex = data.tokenIndex;
+        if (data.fromPosition !== undefined && data.fromPosition !== null) _rawAction.fromPosition = data.fromPosition;
+        if (data.toPosition !== undefined && data.toPosition !== null) _rawAction.toPosition = data.toPosition;
+        const action = _rawAction as GameAction;
         // For ROLL_DICE: currentTurnPlayerIndex = the rolling player (it's still their turn while selecting token)
         const turnForAction = data.action === 'ROLL_DICE' ? data.playerIndex : undefined;
         writeGameAction(cfg.roomId, action, turnForAction).catch((e) =>
