@@ -8316,6 +8316,69 @@ window._applyRemoteAction = function(action) {
         }
         _externalDiceValue = null; // cancel any pending ROLL_DICE in-flight
       }
+
+      // ── Synthesise missed ROLL_DICE animation ─────────────────────────────
+      // Firestore may coalesce rapid ROLL_DICE + SELECT_TOKEN writes into a
+      // single snapshot so the remote device only ever sees SELECT_TOKEN and
+      // never gets to play the dice animation.  Detect this by checking whether
+      // the phase is still AWAITING_ROLL (not AWAITING_SELECTION) — if so, the
+      // ROLL_DICE action was skipped entirely.  In that case we play the full
+      // dice animation with the correct value first, then apply the token move,
+      // so every player always sees the dice number before the token moves.
+      var __missedDice = (state.phase !== 'AWAITING_SELECTION') && (__effectiveDiceValue !== null);
+      if (__missedDice) {
+        // Align the rolling player so the dice container appears in the right
+        // corner.  Phase is left as-is; animateDiceRoll is called directly so
+        // we bypass the canRoll() gate that lives inside rollDice().
+        if (typeof action.playerIndex === 'number') state.currentPlayerIndex = action.playerIndex;
+        var __prevFaceForAnim = state.currentDiceRoll;
+        var __animResult = animateDiceRoll(__prevFaceForAnim);
+        // Closure over __effectiveDiceValue captured above.
+        var __applyAfterDiceAnim = function() {
+          // Show the correct final dice face and update state.
+          state.currentDiceRoll = __effectiveDiceValue;
+          _externalDiceValue = null;
+          try { updateDiceFace(__prevFaceForAnim, __effectiveDiceValue); } catch(eUpd) {}
+          try { setLastRoll(action.playerIndex, __effectiveDiceValue); } catch(eLR) {}
+          // Prepare phase so canSelectToken() passes inside selectToken().
+          state.phase = 'AWAITING_SELECTION';
+          if (typeof action.tokenIndex === 'number') {
+            try { state.movableTokenIndexes = [action.tokenIndex]; } catch(eMTI) {}
+          }
+          // Apply the token move.
+          var missedSelResult = _origDispatch({ type: 'SELECT_TOKEN', playerIndex: action.playerIndex, tokenIndex: action.tokenIndex });
+          if (missedSelResult && typeof missedSelResult.then === 'function') {
+            missedSelResult.then(function() {
+              _setApplyingRemote(false);
+              if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpActionDone' }));
+            }).catch(function() {
+              _setApplyingRemote(false);
+              if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpActionDone' }));
+            });
+          } else {
+            _setApplyingRemote(false);
+            if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'mpActionDone' }));
+          }
+        };
+        if (__animResult && typeof __animResult.then === 'function') {
+          __animResult.then(__applyAfterDiceAnim).catch(__applyAfterDiceAnim);
+        } else {
+          // animateDiceRoll resolved synchronously (dice element not yet in DOM) —
+          // apply immediately so the token still moves with the correct value.
+          __applyAfterDiceAnim();
+        }
+        // Emit move log so React Native shows the history entry.
+        if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify({
+          type: 'mpMoveLog',
+          playerIndex: action.playerIndex,
+          tokenIndex: action.tokenIndex,
+          diceValue: action.diceValue,
+          fromPosition: action.fromPosition,
+          toPosition: action.toPosition,
+        }));
+        return; // handled — do not fall through to normal SELECT_TOKEN path
+      }
+
       // ── Ensure correct phase so canSelectToken() passes ─────────────────
       if (state.phase !== 'AWAITING_SELECTION') {
         state.phase = 'AWAITING_SELECTION';
