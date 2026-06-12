@@ -91,7 +91,7 @@ function RootLayoutNav() {
         freezeOnBlur: true,
       }}
     >
-      <Stack.Screen name="(tabs)" options={{ animation: "none", contentStyle: { backgroundColor: bg } }} />
+      <Stack.Screen name="(tabs)" options={{ animation: "none", contentStyle: { backgroundColor: bg }, freezeOnBlur: false }} />
       <Stack.Screen name="(auth)" options={{ animation: "fade", animationDuration: 180, contentStyle: { backgroundColor: bg } }} />
       <Stack.Screen name="ludo" options={{ animation: "slide_from_right", animationDuration: 200, contentStyle: { backgroundColor: bg } }} />
       <Stack.Screen name="profile" options={{ animation: "fade", animationDuration: 180, contentStyle: { backgroundColor: bg } }} />
