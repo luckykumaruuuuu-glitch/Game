@@ -149,6 +149,16 @@ export async function checkUsernameAvailable(username: string): Promise<boolean>
   return !snap.exists();
 }
 
+export async function checkEmailAvailable(email: string): Promise<boolean> {
+  const q = query(
+    collection(db, "users"),
+    where("email", "==", email.trim().toLowerCase()),
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  return snap.empty;
+}
+
 export async function createUserProfileWithUsername(
   userId: string,
   data: { email: string; username: string; authEmail?: string }

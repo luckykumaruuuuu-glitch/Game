@@ -94,8 +94,10 @@ export default function SignupScreen() {
       let msg = "";
       if (code === "username-taken") {
         msg = "This username was just taken. Please choose another.";
+      } else if (code === "auth/gmail-already-registered") {
+        msg = "This Gmail is already registered. Please use a different email or sign in.";
       } else if (code === "auth/email-already-in-use") {
-        msg = "Could not create account with this email and username combination. Try a different username.";
+        msg = "This email is already in use. Please sign in instead.";
       } else if (code === "auth/invalid-email") {
         msg = "Invalid email address.";
       } else if (code === "auth/weak-password") {

@@ -11,6 +11,7 @@ import {
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
+  checkEmailAvailable,
   createUserProfileWithUsername,
   deleteAllUserData,
   getUserByUsername,
@@ -70,23 +71,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signingUpRef.current = true;
     setLoading(true);
     let cred: Awaited<ReturnType<typeof createUserWithEmailAndPassword>> | undefined;
-    let authEmail = email.trim().toLowerCase();
+    const authEmail = email.trim().toLowerCase();
     try {
-      try {
-        cred = await createUserWithEmailAndPassword(auth, authEmail, password);
-      } catch (e: any) {
-        if (e?.code === "auth/email-already-in-use") {
-          const atIdx = authEmail.indexOf("@");
-          const local = authEmail.slice(0, atIdx);
-          const domain = authEmail.slice(atIdx);
-          authEmail = `${local}+${username.toLowerCase()}${domain}`;
-          cred = await createUserWithEmailAndPassword(auth, authEmail, password);
-        } else {
-          throw e;
-        }
+      const emailFree = await checkEmailAvailable(authEmail);
+      if (!emailFree) {
+        const err: any = new Error("This Gmail is already registered.");
+        err.code = "auth/gmail-already-registered";
+        throw err;
       }
+
+      cred = await createUserWithEmailAndPassword(auth, authEmail, password);
       await createUserProfileWithUsername(cred.user.uid, {
-        email: email.trim().toLowerCase(),
+        email: authEmail,
         username,
         authEmail,
       });

@@ -370,6 +370,27 @@ export default function EditProfileScreen() {
               </Text>
             </View>
 
+            {/* Email (read-only — cannot be changed) */}
+            <View
+              style={[
+                styles.field,
+                { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.02)" },
+              ]}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>
+                  Email
+                </Text>
+                <View style={[styles.lockedBadge, { backgroundColor: colors.secondary, borderColor: colors.border }]}>
+                  <Feather name="lock" size={10} color={colors.mutedForeground} />
+                  <Text style={[styles.lockedBadgeText, { color: colors.mutedForeground }]}>Locked</Text>
+                </View>
+              </View>
+              <Text style={[styles.fieldInput, { color: colors.mutedForeground }]}>
+                {profile?.email ?? ""}
+              </Text>
+            </View>
+
             {/* Gender */}
             <View
               style={[
@@ -802,5 +823,18 @@ const styles = StyleSheet.create({
     alignSelf: "flex-end",
     marginTop: 2,
     opacity: 0.6,
+  },
+  lockedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 20,
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  lockedBadgeText: {
+    fontSize: 10,
+    fontFamily: "Inter_500Medium",
   },
 });
