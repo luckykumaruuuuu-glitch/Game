@@ -1,5 +1,5 @@
-const CLOUD_NAME = "ddmx5qvhn";
-const UPLOAD_PRESET = "ml_default";
+const CLOUD_NAME = process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME ?? "ddmx5qvhn";
+const UPLOAD_PRESET = process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET ?? "ml_default";
 
 export interface CloudinaryUploadResult {
   secure_url: string;
@@ -8,7 +8,6 @@ export interface CloudinaryUploadResult {
 
 export async function uploadImageToCloudinary(uri: string, mimeType = "image/jpeg"): Promise<CloudinaryUploadResult> {
   console.log(`[CLOUDINARY] uploadImageToCloudinary → uri=${uri} mimeType=${mimeType}`);
-  // Derive a sensible extension from the mime type
   const ext = mimeType === "image/png" ? "png" : mimeType === "image/webp" ? "webp" : "jpg";
   const formData = new FormData();
   formData.append("file", { uri, type: mimeType, name: `upload.${ext}` } as any);
@@ -50,10 +49,8 @@ export async function deleteImageFromCloudinary(publicId: string): Promise<void>
     if (process.env.EXPO_PUBLIC_API_URL) {
       base = process.env.EXPO_PUBLIC_API_URL.replace(/\/$/, "");
     } else if (typeof window !== "undefined") {
-      // Browser (Expo web): use relative path — dev-proxy routes /api → API server
       base = "";
     } else {
-      // Native without config — skip
       return;
     }
 

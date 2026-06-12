@@ -3,12 +3,12 @@ import { Router } from "express";
 const router = Router();
 
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCGf_8xBemNp8cEzecoW1RcVoK7iB0bltY",
-  authDomain: "game-217ce.firebaseapp.com",
-  projectId: "game-217ce",
-  storageBucket: "game-217ce.firebasestorage.app",
-  messagingSenderId: "25583360638",
-  appId: "1:25583360638:web:941d312e9455d705a7562f",
+  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
 function buildProfileHtml(userId: string): string {
