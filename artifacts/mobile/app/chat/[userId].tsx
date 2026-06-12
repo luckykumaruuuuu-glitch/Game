@@ -21,6 +21,8 @@ import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { ChatActionMenu } from "@/components/ChatActionMenu";
 import { ConfirmModal } from "@/components/ConfirmModal";
 import { useAuth } from "@/context/AuthContext";
+import { useTheme } from "@/context/ThemeContext";
+import { RoomInviteCard } from "@/components/RoomInviteCard";
 import {
   ChatMessage,
   UserProfile,
@@ -41,6 +43,8 @@ import { useColors } from "@/hooks/useColors";
 
 export default function ChatScreen() {
   const colors = useColors();
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
   const insets = useSafeAreaInsets();
   const { userId: otherUserId } = useLocalSearchParams<{ userId: string }>();
   const { user } = useAuth();
@@ -381,6 +385,26 @@ export default function ChatScreen() {
                 !prevMsg || item.timestamp - prevMsg.timestamp > 5 * 60 * 1000;
               const isSelected = selectedIds.has(item.messageId);
               const isDeleted = !!item.deletedForEveryone;
+
+              // ── Room invite card (type === 'room_invite') ────────────
+              if (!isDeleted && item.type === 'room_invite' && item.roomId) {
+                return (
+                  <View key={item.messageId}>
+                    {showTime && (
+                      <Text style={[styles.timeLabel, { color: colors.mutedForeground }]}>
+                        {new Date(item.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </Text>
+                    )}
+                    <View style={[styles.msgRow, mine ? styles.msgRowRight : styles.msgRowLeft]}>
+                      <RoomInviteCard
+                        roomId={item.roomId}
+                        isMine={mine}
+                        isDark={isDark}
+                      />
+                    </View>
+                  </View>
+                );
+              }
 
               return (
                 <TouchableOpacity

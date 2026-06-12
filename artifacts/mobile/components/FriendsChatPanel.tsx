@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ProfileAvatar } from '@/components/ProfileAvatar';
+import { RoomInviteCard } from '@/components/RoomInviteCard';
 import { useTheme } from '@/context/ThemeContext';
 import {
   ChatMessage,
@@ -197,6 +198,21 @@ function ChatView({
           const bubbleBg = isMe ? '#8B5CF6' : isDark ? '#2A2A2A' : '#F3F4F6';
           const textColor = isMe ? '#FFFFFF' : isDark ? '#F9FAFB' : '#111827';
           const deleted = item.deletedForEveryone || item.deletedFor?.includes(userId);
+
+          // ── Room invite card ────────────────────────────────
+          if (!deleted && item.type === 'room_invite' && item.roomId) {
+            return (
+              <View style={[cv.row, isMe && cv.rowMe]}>
+                <View>
+                  <RoomInviteCard roomId={item.roomId} isMine={isMe} isDark={isDark} />
+                  <Text style={[cv.ts, { color: subColor }, isMe && cv.tsMe]}>
+                    {fmtTime(item.timestamp)}
+                  </Text>
+                </View>
+              </View>
+            );
+          }
+
           return (
             <View style={[cv.row, isMe && cv.rowMe]}>
               <View style={[cv.bubbleBox, { backgroundColor: bubbleBg }]}>

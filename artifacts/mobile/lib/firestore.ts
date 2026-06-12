@@ -117,6 +117,8 @@ export interface ChatMessage {
   timestamp: number;
   deletedFor?: string[];
   deletedForEveryone?: boolean;
+  type?: 'text' | 'room_invite';
+  roomId?: string;
 }
 
 export interface ChatRoom {
@@ -1047,6 +1049,8 @@ export async function sendSpectatorInvite(
         senderId: fromUserId,
         text: chatText,
         timestamp: now,
+        type: 'room_invite',
+        roomId: roomId,
       });
     })
   );
@@ -1479,6 +1483,27 @@ export function subscribeToUserActiveRooms(
  * if the room hasn't had activity in INACTIVITY_MS it is marked INACTIVE and
  * the updated snapshot is returned so callers see the correct status.
  */
+export function subscribeToRoomStatus(
+  roomId: string,
+  callback: (status: 'loading' | 'live' | 'offline') => void
+): () => void {
+  const ref = doc(db, 'gameRooms', roomId);
+  return onSnapshot(
+    ref,
+    (snap) => {
+      if (!snap.exists()) {
+        callback('offline');
+        return;
+      }
+      const data = snap.data();
+      const isFinished = data.status === 'finished';
+      const isInactive = data.roomStatus === 'INACTIVE';
+      callback(isFinished || isInactive ? 'offline' : 'live');
+    },
+    () => callback('offline')
+  );
+}
+
 export async function getGameRoom(roomId: string): Promise<GameRoom | null> {
   const snap = await getDoc(doc(db, "gameRooms", roomId));
   if (!snap.exists()) return null;
