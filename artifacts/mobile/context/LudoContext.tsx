@@ -420,6 +420,12 @@ function LudoNativeOverlay({
       setSecretKeySuccess(false);
       setMonsterPanelOpen(false);
       setHackedSlot(null);
+      setFriendHackedSlot(null);
+      // Always clear hack refs on game exit so they never bleed into the
+      // next match — these refs persist across React re-renders / hot-reloads
+      // and would silently corrupt dice values in the next game if left set.
+      friendHackedDiceRef.current = null;
+      pendingFriendSelectHackRef.current = null;
       monsterPos.setValue({ x: 20, y: 300 });
       hackPanelPos.setValue({ x: 16, y: 80 });
       // Clear persisted room-scoped activation so a new match always starts fresh
@@ -570,19 +576,24 @@ function LudoNativeOverlay({
       pendingFriendSelectHackRef.current = null;
       action = { ...action, diceValue: hv };
       console.warn('[FDICE_DRAIN] SELECT_TOKEN overridden to diceVal=' + hv);
-    } else if (action.action === 'SELECT_TOKEN' && friendHackedDiceRef.current !== null) {
-      // ── Coalescing recovery ──────────────────────────────────────────────
+    } else if (action.action === 'SELECT_TOKEN' && friendHackedDiceRef.current !== null && secretKeyActivatedRef.current) {
+      // ── Coalescing recovery (hack mode only) ─────────────────────────────
       // Firestore merged ROLL_DICE + SELECT_TOKEN into a single snapshot, so
       // the ROLL_DICE action was never dequeued. friendHackedDiceRef was armed
-      // for that ROLL_DICE but was never consumed. Consume it now to:
-      //   1. Prevent it bleeding into the next turn's ROLL_DICE (wrong dice override).
-      //   2. Pass the hacked diceValue to _applyRemoteAction so the synthesised
-      //      dice animation (the __missedDice path) shows the correct hacked number.
+      // for that ROLL_DICE but was never consumed. Only applies when the secret
+      // key is active in THIS match — the secretKeyActivatedRef.current guard
+      // ensures a stale ref from a previous game session never fires here.
+      // 1. Prevent the ref bleeding into the next turn's ROLL_DICE.
+      // 2. Pass the hacked diceValue so __missedDice animation shows the right number.
       const hv = friendHackedDiceRef.current;
       friendHackedDiceRef.current = null;
       pendingFriendSelectHackRef.current = null;
       action = { ...action, diceValue: hv };
       console.warn('[FDICE_DRAIN] SELECT_TOKEN (coalesced ROLL_DICE) overridden to diceVal=' + hv);
+    } else if (friendHackedDiceRef.current !== null && !secretKeyActivatedRef.current) {
+      // Stale ref from a previous session — clear it silently.
+      friendHackedDiceRef.current = null;
+      pendingFriendSelectHackRef.current = null;
     }
 
     // Always null-out __hackFriendNextDice in the WebView before applying the
