@@ -15,6 +15,7 @@ import { Ionicons, Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/context/ThemeContext';
 import { useAuth } from '@/context/AuthContext';
+import { useNotifications } from '@/context/NotificationContext';
 import {
   subscribeToGameRoom,
   writeGameAction,
@@ -275,6 +276,7 @@ function LudoNativeOverlay({
   const WebView = require('react-native-webview').WebView;
   const { resolvedTheme } = useTheme();
   const { user } = useAuth();
+  const { messageCount } = useNotifications();
   const insets = useSafeAreaInsets();
   const isDark = resolvedTheme === 'dark';
   const webViewRef = useRef<any>(null);
@@ -1094,6 +1096,9 @@ function LudoNativeOverlay({
               <Text style={styles.toolBtnBadgeText}>{spectators.length}</Text>
             </View>
           )}
+          {messageCount > 0 && (
+            <View style={styles.toolBtnNotifDot} />
+          )}
         </TouchableOpacity>
       )}
 
@@ -1141,6 +1146,7 @@ function LudoNativeOverlay({
                 <Text style={styles.toolMenuItemLabel}>Friend Chat</Text>
                 <Text style={styles.toolMenuItemSub}>Chat with players & spectators</Text>
               </View>
+              {messageCount > 0 && <View style={styles.menuItemNotifDot} />}
               <Feather name="chevron-right" size={18} color="rgba(255,255,255,0.4)" />
             </TouchableOpacity>
             <TouchableOpacity
@@ -2614,6 +2620,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Inter_700Bold',
     lineHeight: 13,
+  },
+  toolBtnNotifDot: {
+    position: 'absolute',
+    top: -3,
+    left: -3,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#EF4444',
+    borderWidth: 1.5,
+    borderColor: 'rgba(10,6,22,0.9)',
+  },
+  menuItemNotifDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+    marginRight: 8,
+    alignSelf: 'center',
   },
 
   // ── Watchers panel ────────────────────────────────────────────────────────────

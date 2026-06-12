@@ -148,12 +148,12 @@ export default function HomeScreen() {
         <Text style={[styles.sectionTitle, { color: colors.foreground }]}>Quick Actions</Text>
         <View style={styles.actionsGrid}>
           {[
-            { icon: "camera", label: "Scan QR", sub: "View profile", color: "#06B6D4", route: "/(tabs)/scan" },
-            { icon: "search", label: "Search", sub: "Find users", color: colors.primary, route: "/(tabs)/search" },
-            { icon: "users", label: "Friends", sub: "Your network", color: "#10B981", route: "/friends" },
-            { icon: "message-circle", label: "Messages", sub: "Chats", color: "#F59E0B", route: "/chats" },
-            { icon: "bell", label: "Alerts", sub: "Notifications", color: "#EF4444", route: "/notifications" },
-            { icon: "upload", label: "Upload", sub: "Add content", color: "#8B5CF6", route: "/edit-profile" },
+            { icon: "camera", label: "Scan QR", sub: "View profile", color: "#06B6D4", route: "/(tabs)/scan", badge: false },
+            { icon: "search", label: "Search", sub: "Find users", color: colors.primary, route: "/(tabs)/search", badge: false },
+            { icon: "users", label: "Friends", sub: "Your network", color: "#10B981", route: "/friends", badge: friendCount > 0 },
+            { icon: "message-circle", label: "Messages", sub: "Chats", color: "#F59E0B", route: "/chats", badge: messageCount > 0 },
+            { icon: "bell", label: "Alerts", sub: "Notifications", color: "#EF4444", route: "/notifications", badge: totalCount > 0 },
+            { icon: "upload", label: "Upload", sub: "Add content", color: "#8B5CF6", route: "/edit-profile", badge: false },
           ].map((action) => (
             <TouchableOpacity
               key={action.label}
@@ -171,6 +171,7 @@ export default function HomeScreen() {
                 <Text style={[styles.actionLabel, { color: colors.foreground }]}>{action.label}</Text>
                 <Text style={[styles.actionSub, { color: colors.mutedForeground }]}>{action.sub}</Text>
               </GlassCard>
+              {action.badge && <View style={styles.actionBadgeDot} />}
             </TouchableOpacity>
           ))}
         </View>
@@ -244,8 +245,20 @@ const styles = StyleSheet.create({
   heroBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
   sectionTitle: { fontSize: 17, fontFamily: "Inter_700Bold" },
   actionsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  actionWrap: { width: "30.5%" },
+  actionWrap: { width: "30.5%", position: "relative" },
   actionCard: { gap: 6, alignItems: "flex-start" },
+  actionBadgeDot: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#EF4444",
+    borderWidth: 1.5,
+    borderColor: "#09090B",
+    zIndex: 10,
+  },
   actionIcon: {
     width: 40, height: 40, borderRadius: 12,
     alignItems: "center", justifyContent: "center",
