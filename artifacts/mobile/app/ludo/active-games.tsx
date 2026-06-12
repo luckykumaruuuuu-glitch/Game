@@ -15,7 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
 import { useLudo } from '@/context/LudoContext';
-import { GameRoom, GameRoomPlayer, subscribeToUserActiveRooms, cleanupExpiredRooms } from '@/lib/firestore';
+import { ConfirmModal } from '@/components/ConfirmModal';
+import { GameRoom, GameRoomPlayer, getGameRoom, subscribeToUserActiveRooms, cleanupExpiredRooms } from '@/lib/firestore';
 
 // Must match HUMAN_PREFERRED_POSITIONS in room.tsx and the game HTML bundle
 const HUMAN_PREFERRED_POSITIONS = [2, 0, 1, 3];
@@ -67,6 +68,8 @@ export default function ActiveGamesScreen() {
 
   const [rooms, setRooms] = useState<GameRoom[]>([]);
   const [loading, setLoading] = useState(true);
+  const [roomGoneError, setRoomGoneError] = useState(false);
+  const [checkingRoomId, setCheckingRoomId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -80,8 +83,22 @@ export default function ActiveGamesScreen() {
 
   const topPad = insets.top + (Platform.OS === 'web' ? 0 : 4);
 
-  function handleResume(room: GameRoom) {
+  async function handleResume(room: GameRoom) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    // Guard: verify the room still exists before navigating
+    setCheckingRoomId(room.roomId);
+    try {
+      const freshRoom = await getGameRoom(room.roomId);
+      if (!freshRoom || freshRoom.roomStatus === 'INACTIVE') {
+        setRoomGoneError(true);
+        return;
+      }
+    } catch {
+      // Network error — let the user try navigating; room.tsx will handle further errors
+    } finally {
+      setCheckingRoomId(null);
+    }
 
     // For in_game rooms: skip the waiting room entirely — launch directly into the game
     if (room.status === 'in_game' && Platform.OS !== 'web' && user) {
@@ -228,23 +245,37 @@ export default function ActiveGamesScreen() {
                 {/* ── Action ────────────────────────────────── */}
                 {isInGame ? (
                   <TouchableOpacity
-                    style={[styles.resumeBtn, { backgroundColor: colors.primary }]}
+                    style={[styles.resumeBtn, { backgroundColor: colors.primary, opacity: checkingRoomId === item.roomId ? 0.7 : 1 }]}
                     onPress={() => handleResume(item)}
+                    disabled={checkingRoomId !== null}
                     activeOpacity={0.8}
                   >
-                    <Feather name="play" size={16} color="#fff" />
-                    <Text style={styles.resumeBtnText}>Resume Game</Text>
+                    {checkingRoomId === item.roomId ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <>
+                        <Feather name="play" size={16} color="#fff" />
+                        <Text style={styles.resumeBtnText}>Resume Game</Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                 ) : (
                   <TouchableOpacity
-                    style={[styles.rejoinBtn, { borderColor: colors.border }]}
+                    style={[styles.rejoinBtn, { borderColor: colors.border, opacity: checkingRoomId === item.roomId ? 0.7 : 1 }]}
                     onPress={() => handleResume(item)}
+                    disabled={checkingRoomId !== null}
                     activeOpacity={0.8}
                   >
-                    <Feather name="log-in" size={15} color={colors.foreground} />
-                    <Text style={[styles.rejoinBtnText, { color: colors.foreground }]}>
-                      Return to Room
-                    </Text>
+                    {checkingRoomId === item.roomId ? (
+                      <ActivityIndicator size="small" color={colors.primary} />
+                    ) : (
+                      <>
+                        <Feather name="log-in" size={15} color={colors.foreground} />
+                        <Text style={[styles.rejoinBtnText, { color: colors.foreground }]}>
+                          Return to Room
+                        </Text>
+                      </>
+                    )}
                   </TouchableOpacity>
                 )}
               </View>
@@ -252,6 +283,20 @@ export default function ActiveGamesScreen() {
           }}
         />
       )}
+
+      <ConfirmModal
+        visible={roomGoneError}
+        onClose={() => setRoomGoneError(false)}
+        onConfirm={() => { setRoomGoneError(false); router.replace('/(tabs)' as any); }}
+        title="Room Unavailable"
+        message={"This game room no longer exists. It may have been deleted or expired."}
+        confirmLabel="Go Home"
+        cancelLabel="Close"
+        confirmColor="#7C3AED"
+        iconName="alert-circle"
+        iconColor="#F59E0B"
+        iconBg="rgba(245,158,11,0.12)"
+      />
     </View>
   );
 }

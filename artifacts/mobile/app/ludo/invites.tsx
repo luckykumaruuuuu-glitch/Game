@@ -15,9 +15,11 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '@/context/AuthContext';
 import { useColors } from '@/hooks/useColors';
+import { ConfirmModal } from '@/components/ConfirmModal';
 import {
   GameInvite,
   UserProfile,
+  getGameRoom,
   joinGameRoom,
   respondToGameInvite,
   subscribeToGameInvites,
@@ -51,6 +53,7 @@ export default function InvitesScreen() {
   const [invites, setInvites] = useState<GameInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [responding, setResponding] = useState<Record<string, 'accepting' | 'declining'>>({});
+  const [roomGoneError, setRoomGoneError] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -75,16 +78,26 @@ export default function InvitesScreen() {
       return;
     }
 
-    // ── Accept flow: each step independent ──────────────────
-    // Step 1: Mark invite as accepted (best-effort, don't block navigation)
-    try { await respondToGameInvite(invite.inviteId, true); } catch (e) {
-      console.warn('invite status update failed (non-fatal):', (e as any)?.code || e);
-    }
-
-    // Step 2: Join the room (required)
+    // ── Accept flow ──────────────────────────────────────────
     try {
       if (!invite.roomId) throw new Error('invite has no roomId');
 
+      // Step 1: Verify the room still exists and is joinable
+      const room = await getGameRoom(invite.roomId);
+      if (!room || room.status === 'finished' || room.roomStatus === 'INACTIVE') {
+        // Clean up the stale invite silently
+        respondToGameInvite(invite.inviteId, false).catch(() => {});
+        setRoomGoneError(true);
+        setResponding((prev) => { const next = { ...prev }; delete next[invite.inviteId]; return next; });
+        return;
+      }
+
+      // Step 2: Mark invite as accepted (best-effort, don't block navigation)
+      try { await respondToGameInvite(invite.inviteId, true); } catch (e) {
+        console.warn('invite status update failed (non-fatal):', (e as any)?.code || e);
+      }
+
+      // Step 3: Join the room
       const playerProfile: UserProfile = profile ?? ({
         userId: user.uid,
         name: user.displayName || 'Player',
@@ -98,7 +111,7 @@ export default function InvitesScreen() {
 
       await joinGameRoom(invite.roomId, user.uid, playerProfile);
 
-      // Step 3: Navigate directly to lobby
+      // Step 4: Navigate directly to lobby
       router.push({ pathname: '/ludo/room', params: { id: invite.roomId } } as any);
     } catch (e) {
       console.error('join room error:', (e as any)?.message || e);
@@ -223,6 +236,19 @@ export default function InvitesScreen() {
           }}
         />
       )}
+      <ConfirmModal
+        visible={roomGoneError}
+        onClose={() => setRoomGoneError(false)}
+        onConfirm={() => { setRoomGoneError(false); router.replace('/(tabs)' as any); }}
+        title="Room Unavailable"
+        message={"This room has been closed, deleted, or the game has already ended.\n\nThe invite has been removed."}
+        confirmLabel="Go Home"
+        cancelLabel="Close"
+        confirmColor="#7C3AED"
+        iconName="alert-circle"
+        iconColor="#F59E0B"
+        iconBg="rgba(245,158,11,0.12)"
+      />
     </View>
   );
 }
