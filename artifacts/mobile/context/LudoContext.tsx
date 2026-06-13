@@ -21,6 +21,7 @@ import {
   writeGameAction,
   writeCurrentTurn,
   writeHackActivated,
+  writeForcedDice,
   saveGameState,
   markPlayerExit,
   markPlayerRejoin,
@@ -358,6 +359,9 @@ function LudoNativeOverlay({
   // Carries the hacked value from ROLL_DICE processing to the subsequent
   // SELECT_TOKEN so the token actually moves the hacked distance.
   const pendingFriendSelectHackRef = useRef<number | null>(null);
+  // Forced dice value set FOR ME by an opponent's hack — injected into WebView
+  // before my next roll so my phone also shows and broadcasts the forced value.
+  const myForcedDiceRef = useRef<number | null>(null);
 
   // Monster floating animation
   const monsterPos = useRef(new Animated.ValueXY({ x: 20, y: 300 })).current;
@@ -438,6 +442,7 @@ function LudoNativeOverlay({
       // and would silently corrupt dice values in the next game if left set.
       friendHackedDiceRef.current = null;
       pendingFriendSelectHackRef.current = null;
+      myForcedDiceRef.current = null;
       monsterPos.setValue({ x: 20, y: 300 });
       hackPanelPos.setValue({ x: 16, y: 80 });
       // Clear persisted room-scoped activation so a new match always starts fresh
@@ -744,6 +749,22 @@ function LudoNativeOverlay({
       const playerIdSet = new Set(Object.values(room.players).map(p => (p as GameRoomPlayer).userId));
       const activeHackCount = Object.keys(hackMap).filter(uid => hackMap[uid] && playerIdSet.has(uid)).length;
       setHackActivatedCount(activeHackCount);
+
+      // ── forcedDice: opponent hacked MY next dice — inject into WebView ────────
+      // When an opponent selects a value from FRIEND DICE, they write
+      // forcedDice.{myUID} to Firestore. We pick it up here, pre-arm the
+      // WebView's __hackSetNextDice so the forced value is used on the very
+      // next roll, then clear the Firestore field so it fires only once.
+      const forcedDiceMap = (room as any).forcedDice ?? {};
+      const myForcedVal: number | undefined = forcedDiceMap[mpConfig.userId];
+      if (typeof myForcedVal === 'number' && myForcedDiceRef.current !== myForcedVal) {
+        myForcedDiceRef.current = myForcedVal;
+        const injectJs = `(function(){try{if(typeof window.__hackSetNextDice==='function'){window.__hackSetNextDice(${myForcedVal});}}catch(e){}})();true;`;
+        webViewRef.current?.injectJavaScript(injectJs);
+        writeForcedDice(mpConfig.roomId, mpConfig.userId, null).catch(() => {});
+      } else if (myForcedVal === undefined && myForcedDiceRef.current !== null) {
+        myForcedDiceRef.current = null;
+      }
 
       // ── Winner detection (2-player: last player wins) ─────────────────────
       if (room.status === 'finished' && (room as any).winnerId === mpConfig.userId) {
@@ -1409,6 +1430,16 @@ function LudoNativeOverlay({
                       friendHackedDiceRef.current = diceVal;
                       pendingFriendSelectHackRef.current = null;
                       console.warn('[FDICE_BTN] armed diceVal=' + diceVal);
+                      // Write forced dice to Firestore so friend's phone pre-arms
+                      // its WebView before rolling — ensures both devices show
+                      // and broadcast the same forced value.
+                      const _cfg = mpConfigRef.current;
+                      if (_cfg) {
+                        const _friendUID = Object.keys(_cfg.playerIndexMap).find(uid => uid !== _cfg.userId);
+                        if (_friendUID) {
+                          writeForcedDice(_cfg.roomId, _friendUID, diceVal).catch(console.warn);
+                        }
+                      }
                       setFriendHackedSlot(slot.id);
                       setTimeout(() => setFriendHackedSlot(null), 900);
                     }}

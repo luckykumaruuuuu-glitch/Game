@@ -1286,6 +1286,17 @@ export async function writeHackActivated(
   });
 }
 
+export async function writeForcedDice(
+  roomId: string,
+  targetUid: string,
+  diceVal: number | null
+): Promise<void> {
+  await updateDoc(doc(db, "gameRooms", roomId), {
+    [`forcedDice.${targetUid}`]: diceVal !== null ? diceVal : deleteField(),
+    lastActivityAt: Date.now(),
+  });
+}
+
 // ─── Game Chat ────────────────────────────────────────────────────────────────
 
 export interface GameChatMessage {
