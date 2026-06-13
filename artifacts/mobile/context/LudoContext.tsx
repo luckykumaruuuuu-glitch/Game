@@ -234,7 +234,7 @@ const floatMsgStyle = {
   backgroundColor: 'rgba(6,4,18,0.80)',
   borderRadius: 14,
   paddingHorizontal: 11,
-  paddingVertical: 7,
+  paddingVertical: 9,
   borderWidth: 1,
   borderColor: 'rgba(139,92,246,0.30)',
 } as const;
@@ -247,6 +247,7 @@ const floatNameStyle = {
 const floatTextStyle = {
   color: '#FFFFFF',
   fontSize: 13,
+  lineHeight: 20,
   fontFamily: 'Inter_500Medium' as const,
 };
 

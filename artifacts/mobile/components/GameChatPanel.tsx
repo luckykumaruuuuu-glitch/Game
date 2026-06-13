@@ -34,6 +34,11 @@ function fmtTime(ts: number): string {
   return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}`;
 }
 
+const EMOJI_ONLY_RE = /^[\p{Emoji_Presentation}\uFE0F\u200D\u20E3\s]+$/u;
+function isEmojiOnly(text: string): boolean {
+  return text.trim().length > 0 && EMOJI_ONLY_RE.test(text.trim());
+}
+
 function MsgRow({ msg, isMe, isDark }: { msg: GameChatMessage; isMe: boolean; isDark: boolean }) {
   const bubbleBg = isMe ? '#8B5CF6' : isDark ? '#2A2A2A' : '#F3F4F6';
   const textColor = isMe ? '#FFFFFF' : isDark ? '#F9FAFB' : '#111827';
@@ -48,9 +53,15 @@ function MsgRow({ msg, isMe, isDark }: { msg: GameChatMessage; isMe: boolean; is
         {!isMe && (
           <Text style={[s.senderName, { color: metaColor }]}>{msg.senderName}</Text>
         )}
-        <View style={[s.bubbleBox, { backgroundColor: bubbleBg }]}>
-          <Text style={[s.bubbleText, { color: textColor }]}>{msg.text}</Text>
-        </View>
+        {isEmojiOnly(msg.text ?? '') ? (
+          <Text style={[s.emojiBubble, isMe ? s.emojiBubbleRight : s.emojiBubbleLeft]}>
+            {msg.text}
+          </Text>
+        ) : (
+          <View style={[s.bubbleBox, { backgroundColor: bubbleBg }]}>
+            <Text style={[s.bubbleText, { color: textColor }]}>{msg.text}</Text>
+          </View>
+        )}
         <Text style={[s.ts, { color: metaColor }, isMe && s.tsMe]}>{fmtTime(msg.timestamp)}</Text>
       </View>
     </View>
@@ -206,8 +217,11 @@ const s = StyleSheet.create({
   bubble: { maxWidth: '75%' },
   bubbleMe: { alignItems: 'flex-end' },
   senderName: { fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 2, marginLeft: 2 },
-  bubbleBox: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7 },
-  bubbleText: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 },
+  bubbleBox: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10 },
+  bubbleText: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22 },
+  emojiBubble: { fontSize: 36, lineHeight: 46, paddingVertical: 2 },
+  emojiBubbleRight: { textAlign: 'right' as const },
+  emojiBubbleLeft: { textAlign: 'left' as const },
   ts: { fontSize: 10, marginTop: 3, marginLeft: 2, fontFamily: 'Inter_400Regular' },
   tsMe: { textAlign: 'right', marginRight: 2 },
   empty: {

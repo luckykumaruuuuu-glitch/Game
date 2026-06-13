@@ -41,6 +41,11 @@ import {
 } from "@/lib/firestore";
 import { useColors } from "@/hooks/useColors";
 
+const EMOJI_ONLY_RE = /^[\p{Emoji_Presentation}\uFE0F\u200D\u20E3\s]+$/u;
+function isEmojiOnly(text: string): boolean {
+  return text.trim().length > 0 && EMOJI_ONLY_RE.test(text.trim());
+}
+
 export default function ChatScreen() {
   const colors = useColors();
   const { resolvedTheme } = useTheme();
@@ -454,6 +459,11 @@ export default function ChatScreen() {
                       </View>
                     )}
 
+                    {!isDeleted && isEmojiOnly(item.text ?? '') ? (
+                      <Text style={[styles.emojiBubble, mine ? styles.emojiBubbleRight : styles.emojiBubbleLeft]}>
+                        {item.text}
+                      </Text>
+                    ) : (
                     <View
                       style={[
                         styles.bubble,
@@ -487,6 +497,7 @@ export default function ChatScreen() {
                           : item.text}
                       </Text>
                     </View>
+                    )}
                   </View>
                 </TouchableOpacity>
               );
@@ -676,7 +687,10 @@ const styles = StyleSheet.create({
   },
   myBubble: { borderBottomRightRadius: 4 },
   theirBubble: { borderBottomLeftRadius: 4, borderWidth: StyleSheet.hairlineWidth },
-  bubbleText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 20 },
+  bubbleText: { fontSize: 15, fontFamily: "Inter_400Regular", lineHeight: 24 },
+  emojiBubble: { fontSize: 36, lineHeight: 46, paddingVertical: 2 },
+  emojiBubbleRight: { textAlign: 'right' },
+  emojiBubbleLeft: { textAlign: 'left' },
   checkbox: {
     width: 20, height: 20, borderRadius: 10,
     borderWidth: 2,

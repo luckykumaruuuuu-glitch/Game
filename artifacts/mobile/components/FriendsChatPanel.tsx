@@ -56,6 +56,11 @@ interface ActiveConvo {
   otherProfile: UserProfile;
 }
 
+const EMOJI_ONLY_RE = /^[\p{Emoji_Presentation}\uFE0F\u200D\u20E3\s]+$/u;
+function isEmojiOnly(text: string): boolean {
+  return text.trim().length > 0 && EMOJI_ONLY_RE.test(text.trim());
+}
+
 function ConvoList({
   userId, isDark, onOpen,
 }: {
@@ -217,19 +222,27 @@ function ChatView({
             );
           }
 
+          const emojiOnly = !deleted && isEmojiOnly(item.text ?? '');
+
           return (
             <View style={[cv.row, isMe && cv.rowMe]}>
-              <View style={[cv.bubbleBox, { backgroundColor: bubbleBg }]}>
-                <Text
-                  style={[
-                    cv.bubbleText,
-                    { color: deleted ? (isDark ? '#6B7280' : '#9CA3AF') : textColor },
-                    deleted && cv.deleted,
-                  ]}
-                >
-                  {deleted ? 'Message deleted' : item.text}
+              {emojiOnly ? (
+                <Text style={[cv.emojiBubble, isMe ? cv.emojiBubbleRight : cv.emojiBubbleLeft]}>
+                  {item.text}
                 </Text>
-              </View>
+              ) : (
+                <View style={[cv.bubbleBox, { backgroundColor: bubbleBg }]}>
+                  <Text
+                    style={[
+                      cv.bubbleText,
+                      { color: deleted ? (isDark ? '#6B7280' : '#9CA3AF') : textColor },
+                      deleted && cv.deleted,
+                    ]}
+                  >
+                    {deleted ? 'Message deleted' : item.text}
+                  </Text>
+                </View>
+              )}
               <Text style={[cv.ts, { color: subColor }, isMe && cv.tsMe]}>
                 {fmtTime(item.timestamp)}
               </Text>
@@ -386,8 +399,11 @@ const cv = StyleSheet.create({
   list: { padding: 12, paddingBottom: 4, flexGrow: 1 },
   row: { flexDirection: 'row', marginBottom: 10 },
   rowMe: { justifyContent: 'flex-end' },
-  bubbleBox: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7, maxWidth: '75%' },
-  bubbleText: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 },
+  bubbleBox: { borderRadius: 16, paddingHorizontal: 12, paddingVertical: 10, maxWidth: '75%' },
+  bubbleText: { fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22 },
+  emojiBubble: { fontSize: 36, lineHeight: 46, paddingVertical: 2 },
+  emojiBubbleRight: { textAlign: 'right' as const },
+  emojiBubbleLeft: { textAlign: 'left' as const },
   deleted: { fontStyle: 'italic' },
   ts: { fontSize: 10, marginTop: 3, marginHorizontal: 4, alignSelf: 'flex-end', fontFamily: 'Inter_400Regular' },
   tsMe: { textAlign: 'right' },
