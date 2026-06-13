@@ -24,6 +24,7 @@ import { useColors } from '@/hooks/useColors';
 import { useAuth } from '@/context/AuthContext';
 import { useLudo } from '@/context/LudoContext';
 import {
+  GameInvite,
   UserPresence,
   UserProfile,
   getGameRoom,
@@ -32,6 +33,7 @@ import {
   sendGameInvite,
   subscribeToFriends,
   subscribeToFriendsPresence,
+  subscribeToGameInvites,
 } from '@/lib/firestore';
 
 const AMBER = '#F59E0B';
@@ -564,6 +566,20 @@ export default function OnlineFriendScreen() {
   const [sent, setSent] = useState(false);
   const presenceUnsubRef = useRef<(() => void) | null>(null);
 
+  // ── Invite notification ──────────────────────────────────────────────────
+  const [inviteCount, setInviteCount] = useState(0);
+  const [seenInviteCount, setSeenInviteCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsub = subscribeToGameInvites(user.uid, (list: GameInvite[]) => {
+      setInviteCount(list.length);
+    });
+    return unsub;
+  }, [user]);
+
+  const hasUnseenInvites = inviteCount > seenInviteCount;
+
   // ── Room spectator dialog ────────────────────────────────────────────────
   const [showRoomModal, setShowRoomModal] = useState(false);
   const [roomInput, setRoomInput] = useState('');
@@ -687,16 +703,21 @@ export default function OnlineFriendScreen() {
 
         {/* ── Header ─────────────────────────────────────────── */}
         <View style={[styles.header, { paddingTop: topPad }]}>
-          <Pressable
-            style={[styles.backBtn, { backgroundColor: backBtnBg, borderColor: colors.border }]}
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.back(); }}
-            hitSlop={12}
-          >
-            <Ionicons name="chevron-back" size={22} color={colors.foreground} />
-          </Pressable>
-
-          <View style={styles.headerCenter}>
+          {/* Row 1: back button + title */}
+          <View style={styles.headerTopRow}>
+            <Pressable
+              style={[styles.backBtn, { backgroundColor: backBtnBg, borderColor: colors.border }]}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.back(); }}
+              hitSlop={12}
+            >
+              <Ionicons name="chevron-back" size={22} color={colors.foreground} />
+            </Pressable>
             <Text style={[styles.headerTitle, { color: colors.foreground }]} numberOfLines={1}>Online Friends</Text>
+            <View style={{ width: 38 }} />
+          </View>
+
+          {/* Row 2: stats (left) + action tabs (right) */}
+          <View style={styles.headerBottomRow}>
             <View style={styles.statsRow}>
               <View style={[styles.statPill, { backgroundColor: pillBg, borderColor: pillBorder }]}>
                 <Feather name="users" size={9} color={statTextColor} />
@@ -707,44 +728,54 @@ export default function OnlineFriendScreen() {
                 <Text style={[styles.statText, { color: GREEN }]}>{onlineCount} online</Text>
               </View>
             </View>
-          </View>
 
-          <View style={styles.headerActions}>
-            <Pressable
-              style={[styles.actionPill, { borderColor: 'rgba(124,58,237,0.4)',
-                backgroundColor: colors.isDark ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.07)' }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.push('/ludo/active-games' as any); }}
-              hitSlop={8}
-            >
-              <Feather name="activity" size={13} color={PURPLE_LIGHT} />
-              <Text style={[styles.actionPillText, { color: PURPLE_LIGHT }]}>Active</Text>
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                style={[styles.actionPill, { borderColor: 'rgba(124,58,237,0.4)',
+                  backgroundColor: colors.isDark ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.07)' }]}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.push('/ludo/active-games' as any); }}
+                hitSlop={8}
+              >
+                <Feather name="activity" size={13} color={PURPLE_LIGHT} />
+                <Text style={[styles.actionPillText, { color: PURPLE_LIGHT }]}>Active</Text>
+              </Pressable>
 
-            <Pressable
-              style={[styles.actionPill, { borderColor: 'rgba(16,185,129,0.35)',
-                backgroundColor: colors.isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.07)' }]}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); playSound(); router.push('/ludo/invites' as any); }}
-              hitSlop={8}
-            >
-              <Feather name="mail" size={13} color="#34D399" />
-              <Text style={[styles.actionPillText, { color: '#34D399' }]}>Invite</Text>
-            </Pressable>
+              <Pressable
+                style={[styles.actionPill, { borderColor: 'rgba(16,185,129,0.35)',
+                  backgroundColor: colors.isDark ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.07)' }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  playSound();
+                  setSeenInviteCount(inviteCount);
+                  router.push('/ludo/invites' as any);
+                }}
+                hitSlop={8}
+              >
+                <View style={{ position: 'relative' }}>
+                  <Feather name="mail" size={13} color="#34D399" />
+                  {hasUnseenInvites && (
+                    <View style={styles.redDot} />
+                  )}
+                </View>
+                <Text style={[styles.actionPillText, { color: '#34D399' }]}>Invite</Text>
+              </Pressable>
 
-            <Pressable
-              style={[styles.actionPill, { borderColor: 'rgba(245,158,11,0.4)',
-                backgroundColor: colors.isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.07)' }]}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                playSound();
-                setRoomInput('');
-                setRoomError('');
-                setShowRoomModal(true);
-              }}
-              hitSlop={8}
-            >
-              <Feather name="eye" size={13} color={AMBER} />
-              <Text style={[styles.actionPillText, { color: AMBER }]}>Room</Text>
-            </Pressable>
+              <Pressable
+                style={[styles.actionPill, { borderColor: 'rgba(245,158,11,0.4)',
+                  backgroundColor: colors.isDark ? 'rgba(245,158,11,0.1)' : 'rgba(245,158,11,0.07)' }]}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  playSound();
+                  setRoomInput('');
+                  setRoomError('');
+                  setShowRoomModal(true);
+                }}
+                hitSlop={8}
+              >
+                <Feather name="eye" size={13} color={AMBER} />
+                <Text style={[styles.actionPillText, { color: AMBER }]}>Room</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
 
@@ -893,11 +924,20 @@ export default function OnlineFriendScreen() {
 const styles = StyleSheet.create({
   // ── Header ─────────────────────────────────────────────────────────────────
   header: {
+    flexDirection: 'column',
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    gap: 10,
+  },
+  headerTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 20,
-    gap: 10,
+    justifyContent: 'space-between',
+  },
+  headerBottomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   backBtn: {
     width: 38,
@@ -909,11 +949,22 @@ const styles = StyleSheet.create({
   },
   headerCenter: { flex: 1, gap: 5, minWidth: 0 },
   headerTitle: {
-    fontSize: 16,
+    flex: 1,
+    fontSize: 17,
     fontFamily: 'Inter_700Bold',
-    letterSpacing: -0.2,
+    letterSpacing: -0.3,
+    textAlign: 'center',
   },
   statsRow: { flexDirection: 'row', gap: 7 },
+  redDot: {
+    position: 'absolute',
+    top: -3,
+    right: -3,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
   statPill: {
     flexDirection: 'row',
     alignItems: 'center',
