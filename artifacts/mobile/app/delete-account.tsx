@@ -4,6 +4,8 @@ import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -70,6 +72,10 @@ export default function DeleteAccountScreen() {
 
   return (
     <ThemedBackground>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         contentContainerStyle={[
           styles.container,
@@ -224,6 +230,7 @@ export default function DeleteAccountScreen() {
         iconBg={DANGER_RED_BG}
         loading={loading}
       />
+      </KeyboardAvoidingView>
     </ThemedBackground>
   );
 }

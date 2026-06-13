@@ -5,6 +5,8 @@ import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -157,6 +159,10 @@ export default function SearchScreen() {
 
   return (
     <ThemedBackground>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <View style={[styles.container, { paddingTop: insets.top + 16 }]}>
         {/* Header */}
         <View style={styles.header}>
@@ -240,6 +246,7 @@ export default function SearchScreen() {
           />
         )}
       </View>
+      </KeyboardAvoidingView>
     </ThemedBackground>
   );
 }

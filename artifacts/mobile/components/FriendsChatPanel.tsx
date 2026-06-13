@@ -176,7 +176,11 @@ function ChatView({
   }, [text, sending, convo, userId]);
 
   return (
-    <View style={{ flex: 1 }}>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+    >
       <View style={[cv.header, { backgroundColor: headerBg }]}>
         <TouchableOpacity onPress={onBack} hitSlop={12} style={cv.backBtn}>
           <Ionicons name="chevron-back" size={22} color={isDark ? '#FFFFFF' : '#111827'} />
@@ -239,29 +243,27 @@ function ChatView({
         }
       />
 
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <View style={[cv.inputRow, { backgroundColor: headerBg }]}>
-          <TextInput
-            style={[cv.input, { backgroundColor: inputBg, color: titleColor }]}
-            value={text}
-            onChangeText={setText}
-            placeholder="Message…"
-            placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
-            returnKeyType="send"
-            onSubmitEditing={handleSend}
-            maxLength={1000}
-          />
-          <TouchableOpacity
-            style={[cv.sendBtn, { opacity: text.trim() && !sending ? 1 : 0.4 }]}
-            onPress={handleSend}
-            disabled={!text.trim() || sending}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="send" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </View>
+      <View style={[cv.inputRow, { backgroundColor: headerBg }]}>
+        <TextInput
+          style={[cv.input, { backgroundColor: inputBg, color: titleColor }]}
+          value={text}
+          onChangeText={setText}
+          placeholder="Message…"
+          placeholderTextColor={isDark ? '#6B7280' : '#9CA3AF'}
+          returnKeyType="send"
+          onSubmitEditing={handleSend}
+          maxLength={1000}
+        />
+        <TouchableOpacity
+          style={[cv.sendBtn, { opacity: text.trim() && !sending ? 1 : 0.4 }]}
+          onPress={handleSend}
+          disabled={!text.trim() || sending}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="send" size={16} color="#FFFFFF" />
+        </TouchableOpacity>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

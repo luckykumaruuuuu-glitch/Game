@@ -6,6 +6,7 @@ import React, { useRef, useState } from "react";
 import {
   Animated,
   Easing,
+  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -328,6 +329,10 @@ export default function ControlPanelScreen() {
         style={StyleSheet.absoluteFill}
       />
 
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: topPad + 12, paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
@@ -375,6 +380,7 @@ export default function ControlPanelScreen() {
           <Text style={styles.footerText}>Online Multiplayer · Secret Feature Panel v1.0</Text>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

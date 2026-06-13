@@ -5,6 +5,7 @@ import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
+  KeyboardAvoidingView,
   Platform,
   StyleSheet,
   Text,
@@ -142,6 +143,10 @@ export default function SearchTab() {
 
   return (
     <ThemedBackground>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        style={{ flex: 1 }}
+      >
       <View style={[styles.container, { paddingTop: topPad + 16 }]}>
         <Text style={[styles.title, { color: colors.foreground }]}>Find Friends</Text>
         <View style={[styles.bar, { backgroundColor: colors.input, borderColor: colors.border }]}>
@@ -186,6 +191,7 @@ export default function SearchTab() {
           />
         )}
       </View>
+      </KeyboardAvoidingView>
     </ThemedBackground>
   );
 }
