@@ -2553,15 +2553,19 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(139,92,246,0.15)',
   },
   emojiBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.07)',
+    overflow: 'visible',
   },
   emojiBtnText: {
     fontSize: 26,
+    lineHeight: 32,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   chatInputRow: {
     flexDirection: 'row',
