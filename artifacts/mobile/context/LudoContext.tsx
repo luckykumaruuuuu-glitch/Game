@@ -161,20 +161,24 @@ type MoveLogEntry = {
 };
 
 const MP_COLORS = [
-  { name: 'Yellow', emoji: '🟡' },
-  { name: 'Green',  emoji: '🟢' },
-  { name: 'Red',    emoji: '🔴' },
-  { name: 'Blue',   emoji: '🔵' },
+  { name: 'Yellow', emoji: '🟡', hex: '#F59E0B' },
+  { name: 'Green',  emoji: '🟢', hex: '#10B981' },
+  { name: 'Red',    emoji: '🔴', hex: '#EF4444' },
+  { name: 'Blue',   emoji: '🔵', hex: '#3B82F6' },
 ];
 
 const CHAT_EMOJIS = ['😜','😭','❤️','🤔','😅','😁','😍','👌','😎','🥵','🥶','😈'];
 
-type FloatingMsg = {
+type ChatHistoryMsg = {
   id: string;
-  text: string;
+  senderId: string;
   senderName: string;
+  text: string;
   type: 'text' | 'emoji';
+  color: string;
 };
+
+type FloatingMsg = ChatHistoryMsg;
 
 function FloatingChatMessage({ msg, onDone }: { msg: FloatingMsg; onDone: (id: string) => void }) {
   const opacity = useRef(new Animated.Value(0)).current;
@@ -222,9 +226,9 @@ function FloatingChatMessage({ msg, onDone }: { msg: FloatingMsg; onDone: (id: s
     <Animated.View
       style={{ opacity, transform: [{ scale }, { translateY }], marginBottom: 6, maxWidth: 210 }}
     >
-      <View style={floatMsgStyle}>
-        <Text style={floatNameStyle} numberOfLines={1}>{msg.senderName}</Text>
-        <Text style={floatTextStyle}>{msg.text}</Text>
+      <View style={[floatMsgStyle, { borderColor: (msg.color ?? '#F59E0B') + '55' }]}>
+        <Text style={[floatNameStyle, { color: msg.color ?? '#F59E0B' }]} numberOfLines={1}>{msg.senderName}</Text>
+        <Text style={[floatTextStyle, { color: msg.color ? msg.color + 'EE' : '#FFFFFF' }]}>{msg.text}</Text>
       </View>
     </Animated.View>
   );
@@ -326,6 +330,8 @@ function LudoNativeOverlay({
   const [emojiPanelOpen, setEmojiPanelOpen] = useState(false);
   const [chatInput, setChatInput] = useState('');
   const [floatingMsgs, setFloatingMsgs] = useState<FloatingMsg[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatHistoryMsg[]>([]);
+  const chatScrollRef = useRef<ScrollView>(null);
   const lastTextSentRef = useRef(0);
   const lastEmojiSentRef = useRef(0);
 
@@ -668,20 +674,25 @@ function LudoNativeOverlay({
 
   // Subscribe to room live chat when inside an online match
   useEffect(() => {
-    if (!mpConfig) { setFloatingMsgs([]); return; }
+    if (!mpConfig) { setFloatingMsgs([]); setChatHistory([]); return; }
     const startTime = Date.now();
     const unsub = subscribeToRoomMessages(mpConfig.roomId, startTime, (newMsgs) => {
       newMsgs.forEach(msg => {
-        const floating: FloatingMsg = {
+        const pidx = mpConfigRef.current?.playerIndexMap?.[msg.senderId] ?? -1;
+        const color = pidx >= 0 ? (MP_COLORS[pidx]?.hex ?? '#F59E0B') : '#A78BFA';
+        const entry: ChatHistoryMsg = {
           id: `${msg.createdAt}-${msg.senderId}-${Math.random()}`,
+          senderId: msg.senderId,
           text: msg.text,
           senderName: msg.senderName,
           type: msg.type,
+          color,
         };
-        setFloatingMsgs(prev => [...prev.slice(-4), floating]);
+        setChatHistory(prev => [...prev.slice(-49), entry]);
+        setFloatingMsgs(prev => [...prev.slice(-4), entry]);
       });
     });
-    return () => { unsub(); setFloatingMsgs([]); };
+    return () => { unsub(); setFloatingMsgs([]); setChatHistory([]); };
   }, [mpConfig?.roomId]);
 
   // Helper: send text chat message
@@ -1757,6 +1768,34 @@ function LudoNativeOverlay({
                 </View>
               )}
 
+              {/* Message history list */}
+              <ScrollView
+                ref={chatScrollRef}
+                style={styles.chatHistoryScroll}
+                contentContainerStyle={styles.chatHistoryContent}
+                showsVerticalScrollIndicator={false}
+                onContentSizeChange={() => chatScrollRef.current?.scrollToEnd({ animated: true })}
+              >
+                {chatHistory.length === 0 ? (
+                  <Text style={styles.chatEmptyText}>No messages yet — say something! 👋</Text>
+                ) : (
+                  chatHistory.map(m => (
+                    <View key={m.id} style={styles.chatMsgRow}>
+                      <Text style={[styles.chatMsgName, { color: m.color }]} numberOfLines={1}>
+                        {m.senderName}
+                      </Text>
+                      {m.type === 'emoji' ? (
+                        <Text style={styles.chatMsgEmoji}>{m.text}</Text>
+                      ) : (
+                        <View style={[styles.chatMsgBubble, { borderColor: m.color + '40', backgroundColor: m.color + '18' }]}>
+                          <Text style={[styles.chatMsgText, { color: m.color + 'EE' }]}>{m.text}</Text>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
+              </ScrollView>
+
               {/* Message input row */}
               <View style={styles.chatInputRow}>
                 <TouchableOpacity
@@ -2602,6 +2641,47 @@ const styles = StyleSheet.create({
   },
   chatSendBtnDisabled: {
     backgroundColor: 'rgba(139,92,246,0.3)',
+  },
+
+  // ── Chat Message History ───────────────────────────────────────────────────
+  chatHistoryScroll: {
+    maxHeight: 180,
+    minHeight: 60,
+  },
+  chatHistoryContent: {
+    gap: 8,
+    paddingVertical: 4,
+  },
+  chatEmptyText: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 12,
+    fontFamily: 'Inter_400Regular',
+    textAlign: 'center',
+    paddingVertical: 12,
+  },
+  chatMsgRow: {
+    gap: 3,
+  },
+  chatMsgName: {
+    fontSize: 10,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 0.3,
+  },
+  chatMsgBubble: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  chatMsgText: {
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+    lineHeight: 18,
+  },
+  chatMsgEmoji: {
+    fontSize: 24,
+    lineHeight: 30,
   },
 
   // ── Tool button badge ─────────────────────────────────────────────────────────
