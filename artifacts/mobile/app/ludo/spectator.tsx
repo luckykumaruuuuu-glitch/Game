@@ -16,6 +16,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   GameRoom,
   GameRoomPlayer,
+  joinRoomAsSpectator,
   leaveRoomAsSpectator,
   subscribeToGameRoom,
   subscribeToRoomMessages,
@@ -165,6 +166,17 @@ export default function SpectatorScreen() {
   const [loading, setLoading] = useState(true);
   const [webLoaded, setWebLoaded] = useState(false);
   const [floatingMsgs, setFloatingMsgs] = useState<FloatingMsg[]>([]);
+
+  // Register as spectator on mount (idempotent — safe even if already registered by the caller)
+  useEffect(() => {
+    if (!roomId || !user) return;
+    joinRoomAsSpectator(
+      roomId,
+      user.uid,
+      (user as any).displayName || 'Spectator',
+      (user as any).photoURL || undefined
+    ).catch(() => {});
+  }, [roomId, user]);
 
   // Subscribe to room in realtime
   useEffect(() => {

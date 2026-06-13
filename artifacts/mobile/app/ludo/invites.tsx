@@ -21,6 +21,7 @@ import {
   UserProfile,
   getGameRoom,
   joinGameRoom,
+  joinRoomAsSpectator,
   respondToGameInvite,
   subscribeToGameInvites,
 } from '@/lib/firestore';
@@ -97,22 +98,30 @@ export default function InvitesScreen() {
         console.warn('invite status update failed (non-fatal):', (e as any)?.code || e);
       }
 
-      // Step 3: Join the room
-      const playerProfile: UserProfile = profile ?? ({
-        userId: user.uid,
-        name: user.displayName || 'Player',
-        username: (user.email ?? '').split('@')[0] || 'player',
-        photo: (user as any).photoURL || '',
-        bio: '',
-        qrCode: '',
-        email: user.email || '',
-        createdAt: Date.now(),
-      } as UserProfile);
-
-      await joinGameRoom(invite.roomId, user.uid, playerProfile);
-
-      // Step 4: Navigate directly to lobby
-      router.push({ pathname: '/ludo/room', params: { id: invite.roomId } } as any);
+      // Step 3: Join the room — as spectator if game is already in progress,
+      // as a player if the lobby is still open for new players.
+      if (room.status === 'in_game') {
+        await joinRoomAsSpectator(
+          invite.roomId,
+          user.uid,
+          profile?.name || user.displayName || 'Spectator',
+          profile?.photo || (user as any).photoURL || undefined
+        );
+        router.push(`/ludo/spectator?roomId=${invite.roomId}` as any);
+      } else {
+        const playerProfile: UserProfile = profile ?? ({
+          userId: user.uid,
+          name: user.displayName || 'Player',
+          username: (user.email ?? '').split('@')[0] || 'player',
+          photo: (user as any).photoURL || '',
+          bio: '',
+          qrCode: '',
+          email: user.email || '',
+          createdAt: Date.now(),
+        } as UserProfile);
+        await joinGameRoom(invite.roomId, user.uid, playerProfile);
+        router.push({ pathname: '/ludo/room', params: { id: invite.roomId } } as any);
+      }
     } catch (e) {
       console.error('join room error:', (e as any)?.message || e);
     } finally {

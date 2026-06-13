@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 import { useAuth } from '@/context/AuthContext';
 import {
-  UserProfile,
   getGameRoom,
-  joinGameRoom,
+  joinRoomAsSpectator,
   subscribeToRoomStatus,
 } from '@/lib/firestore';
 
@@ -53,7 +52,7 @@ export function RoomInviteCard({ roomId, isMine, isDark }: Props) {
     return () => loop.stop();
   }, [status]);
 
-  async function handleJoin() {
+  async function handleWatch() {
     if (!user || joining) return;
     setJoining(true);
     try {
@@ -62,20 +61,15 @@ export function RoomInviteCard({ roomId, isMine, isDark }: Props) {
         setStatus('offline');
         return;
       }
-      const playerProfile: UserProfile = profile ?? ({
-        userId: user.uid,
-        name: user.displayName || 'Player',
-        username: (user.email ?? '').split('@')[0] || 'player',
-        photo: (user as any).photoURL || '',
-        bio: '',
-        qrCode: '',
-        email: user.email || '',
-        createdAt: Date.now(),
-      } as UserProfile);
-      await joinGameRoom(roomId, user.uid, playerProfile);
-      router.push({ pathname: '/ludo/room', params: { id: roomId } } as any);
+      await joinRoomAsSpectator(
+        roomId,
+        user.uid,
+        profile?.name || user.displayName || 'Spectator',
+        profile?.photo || (user as any).photoURL || undefined
+      );
+      router.push(`/ludo/spectator?roomId=${roomId}` as any);
     } catch (e) {
-      console.error('[RoomInviteCard] join error:', e);
+      console.error('[RoomInviteCard] watch error:', e);
     } finally {
       setJoining(false);
     }
@@ -138,7 +132,7 @@ export function RoomInviteCard({ roomId, isMine, isDark }: Props) {
       {isLive ? (
         <TouchableOpacity
           style={styles.joinBtn}
-          onPress={handleJoin}
+          onPress={handleWatch}
           disabled={joining}
           activeOpacity={0.85}
         >
@@ -146,8 +140,8 @@ export function RoomInviteCard({ roomId, isMine, isDark }: Props) {
             <ActivityIndicator size="small" color="#fff" />
           ) : (
             <>
-              <Feather name="play-circle" size={14} color="#fff" />
-              <Text style={styles.joinBtnText}>Join Room</Text>
+              <Feather name="eye" size={14} color="#fff" />
+              <Text style={styles.joinBtnText}>Watch Live</Text>
             </>
           )}
         </TouchableOpacity>
